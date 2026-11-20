@@ -506,7 +506,7 @@ class PSelectorRoot extends PSelector {
         this.budget = 200; // I arbitrary picked a 1/5 second
         this.raw = o.raw;
         this.cost = 0;
-        this.lastAllowanceTime = 0;
+        this.lastAllowanceTime = performance.now() - 2000;
         this.action = o.action;
     }
     prime(input) {
@@ -575,7 +575,7 @@ class ProceduralFilterer {
         const toUnstyle = this.styledNodes;
         this.styledNodes = new Set();
 
-        let t0 = Date.now();
+        let t0 = performance.now();
 
         for ( const pselector of this.selectors.values() ) {
             const allowance = Math.floor((t0 - pselector.lastAllowanceTime) / 2000);
@@ -586,7 +586,7 @@ class ProceduralFilterer {
             }
             if ( pselector.budget <= 0 ) { continue; }
             const nodes = pselector.exec();
-            const t1 = Date.now();
+            const t1 = performance.now();
             pselector.budget += t0 - t1;
             if ( pselector.budget < -500 ) {
                 console.info('uBO: disabling %s', pselector.raw);
