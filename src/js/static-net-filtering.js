@@ -2988,12 +2988,12 @@ class FilterBucket extends FilterCollection {
 
     static optimizeMatch(idata, fc, min) {
         const isrccollection = filterData[idata+1];
-        const candidates = [];
+        const candidates = new Set();
         this.forEach(idata, iunit => {
             if ( fc.canCoalesce(iunit) === false ) { return; }
-            candidates.push(iunit);
+            candidates.add(iunit);
         });
-        if ( candidates.length < min ) { return 0; }
+        if ( candidates.size < min ) { return 0; }
         const idesbucket = FilterBucket.create();
         const idescollection = filterData[idesbucket+1];
         let coalesced;
@@ -3002,7 +3002,7 @@ class FilterBucket extends FilterCollection {
         for (;;) {
             const iunit = filterData[isrcseq+0];
             const inext = filterData[isrcseq+1];
-            if ( candidates.includes(iunit) ) {
+            if ( candidates.has(iunit) ) {
                 coalesced = fc.coalesce(iunit, coalesced);
                 // move the sequence slot to new bucket
                 filterData[isrcseq+1] = filterData[idescollection+1];
