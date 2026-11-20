@@ -562,12 +562,8 @@ function registerAssetSource(assetKey, newDict) {
         } else if ( Array.isArray(contentURL) === false ) {
             contentURL = currentDict.contentURL = [];
         }
-        let remoteURLCount = 0;
-        for ( let i = 0; i < contentURL.length; i++ ) {
-            if ( reIsExternalPath.test(contentURL[i]) ) {
-                remoteURLCount += 1;
-            }
-        }
+        const remoteURLCount =
+            contentURL.filter(url => reIsExternalPath.test(url)).length;
         currentDict.hasLocalURL = remoteURLCount !== contentURL.length;
         currentDict.hasRemoteURL = remoteURLCount !== 0;
     } else if ( currentDict.contentURL === undefined ) {
