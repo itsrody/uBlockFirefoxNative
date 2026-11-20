@@ -246,13 +246,12 @@ const cacheAPI = (( ) => {
     // Cache API is subject to quota so we will use it only for what is key
     // performance-wise
     const shouldCache = bin => {
-        const out = {};
-        for ( const key of Object.keys(bin) ) {
-            if ( key.startsWith('cache/' ) ) {
-                if ( /^cache\/(compiled|selfie)\//.test(key) === false ) { continue; }
-            }
-            out[key] = bin[key];
-        }
+        const out = Object.fromEntries(
+            Object.entries(bin).filter(([ key ]) =>
+                key.startsWith('cache/') === false ||
+                /^cache\/(compiled|selfie)\//.test(key)
+            )
+        );
         if ( Object.keys(out).length !== 0 ) { return out; }
     };
 
@@ -402,11 +401,11 @@ const memoryStorage = (( ) => {
     // 20240228 Observation: Slows down loading from suspended state in
     // Firefox desktop. Could be different in Firefox for Android.
     const shouldCache = bin => {
-        const out = {};
-        for ( const key of Object.keys(bin) ) {
-            if ( key.startsWith('cache/compiled/') ) { continue; }
-            out[key] = bin[key];
-        }
+        const out = Object.fromEntries(
+            Object.entries(bin).filter(([ key ]) =>
+                key.startsWith('cache/compiled/') === false
+            )
+        );
         if ( Object.keys(out).length !== 0 ) { return out; }
     };
 
