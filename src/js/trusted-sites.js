@@ -66,17 +66,17 @@ export class TrustedSiteParser {
     }
     static fromLines(lines, out) {
         const trustedSites = out ?? new Map([['#',[]]]);
-        for ( const line of lines ) {
+        lines.forEach(line => {
             const result = this.fromLine(line.trim());
-            if ( result === undefined ) { continue; }
+            if ( result === undefined ) { return; }
             const { key, directive } = result;
-            if ( key === '' ) { continue; }
+            if ( key === '' ) { return; }
             const bucket = trustedSites.get(key) ?? [];
             if ( bucket.length === 0 ) {
                 trustedSites.set(key, bucket);
             }
             bucket.push(directive);
-        }
+        });
         return trustedSites;
     }
     static fromLine(line) {
@@ -184,9 +184,9 @@ export class TrustedSiteManager {
     }
     toLines() {
         const out = [];
-        for ( const bucket of this.#map.values() ) {
+        this.#map.forEach(bucket => {
             out.push(...bucket);
-        }
+        });
         return out.sort((a, b) => a.localeCompare(b));
     }
     fromText(text) {
