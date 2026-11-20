@@ -24,58 +24,66 @@ import { hostnameFromURI } from './uri-utils.js';
 
 /******************************************************************************/
 
-function uBO_legacyIsolatedWorldWrapper(details) {
+function uBO_legacyMainWorldWrapper(details) {
 
     (function earlyBailoutCode(){})();
 
-    (function isolatedCode(){})();
+    const { sentinel, mainCode } = details;
+    const pageGlobal = self.wrappedJSObject;
+    let mainCodeRan = false;
+    try {
+        mainCodeRan = Boolean(pageGlobal && pageGlobal[sentinel]);
+    } catch {
+    }
+    // The MAIN world content script may already have executed: avoid running
+    // the scriptlets twice in the same document.
+    if ( mainCodeRan ) { return 0; }
 
-    // Use a page world sentinel to verify that execution was successful
-    if ( details.mainCode ) {
-        const doc = document;
-        const { sentinel } = details;
-        const container = doc.createElement('div');
-        const shadowRoot = container.attachShadow({ mode: 'closed' });
-        try {
-            (doc.head || doc.documentElement).appendChild(container);
-        } catch {
-            return 0;
-        }
-        try {
-            const code = [
-                `self['${sentinel}'] = true;`,
-                details.mainCode,
-            ].join('\n');
-            const script = doc.createElement('script');
-            script.appendChild(doc.createTextNode(code));
-            shadowRoot.append(script);
-        } catch {
-        }
-        if ( self.wrappedJSObject[sentinel] ) {
-            container.remove();
-            delete self.wrappedJSObject[sentinel];
-            return 0;
-        }
-        // https://github.com/uBlockOrigin/uBlock-issues/issues/235
-        //   Fall back to blob injection if execution through direct
-        //   injection failed
-        let url;
-        try {
-            const blob = new self.Blob(
-                [ details.mainCode ],
-                { type: 'text/javascript; charset=utf-8' }
-            );
-            url = self.URL.createObjectURL(blob);
-            const script = doc.createElement('script');
-            script.async = false;
-            script.src = url;
-            shadowRoot.append(script);
-        } catch {
-        }
+    const doc = document;
+    const container = doc.createElement('div');
+    const shadowRoot = container.attachShadow({ mode: 'closed' });
+    try {
+        (doc.head || doc.documentElement).appendChild(container);
+    } catch {
+        return 0;
+    }
+    const code = [
+        `self['${sentinel}'] = true;`,
+        mainCode,
+    ].join('\n');
+    try {
+        const script = doc.createElement('script');
+        script.appendChild(doc.createTextNode(code));
+        shadowRoot.append(script);
+    } catch {
+    }
+    try {
+        mainCodeRan = Boolean(pageGlobal && pageGlobal[sentinel]);
+    } catch {
+    }
+    if ( mainCodeRan ) {
         container.remove();
-        if ( url ) {
-            self.URL.revokeObjectURL(url);
-        }
+        return 0;
+    }
+    // https://github.com/uBlockOrigin/uBlock-issues/issues/235
+    //   Fall back to blob injection if execution through direct
+    //   injection failed
+    let url;
+    try {
+        const blob = new self.Blob(
+            [ code ],
+            { type: 'text/javascript; charset=utf-8' }
+        );
+        url = self.URL.createObjectURL(blob);
+        const script = doc.createElement('script');
+        script.async = false;
+        script.src = url;
+        shadowRoot.append(script);
+    } catch {
+    }
+    container.remove();
+    if ( url ) {
+        self.URL.revokeObjectURL(url);
     }
     return 0;
 }
@@ -83,36 +91,40 @@ function uBO_legacyIsolatedWorldWrapper(details) {
 /******************************************************************************/
 
 function uBO_assembleLegacyCode(details) {
-    const { earlyBailoutCode, isolatedCode, mainCode } = details;
-    if ( Boolean(isolatedCode) === false ) {
-        if ( Boolean(mainCode) === false ) { return; }
-    }
-    let wrapperCode = uBO_legacyIsolatedWorldWrapper.toString();
-    if ( isolatedCode ) {
-        const match = /\(function isolatedCode\(\)\{\}\)\(\);/.exec(wrapperCode);
-        wrapperCode = wrapperCode.slice(0, match.index) +
-            isolatedCode +
-            wrapperCode.slice(match.index + match[0].length);
-    }
+    const { earlyBailoutCode, mainCode } = details;
+    if ( Boolean(mainCode) === false ) { return; }
+    let wrapperCode = uBO_legacyMainWorldWrapper.toString();
     if ( earlyBailoutCode ) {
         const match = /\(function earlyBailoutCode\(\)\{\}\)\(\);/.exec(wrapperCode);
         wrapperCode = wrapperCode.slice(0, match.index) +
             earlyBailoutCode +
             wrapperCode.slice(match.index + match[0].length);
     }
-    return `// ${details.hostname}\n(${wrapperCode})(${JSON.stringify({ sentinel, mainCode })});`;
+    return `// ${details.hostname}\n(${wrapperCode})(${JSON.stringify({ sentinel: mainSentinel, mainCode })});`;
 }
 
 /******************************************************************************/
 
 function uBO_assembleCode(world, contentScriptCode, details) {
     if ( Boolean(contentScriptCode) === false ) { return; }
+    const isMainWorld = world === 'main';
+    const sentinel = isMainWorld ? mainSentinel : isolatedSentinel;
     const code = [
         `// ${details.hostname}`,
         `(function uBO_${world}WorldWrapper() {`,
     ];
     if ( details.earlyBailoutCode ) {
         code.push(details.earlyBailoutCode);
+    }
+    if ( isMainWorld ) {
+        code.push(`if ( self['${sentinel}'] ) { return; }`);
+        code.push(`self['${sentinel}'] = true;`);
+    } else {
+        code.push('try {');
+        code.push('const pageGlobal = self.wrappedJSObject;');
+        code.push(`if ( pageGlobal && pageGlobal['${sentinel}'] ) { return; }`);
+        code.push(`if ( pageGlobal ) { pageGlobal['${sentinel}'] = true; }`);
+        code.push('} catch {}');
     }
     code.push(contentScriptCode);
     code.push('})();');
@@ -124,7 +136,10 @@ function uBO_assembleCode(world, contentScriptCode, details) {
 const CONTENTSCRIPT_DICT_MAX_LOW = 128;
 const CONTENTSCRIPT_DICT_MAX_HIGH = CONTENTSCRIPT_DICT_MAX_LOW +
     (CONTENTSCRIPT_DICT_MAX_LOW >>> 3);
-const sentinel = self.crypto.randomUUID();
+// Per-world sentinels prevent running the same scriptlets twice when both
+// native registration and the current-document fallback injection apply.
+const isolatedSentinel = self.crypto.randomUUID();
+const mainSentinel = self.crypto.randomUUID();
 const contentScriptDict = new Map();
 let getContentScripts;
 
@@ -138,11 +153,14 @@ function prepareContentScript(url, tabId = -1, frameId = 0) {
             ? { topOrigin: frameManager.getTopOrigin(tabId) }
             : undefined
         );
-        entry.manuallyInjectedCode = uBO_assembleLegacyCode(result) ?? null;
-        if ( vAPI.webextFlavor.major >= 128 ) {
-            entry.isolatedCode = uBO_assembleCode('isolated', result.isolatedCode, result);
-            entry.mainCode = uBO_assembleCode('main', result.mainCode, result);
-        }
+        entry.isolatedCode = uBO_assembleCode('isolated', result.isolatedCode, result);
+        entry.mainCode = uBO_assembleCode('main', result.mainCode, result);
+        // The isolated-world code and the main-world fallback are combined so
+        // that a single injection preserves their relative execution order.
+        entry.manuallyInjectedCode = [
+            entry.isolatedCode,
+            uBO_assembleLegacyCode(result),
+        ].filter(Boolean).join('\n') || null;
     } else {
         entry.manuallyInjectedCode = null;
     }
@@ -153,43 +171,16 @@ function prepareContentScript(url, tabId = -1, frameId = 0) {
 function registerContentScript(entry) {
     if ( entry.registered ) { return; }
     entry.registered = true;
+    // The first committed document may already be loading while registration
+    // is in flight: keep the fallback injection armed until that commit.
+    entry.firstCommitPending = true;
     if ( Boolean(entry.manuallyInjectedCode) === false ) { return; }
     const { hostname } = entry;
-    if ( vAPI.webextFlavor.major >= 128 ) {
-        if ( entry.isolatedCode ) {
-            entry.isolatedHandle = browser.contentScripts.register({
-                allFrames: true,
-                js: [ { code: entry.isolatedCode } ],
-                matchOriginAsFallback: true,
-                matches: [ `http://${hostname}/*`, `https://${hostname}/*` ],
-                runAt: 'document_start',
-            }).then(handle => {
-                entry.isolatedHandle = handle;
-            }).catch(( ) => {
-                entry.isolatedHandle = null;
-            });
-            entry.isolatedCode = null;
-        }
-        if ( entry.mainCode ) {
-            entry.mainHandle = browser.contentScripts.register({
-                allFrames: true,
-                js: [ { code: entry.mainCode } ],
-                matchOriginAsFallback: true,
-                matches: [ `http://${hostname}/*`, `https://${hostname}/*` ],
-                runAt: 'document_start',
-                world: 'MAIN',
-            }).then(handle => {
-                entry.mainHandle = handle;
-            }).catch(( ) => {
-                entry.mainHandle = null;
-            });
-            entry.mainCode = null;
-        }
-    } else if ( entry.manuallyInjectedCode ) {
+    if ( entry.isolatedCode ) {
         entry.isolatedHandle = browser.contentScripts.register({
             allFrames: true,
-            js: [ { code: entry.manuallyInjectedCode } ],
-            matchAboutBlank: true,
+            js: [ { code: entry.isolatedCode } ],
+            matchOriginAsFallback: true,
             matches: [ `http://${hostname}/*`, `https://${hostname}/*` ],
             runAt: 'document_start',
         }).then(handle => {
@@ -197,8 +188,23 @@ function registerContentScript(entry) {
         }).catch(( ) => {
             entry.isolatedHandle = null;
         });
+        entry.isolatedCode = null;
     }
-    entry.manuallyInjectedCode = null;
+    if ( entry.mainCode ) {
+        entry.mainHandle = browser.contentScripts.register({
+            allFrames: true,
+            js: [ { code: entry.mainCode } ],
+            matchOriginAsFallback: true,
+            matches: [ `http://${hostname}/*`, `https://${hostname}/*` ],
+            runAt: 'document_start',
+            world: 'MAIN',
+        }).then(handle => {
+            entry.mainHandle = handle;
+        }).catch(( ) => {
+            entry.mainHandle = null;
+        });
+        entry.mainCode = null;
+    }
 }
 
 function unregisterContentScript(hostname) {
@@ -246,7 +252,11 @@ function getEffectiveURL(details) {
 function onBeforeNavigate(details) {
     const url = getEffectiveURL(details);
     if ( frameManager.isHTTP(url) === false ) { return; }
-    prepareContentScript(url, details.tabId, details.frameId);
+    if ( hostnameFromURI(url) === '' ) { return; }
+    const entry = prepareContentScript(url, details.tabId, details.frameId);
+    // Register ahead of the commit so the browser can inject at
+    // document_start in both worlds through native content scripts.
+    registerContentScript(entry);
 }
 
 function onCommitted(details) {
@@ -257,9 +267,13 @@ function onCommitted(details) {
     const { tabId, frameId } = details;
     const entry = contentScriptDict.get(hostname) ??
         prepareContentScript(url, tabId, frameId);
-    if ( entry.registered !== true ) {
+    registerContentScript(entry);
+    if ( entry.firstCommitPending ) {
+        // Registration may not have reached the document which is already
+        // committing. The fallback code checks per-world sentinels, so it is
+        // a no-op when the registered content scripts did run.
         manuallyInject(tabId, frameId, entry);
-        registerContentScript(entry);
+        entry.firstCommitPending = false;
     }
     entry.t = Date.now();
     if ( contentScriptDict.size <= CONTENTSCRIPT_DICT_MAX_HIGH ) { return; }
