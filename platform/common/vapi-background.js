@@ -32,10 +32,6 @@ import webext from './webext.js';
 
 const manifest = browser.runtime.getManifest();
 
-vAPI.cantWebsocket =
-    browser.webRequest.ResourceType instanceof Object === false  ||
-    browser.webRequest.ResourceType.WEBSOCKET !== 'websocket';
-
 // Firefox supports WASM in content scripts.
 vAPI.canWASM = true;
 
@@ -195,9 +191,6 @@ vAPI.browserSettings = (( ) => {
                             value: false,
                             scope: 'regular',
                         });
-                    }
-                    if ( vAPI.prefetching instanceof Function ) {
-                        vAPI.prefetching(enabled);
                     }
                     break;
                 }
@@ -519,18 +512,6 @@ vAPI.Tabs = class {
         if ( tab === null ) { return; }
         if ( vAPI.windows instanceof Object === false ) { return; }
         vAPI.windows.update(tab.windowId, { focused: true });
-    }
-
-    // Defensive normalization for data: URIs whose standard fields contain
-    // whitespace.
-
-    sanitizeURL(url) {
-        if ( url.startsWith('data:') === false ) { return url; }
-        const pos = url.indexOf(',');
-        if ( pos === -1 ) { return url; }
-        const s = url.slice(0, pos);
-        if ( s.search(/\s/) === -1 ) { return url; }
-        return s.replace(/\s+/, '') + url.slice(pos);
     }
 };
 
@@ -1214,13 +1195,6 @@ vAPI.Net = class {
         return false;
     }
 };
-
-/******************************************************************************/
-/******************************************************************************/
-
-vAPI.scriptletsInjector = (( ) => {
-    self.uBO_scriptletsInjected = '';
-}).toString();
 
 /******************************************************************************/
 /******************************************************************************/

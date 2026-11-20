@@ -36,14 +36,6 @@ import { ubologSet } from './console.js';
 
 /******************************************************************************/
 
-// Not all platforms may have properly declared vAPI.webextFlavor.
-
-if ( vAPI.webextFlavor === undefined ) {
-    vAPI.webextFlavor = { major: 0, soup: new Set([ 'ublock' ]) };
-}
-
-/******************************************************************************/
-
 const hiddenSettingsDefault = {
     allowGenericProceduralFilters: false,
     assetFetchTimeout: 30,

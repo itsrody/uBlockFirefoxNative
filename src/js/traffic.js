@@ -1272,34 +1272,10 @@ const strictBlockBypasser = {
 
 /******************************************************************************/
 
-function onResponseStarted(details) {
-    if ( details.tabId === -1 ) { return; }
-    const pageStore = µb.pageStoreFromTabId(details.tabId);
-    if ( pageStore === null ) { return; }
-    if ( pageStore.isTrusted() ) { return; }
-    // To enforce strict-blocking with ipaddress option
-    if ( isGecko ) { return; }
-    if ( details.type !== 'main_frame' ) { return; }
-    const fctxt = µb.filteringContext.fromWebrequestDetails(details);
-    onBeforeRootFrameRequest(fctxt);
-}
-
-onResponseStarted.start = function() {
-    browser.webRequest.onResponseStarted.addListener(onResponseStarted, {
-        types: [ 'main_frame', 'sub_frame' ],
-        urls: [ 'http://*/*', 'https://*/*' ]
-    });
-};
-
-/******************************************************************************/
-
 const requestHeadersManager = {
     requests: new Map(),
     start() {
         const extraInfoSpec = [ 'requestHeaders' ];
-        if ( isGecko !== true ) {
-            extraInfoSpec.push('extraHeaders');
-        }
         browser.webRequest.onSendHeaders.addListener(details => {
             this.requests.set(details.requestId, details.requestHeaders);
         }, {
@@ -1328,11 +1304,6 @@ const requestHeadersManager = {
 
 /******************************************************************************/
 
-// https://github.com/uBlockOrigin/uBlock-issues/issues/2350
-//   Added scriptlet injection attempt at onResponseStarted time as per
-//   https://github.com/AdguardTeam/AdguardBrowserExtension/issues/1029 and
-//   https://github.com/AdguardTeam/AdguardBrowserExtension/blob/9ab85be5/Extension/src/background/webrequest.js#L620
-
 const webRequest = {
     onBeforeRequest,
 
@@ -1347,7 +1318,6 @@ const webRequest = {
             vAPI.net.addListener('onHeadersReceived', onHeadersReceived, {
                 urls: [ 'http://*/*', 'https://*/*' ]
             }, [ 'blocking', 'responseHeaders' ]);
-            onResponseStarted.start();
             requestHeadersManager.start();
             vAPI.defer.once({ sec: µb.hiddenSettings.toolbarWarningTimeout }).then(( ) => {
                 if ( vAPI.net.hasUnprocessedRequest() === false ) { return; }
