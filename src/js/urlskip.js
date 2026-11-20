@@ -76,38 +76,38 @@ export function urlSkip(url, blocked, steps) {
     try {
         let redirectBlocked = false;
         let urlout = url;
-        for ( const step of steps ) {
+        const succeeded = steps.every(step => {
             const urlin = urlout;
             const c0 = step.charCodeAt(0);
             // Extract from hash
             if ( c0 === 0x23 && step === '#' ) { // #
                 const pos = urlin.indexOf('#');
                 urlout = pos !== -1 ? urlin.slice(pos+1) : '';
-                continue;
+                return true;
             }
             // Extract from URL parameter name at position i
             if ( c0 === 0x26 ) { // &
                 const i = (parseInt(step.slice(1)) || 0) - 1;
-                if ( i < 0 ) { return; }
+                if ( i < 0 ) { return false; }
                 const url = new URL(urlin);
-                if ( i >= url.searchParams.size ) { return; }
+                if ( i >= url.searchParams.size ) { return false; }
                 const params = Array.from(url.searchParams.keys());
                 urlout = decodeURIComponent(params[i]);
-                continue;
+                return true;
             }
             // Enforce https
             if ( c0 === 0x2B && step === '+https' ) { // +
                 const s = urlin.replace(/^https?:\/\//, '');
-                if ( /^[\w-]:\/\//.test(s) ) { return; }
+                if ( /^[\w-]:\/\//.test(s) ) { return false; }
                 urlout = `https://${s}`;
-                continue;
+                return true;
             }
             // Decode
             if ( c0 === 0x2D ) { // -
                 // Base64
                 if ( step === '-base64' ) {
                     urlout = self.atob(urlin);
-                    continue;
+                    return true;
                 }
                 // Safe Base64
                 if ( step === '-safebase64' ) {
@@ -117,40 +117,41 @@ export function urlSkip(url, blocked, steps) {
                     }
                     urlout = urlin.replace(/[-_]/g, urlSkip.safeBase64Replacer);
                     urlout = self.atob(urlout);
-                    continue;
+                    return true;
                 }
                 // URI component
                 if ( step === '-uricomponent' ) {
                     urlout = decodeURIComponent(urlin);
-                    continue;
+                    return true;
                 }
                 // Enable skip of blocked requests
                 if ( step === '-blocked' ) {
                     redirectBlocked = true;
-                    continue;
+                    return true;
                 }
             }
             // Regex extraction from first capture group
             if ( c0 === 0x2F ) { // /
                 const re = new RegExp(step.slice(1, -1));
                 const match = re.exec(urlin);
-                if ( match === null ) { return; }
-                if ( match.length <= 1 ) { return; }
+                if ( match === null ) { return false; }
+                if ( match.length <= 1 ) { return false; }
                 urlout = match[1];
-                continue;
+                return true;
             }
             // Extract from URL parameter
             if ( c0 === 0x3F ) { // ?
                 urlout = (new URL(urlin)).searchParams.get(step.slice(1));
-                if ( urlout === null ) { return; }
+                if ( urlout === null ) { return false; }
                 if ( urlout.includes(' ') ) {
                     urlout = urlout.replace(/ /g, '%20');
                 }
-                continue;
+                return true;
             }
             // Unknown directive
-            return;
-        }
+            return false;
+        });
+        if ( succeeded === false ) { return; }
         const urlfinal = new URL(urlout);
         if ( urlfinal.protocol !== 'https:' ) {
             if ( urlfinal.protocol !== 'http:' ) { return; }
