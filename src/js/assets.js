@@ -214,19 +214,16 @@ const getContentURLs = (assetKey, options = {}) => {
 
 /******************************************************************************/
 
-const observers = [];
+let observers = [];
 
 assets.addObserver = function(observer) {
-    if ( observers.indexOf(observer) === -1 ) {
+    if ( observers.includes(observer) === false ) {
         observers.push(observer);
     }
 };
 
 assets.removeObserver = function(observer) {
-    let pos;
-    while ( (pos = observers.indexOf(observer)) !== -1 ) {
-        observers.splice(pos, 1);
-    }
+    observers = observers.filter(item => item !== observer);
 };
 
 const fireNotification = function(topic, details) {
