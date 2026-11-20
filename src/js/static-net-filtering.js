@@ -328,16 +328,53 @@ const $httpHeaders = {
     parsed: new Map(),
 };
 
+// A request commonly goes through several matcher passes (matchRequest,
+// modifier lookups, header matching). Reuse the shared registers when the
+// inputs have not changed instead of re-tokenizing the same URL each time.
+const registerCache = {
+    url: undefined,
+    typeBits: -1,
+    method: -1,
+    hostname: undefined,
+    ipaddress: undefined,
+    docHostname: undefined,
+    tabHostname: undefined,
+};
+
 const resetRegisters = (fctxt, typeBits) => {
+    const method = fctxt.method || 0;
+    const hostname = fctxt.getHostname();
+    const ipaddress = fctxt.getIPAddress();
+    const docHostname = fctxt.getDocHostname();
+    const tabHostname = fctxt.getTabHostname();
+    if (
+        registerCache.url === fctxt.url &&
+        registerCache.typeBits === typeBits &&
+        registerCache.method === method &&
+        registerCache.hostname === hostname &&
+        registerCache.ipaddress === ipaddress &&
+        registerCache.docHostname === docHostname &&
+        registerCache.tabHostname === tabHostname
+    ) {
+        $isBlockImportant = false;
+        return;
+    }
     $requestURL = urlTokenizer.setURL(fctxt.url);
     $requestURLRaw = fctxt.url;
-    $requestHostname = fctxt.getHostname();
-    $requestMethodBit = fctxt.method || 0;
+    $requestHostname = hostname;
+    $requestMethodBit = method;
     $requestTypeValue = (typeBits & TYPE_REALM) >>> TYPE_REALM_OFFSET;
-    $requestAddress = fctxt.getIPAddress();
-    $docHostname = fctxt.getDocHostname();
-    $topHostname = fctxt.getTabHostname();
+    $requestAddress = ipaddress;
+    $docHostname = docHostname;
+    $topHostname = tabHostname;
     $isBlockImportant = false;
+    registerCache.url = fctxt.url;
+    registerCache.typeBits = typeBits;
+    registerCache.method = method;
+    registerCache.hostname = hostname;
+    registerCache.ipaddress = ipaddress;
+    registerCache.docHostname = docHostname;
+    registerCache.tabHostname = tabHostname;
 };
 
 /******************************************************************************/
