@@ -585,6 +585,7 @@ function onHeadersReceived(details) {
     // https://github.com/uBlockOrigin/uBlock-issues/issues/229
     //   Use `no-cache` instead of `no-cache, no-store, must-revalidate`, this
     //   allows Firefox's offline mode to work as expected.
+    // Optional compatibility override; default `unset` keeps built-in behavior.
     if ( modifiedHeaders && isGecko ) {
         const cacheControl = µb.hiddenSettings.cacheControlForFirefox1376932;
         if ( cacheControl !== 'unset' ) {

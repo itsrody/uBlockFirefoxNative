@@ -353,6 +353,7 @@ import µb from './background.js';
             if ( openerDetails[1] === null ) { return; }
             if ( openerDetails[1].url === 'about:newtab' ) { return; }
             // https://github.com/uBlockOrigin/uBlock-issues/issues/2227
+            //   Firefox internal pages still use `chrome:` URLs.
             if ( openerDetails[1].url.startsWith('chrome:') ) { return; }
             popupCandidates.set(
                 tabId,

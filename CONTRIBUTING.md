@@ -13,6 +13,21 @@ in them cover Firefox desktop/Firefox Android API differences.
 
 ---
 
+### Compatibility settings
+
+The following compatibility surfaces are intentionally retained:
+
+- `modifyWebextFlavor` — admin/advanced override for filter-list preparser tokens.
+- `cacheControlForFirefox1376932` — optional override for Firefox's modified-response cache workaround; default `unset`.
+- backup restore migration for old Firefox/Chromium backups.
+- `chrome-extension-scheme` and `chrome:` opener exclusions, because Firefox still uses `chrome:` internal URLs and older stored settings may use the legacy scheme name.
+- Firefox-specific undefined-`fetched` storage guard.
+
+These are compatibility records, not plans to support other browsers. Do not
+remove them without a separate migration review.
+
+---
+
 ### Translations
 
 You can help translate uBO via [Crowdin](https://crowdin.com/project/ublock).

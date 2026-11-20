@@ -133,6 +133,8 @@ cmEditor.on('changes', advancedSettingsChanged);
 
 /******************************************************************************/
 
+// Hidden settings are rendered from the dashboard response, so all
+// compatibility keys defined in background.js remain visible here.
 const renderAdvancedSettings = async function(first) {
     const details = await vAPI.messaging.send('dashboard', {
         what: 'readHiddenSettings',

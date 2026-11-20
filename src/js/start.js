@@ -215,6 +215,7 @@ const onCacheSettingsReady = async (fetched = {}) => {
 
 const onHiddenSettingsReady = async ( ) => {
     // Maybe customize webext flavor
+    // Retained for admins/advanced users: changes filter-list preparser tokens.
     if ( µb.hiddenSettings.modifyWebextFlavor !== 'unset' ) {
         const tokens = µb.hiddenSettings.modifyWebextFlavor.split(/\s+/);
         for ( const token of tokens ) {
@@ -252,6 +253,7 @@ const onHiddenSettingsReady = async ( ) => {
 /******************************************************************************/
 
 const onFirstFetchReady = (fetched, adminExtra) => {
+    // Retained Firefox storage guard for older/unexpected backup shapes.
     // https://github.com/uBlockOrigin/uBlock-issues/issues/507
     //   Firefox-specific: somehow `fetched` is undefined under certain
     //   circumstances even though we asked to load with default values.

@@ -36,6 +36,9 @@ import { ubologSet } from './console.js';
 
 /******************************************************************************/
 
+// Hidden settings are advanced/admin compatibility knobs. See CONTRIBUTING.md
+// for the retained-compatibility record; do not remove without review.
+
 const hiddenSettingsDefault = {
     allowGenericProceduralFilters: false,
     assetFetchTimeout: 30,
@@ -162,6 +165,7 @@ const µBlock = {  // jshint ignore:line
     // https://github.com/chrisaljoudi/uBlock/issues/180
     //   Trusted-site directives need to be loaded once the PSL is available
     trustedSites: new TrustedSiteManager(),
+    // Keep the legacy scheme name: older backups and admin settings may use it.
     defaultTrustedSiteDirectives: [
         'chrome-extension-scheme',
         'moz-extension-scheme',

@@ -1453,6 +1453,7 @@ onBroadcast(msg => {
         binNotEmpty = true;
     }
 
+    // Retained backup/admin migration path for trusted-site directives.
     if (
         Array.isArray(toOverwrite.trustedSiteDirectives) &&
         toOverwrite.trustedSiteDirectives.length !== 0
