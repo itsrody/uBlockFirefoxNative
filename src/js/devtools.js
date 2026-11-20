@@ -94,11 +94,9 @@ function toDNRText(raw) {
             return v.sort();
         }
         if ( v instanceof Object ) {
-            const sorted = {};
-            for ( const kk of Object.keys(v).sort() ) {
-                sorted[kk] = v[kk];
-            }
-            return sorted;
+            return Object.fromEntries(Object.entries(v).sort(([ a ], [ b ]) =>
+                a < b ? -1 : a > b ? 1 : 0
+            ));
         }
         return v;
     };
@@ -166,9 +164,9 @@ function toDNRText(raw) {
     out.push(`+ generichide exclusions (${network.generichideExclusions.length}): ${JSON.stringify(network.generichideExclusions, replacer, 2)}`);
     if ( result.specificCosmetic ) {
         out.push(`+ Cosmetic filters: ${result.specificCosmetic.size}`);
-        for ( const details of result.specificCosmetic ) {
+        result.specificCosmetic.forEach(details => {
             out.push(`    ${JSON.stringify(details)}`);
-        }
+        });
     } else {
         out.push('  Cosmetic filters: 0');
     }
@@ -197,10 +195,10 @@ dom.on('#console-fold', 'click', ( ) => {
     });
     if ( maxUnfolded === -1 ) { return; }
     cmEditor.startOperation();
-    for ( const details of unfolded ) {
-        if ( details.depth !== maxUnfolded ) { continue; }
+    unfolded.forEach(details => {
+        if ( details.depth !== maxUnfolded ) { return; }
         cmEditor.foldCode(details.line, null, 'fold');
-    }
+    });
     cmEditor.endOperation();
 });
 
@@ -219,10 +217,10 @@ dom.on('#console-unfold', 'click', ( ) => {
     });
     if ( minFolded === Number.MAX_SAFE_INTEGER ) { return; }
     cmEditor.startOperation();
-    for ( const details of folded ) {
-        if ( details.depth !== minFolded ) { continue; }
+    folded.forEach(details => {
+        if ( details.depth !== minFolded ) { return; }
         cmEditor.foldCode(details.line, null, 'unfold');
-    }
+    });
     cmEditor.endOperation();
 });
 
