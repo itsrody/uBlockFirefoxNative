@@ -1630,21 +1630,21 @@ const compileDomainOpt = (ctors, iterable, prepend, units) => {
     const entityMisses = [];
     const regexHits = [];
     const regexMisses = [];
-    for ( const s of iterable ) {
+    iterable.forEach(s => {
         const len = s.length;
         const beg = len > 1 && s.charCodeAt(0) === 0x7E /* '~' */ ? 1 : 0;
-        if ( len <= beg ) {  continue; }
+        if ( len <= beg ) { return; }
         if ( s.charCodeAt(beg) === 0x2F /* / */ ) {
-            if ( beg === 0 ) { regexHits.push(s); continue; }
-            regexMisses.push(s.slice(1)); continue;
+            if ( beg === 0 ) { regexHits.push(s); return; }
+            regexMisses.push(s.slice(1)); return;
         }
         if ( s.endsWith('.*') === false ) {
-            if ( beg === 0 ) { hostnameHits.push(s); continue; }
-            hostnameMisses.push(s.slice(1)); continue;
+            if ( beg === 0 ) { hostnameHits.push(s); return; }
+            hostnameMisses.push(s.slice(1)); return;
         }
-        if ( beg === 0 ) { entityHits.push(s); continue; }
-        entityMisses.push(s.slice(1)); continue;
-    }
+        if ( beg === 0 ) { entityHits.push(s); return; }
+        entityMisses.push(s.slice(1));
+    });
     const toTrie = [];
     let trieWhich = 0b00;
     if ( hostnameHits.length > 1 ) {
@@ -1663,15 +1663,11 @@ const compileDomainOpt = (ctors, iterable, prepend, units) => {
             ctors[2].compile(toTrie.sort(), trieWhich)
         );
     }
-    for ( const hn of hostnameHits ) {
-        compiledHit.push(ctors[0].compile(hn));
-    }
-    for ( const hn of entityHits ) {
-        compiledHit.push(ctors[1].compile(hn));
-    }
-    for ( const hn of regexHits ) {
-        compiledHit.push(ctors[3].compile(hn));
-    }
+    compiledHit.push(
+        ...hostnameHits.map(hn => ctors[0].compile(hn)),
+        ...entityHits.map(hn => ctors[1].compile(hn)),
+        ...regexHits.map(hn => ctors[3].compile(hn))
+    );
     if ( compiledHit.length > 1 ) {
         compiledHit[0] = FilterDomainHitAny.compile(compiledHit.slice());
         compiledHit.length = 1;
@@ -1693,15 +1689,11 @@ const compileDomainOpt = (ctors, iterable, prepend, units) => {
             ctors[6].compile(toTrie.sort(), trieWhich)
         );
     }
-    for ( const hn of hostnameMisses ) {
-        compiledMiss.push(ctors[4].compile(hn));
-    }
-    for ( const hn of entityMisses ) {
-        compiledMiss.push(ctors[5].compile(hn));
-    }
-    for ( const hn of regexMisses ) {
-        compiledMiss.push(ctors[7].compile(hn));
-    }
+    compiledMiss.push(
+        ...hostnameMisses.map(hn => ctors[4].compile(hn)),
+        ...entityMisses.map(hn => ctors[5].compile(hn)),
+        ...regexMisses.map(hn => ctors[7].compile(hn))
+    );
     if ( prepend ) {
         if ( compiledHit.length !== 0 ) {
             units.unshift(compiledHit[0]);
