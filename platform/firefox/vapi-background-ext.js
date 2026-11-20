@@ -43,6 +43,43 @@ const skipDNS = proxyInfo =>
 
 /******************************************************************************/
 
+// CNAME handling can revisit the same details object several times: before the
+// DNS lookup, when the record is cached, and after the URL is uncloaked. Keep
+// the URL-derived values with the details object so the hostname and its
+// offsets are parsed once per URL version.
+const requestParseCache = new WeakMap();
+
+const parseRequestURL = details => {
+    const url = details.url;
+    const docURL = details.documentUrl || url;
+    let cached = requestParseCache.get(details);
+    if ( cached !== undefined && cached.url === url && cached.docURL === docURL ) {
+        return cached;
+    }
+    const hostname = hostnameFromNetworkURL(url);
+    const hostnameBeg = hostname === '' ? -1 : url.indexOf(hostname);
+    cached = {
+        url,
+        docURL,
+        hostname,
+        hostnameBeg,
+        hostnameEnd: hostnameBeg + hostname.length,
+        docHostname: undefined,
+    };
+    requestParseCache.set(details, cached);
+    return cached;
+};
+
+const parsedDocHostname = details => {
+    const parsed = parseRequestURL(details);
+    if ( parsed.docHostname === undefined ) {
+        parsed.docHostname = hostnameFromNetworkURL(parsed.docURL);
+    }
+    return parsed.docHostname;
+};
+
+/******************************************************************************/
+
 // Related issues:
 // - https://github.com/gorhill/uBlock/issues/1327
 // - https://github.com/uBlockOrigin/uBlock-issues/issues/128
@@ -172,7 +209,7 @@ vAPI.Net = class extends vAPI.Net {
     }
 
     onBeforeSuspendableRequest(details) {
-        const hn = hostnameFromNetworkURL(details.url);
+        const hn = parseRequestURL(details).hostname;
         const dnsEntry = this.dnsFromCache(hn);
         if ( isResolvedObject(dnsEntry) && dnsEntry.ip ) {
             details.ip = dnsEntry.ip;
@@ -203,7 +240,11 @@ vAPI.Net = class extends vAPI.Net {
         }
         let proceed = false;
         if ( dnsEntry.cname && this.cnameUncloakEnabled ) {
-            const newURL = this.uncloakURL(hn, dnsEntry, details);
+            const newURL = this.uncloakURL(
+                dnsEntry,
+                details,
+                parseRequestURL(details)
+            );
             if ( newURL ) {
                 details.aliasURL = details.url;
                 details.url = newURL;
@@ -296,18 +337,20 @@ vAPI.Net = class extends vAPI.Net {
             if ( this.cnameIgnoreList.test(cn) ) { return; }
         }
         if ( this.cnameIgnoreRootDocument ) {
-            const origin = hostnameFromNetworkURL(details.documentUrl || details.url);
-            if ( hn === origin ) { return; }
+            if ( hn === parsedDocHostname(details) ) { return; }
         }
         return cn;
     }
 
-    uncloakURL(hn, dnsEntry, details) {
-        const hnBeg = details.url.indexOf(hn);
+    uncloakURL(dnsEntry, details, parsed) {
+        if ( parsed === undefined || parsed.url !== details.url ) {
+            parsed = parseRequestURL(details);
+        }
+        const hnBeg = parsed.hostnameBeg;
         if ( hnBeg === -1 ) { return; }
         const oldURL = details.url;
         const newURL = oldURL.slice(0, hnBeg) + dnsEntry.cname;
-        const hnEnd = hnBeg + hn.length;
+        const hnEnd = parsed.hostnameEnd;
         if ( this.cnameReplayFullURL ) {
             return newURL + oldURL.slice(hnEnd);
         }
