@@ -4486,6 +4486,7 @@ const StaticNetFilteringEngine = function() {
 
     this.MAX_TOKEN_LENGTH = MAX_TOKEN_LENGTH;
     this.optimizeTaskId = undefined;
+    this.requestHeaderFilterCount = 0;
     // As long as CategoryCount is reasonably low, we will use an array to
     // store buckets using category bits as index. If ever CategoryCount
     // becomes too large, we can just go back to using a Map.
@@ -4516,6 +4517,7 @@ StaticNetFilteringEngine.prototype.reset = function() {
     this.goodFilters.clear();
     this.badFilters.clear();
     this.unitsToOptimize.length = 0;
+    this.requestHeaderFilterCount = 0;
     this.bitsToBucket.clear();
 
     urlTokenizer.resetKnownTokens();
@@ -4543,8 +4545,28 @@ StaticNetFilteringEngine.prototype.reset = function() {
 
 /******************************************************************************/
 
+// A compiled request-header unit can be wrapped in one or more collection
+// units, so walk the serialized filter data rather than checking only the root.
+const compiledHasRequestHeaderFilter = args => {
+    if ( Array.isArray(args) === false ) { return false; }
+    if ( args[0] === FilterOnRequestHeaders.fid ) { return true; }
+    const fc = filterClasses[args[0]];
+    const isCollection =
+        fc !== undefined &&
+        (args[0] === FilterCollection.fid || fc.prototype instanceof FilterCollection);
+    if ( isCollection === false || Array.isArray(args[1]) === false ) { return false; }
+    for ( const unit of args[1] ) {
+        if ( compiledHasRequestHeaderFilter(unit) ) { return true; }
+    }
+    return false;
+};
+
+/******************************************************************************/
+
 StaticNetFilteringEngine.prototype.freeze = function() {
     const unserialize = CompiledListReader.unserialize;
+
+    let requestHeaderFilterCount = 0;
 
     for ( const line of this.goodFilters ) {
         if ( this.badFilters.has(line) ) {
@@ -4562,6 +4584,10 @@ StaticNetFilteringEngine.prototype.freeze = function() {
 
         const tokenHash = args[1];
         const fdata = args[2];
+
+        if ( compiledHasRequestHeaderFilter(fdata) ) {
+            requestHeaderFilterCount += 1;
+        }
 
         let iunit = bucket.get(tokenHash) || 0;
 
@@ -4625,6 +4651,10 @@ StaticNetFilteringEngine.prototype.freeze = function() {
     this.goodFilters.clear();
     filterArgsToUnit.clear();
 
+    // freeze() is also used after incremental user-filter changes, when only
+    // newly compiled filters are present in goodFilters. Keep prior counts.
+    this.requestHeaderFilterCount += requestHeaderFilterCount;
+
     this.notReady = false;
 
     // Optimizing is not critical for the static network filtering engine to
@@ -4636,6 +4666,37 @@ StaticNetFilteringEngine.prototype.freeze = function() {
         this.optimizeTaskId = undefined;
         this.optimize(30);
     }, 2000);
+};
+
+/******************************************************************************/
+
+// Count request-header filter units in already-compiled buckets. This is used
+// when the engine is restored from a selfie, where goodFilters is unavailable.
+StaticNetFilteringEngine.prototype.countRequestHeaderFilters = function() {
+    let count = 0;
+    const visit = idata => {
+        const fid = filterData[idata];
+        if ( fid === FilterOnRequestHeaders.fid ) {
+            count += 1;
+            return;
+        }
+        const fc = filterClasses[fid];
+        const isCollection =
+            fc !== undefined &&
+            (fid === FilterCollection.fid || fc.prototype instanceof FilterCollection);
+        if ( isCollection === false ) { return; }
+        FilterCollection.forEach(idata, iunit => visit(iunit));
+    };
+    for ( const bucket of this.bitsToBucket.values() ) {
+        for ( const idata of bucket.values() ) {
+            visit(idata);
+        }
+    }
+    return count;
+};
+
+StaticNetFilteringEngine.prototype.hasRequestHeaderFilters = function() {
+    return this.requestHeaderFilterCount !== 0;
 };
 
 /******************************************************************************/
@@ -5232,6 +5293,7 @@ StaticNetFilteringEngine.prototype.fromSelfie = function(selfie) {
     this.acceptedCount = selfie.acceptedCount;
     this.discardedCount = selfie.discardedCount;
     this.bitsToBucket = selfie.bitsToBucket;
+    this.requestHeaderFilterCount = this.countRequestHeaderFilters();
     urlTokenizer.fromSelfie(selfie.urlTokenizer);
 
     // If this point is never reached, it means the internal state is

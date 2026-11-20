@@ -33,6 +33,7 @@ import htmlFilteringEngine from './html-filtering.js';
 import httpheaderFilteringEngine from './httpheader-filtering.js';
 import { isNetworkURI } from './uri-utils.js';
 import logger from './logger.js';
+import { onBroadcast } from './broadcast.js';
 import staticNetFilteringEngine from './static-net-filtering.js';
 import textEncode from './text-encode.js';
 import µb from './background.js';
@@ -1290,35 +1291,56 @@ const strictBlockBypasser = {
 
 /******************************************************************************/
 
+// Capture request headers only while at least one $requestheader filter is
+// compiled. The manager is re-synced whenever filtering behavior changes.
 const requestHeadersManager = {
     requests: new Map(),
+    listening: false,
+    listeners: undefined,
     start() {
-        const extraInfoSpec = [ 'requestHeaders' ];
-        browser.webRequest.onSendHeaders.addListener(details => {
-            this.requests.set(details.requestId, details.requestHeaders);
-        }, {
-            urls: [ 'http://*/*', 'https://*/*' ]
-        }, extraInfoSpec);
-        browser.webRequest.onBeforeRedirect.addListener(details => {
-            this.requests.delete(details.requestId);
-        }, {
-            urls: [ 'http://*/*', 'https://*/*' ]
-        });
-        browser.webRequest.onCompleted.addListener(details => {
-            this.requests.delete(details.requestId);
-        }, {
-            urls: [ 'http://*/*', 'https://*/*' ]
-        });
-        browser.webRequest.onErrorOccurred.addListener(details => {
-            this.requests.delete(details.requestId);
-        }, {
-            urls: [ 'http://*/*', 'https://*/*' ]
-        });
+        this.sync();
+    },
+    sync() {
+        const needed = staticNetFilteringEngine.hasRequestHeaderFilters();
+        if ( needed === this.listening ) { return; }
+        const filter = { urls: [ 'http://*/*', 'https://*/*' ] };
+        if ( needed ) {
+            const onSendHeaders = details => {
+                this.requests.set(details.requestId, details.requestHeaders);
+            };
+            const onDone = details => {
+                this.requests.delete(details.requestId);
+            };
+            browser.webRequest.onSendHeaders.addListener(
+                onSendHeaders,
+                filter,
+                [ 'requestHeaders' ]
+            );
+            browser.webRequest.onBeforeRedirect.addListener(onDone, filter);
+            browser.webRequest.onCompleted.addListener(onDone, filter);
+            browser.webRequest.onErrorOccurred.addListener(onDone, filter);
+            this.listeners = { onSendHeaders, onDone };
+        } else {
+            const { onSendHeaders, onDone } = this.listeners;
+            browser.webRequest.onSendHeaders.removeListener(onSendHeaders);
+            browser.webRequest.onBeforeRedirect.removeListener(onDone);
+            browser.webRequest.onCompleted.removeListener(onDone);
+            browser.webRequest.onErrorOccurred.removeListener(onDone);
+            this.requests.clear();
+            this.listeners = undefined;
+        }
+        this.listening = needed;
     },
     lookup(details) {
         return this.requests.get(details.requestId) || [];
     }
 };
+
+onBroadcast(msg => {
+    if ( msg.what === 'filteringBehaviorChanged' ) {
+        requestHeadersManager.sync();
+    }
+});
 
 /******************************************************************************/
 
