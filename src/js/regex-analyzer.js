@@ -60,9 +60,7 @@ function _isRE2(node) {
         if ( node.flags.NegativeLookBehind === 1 ) { return false; }
     }
     if ( Array.isArray(node.val) ) {
-        for ( const entry of node.val ) {
-            if ( _isRE2(entry) === false ) { return false; }
-        }
+        if ( node.val.every(entry => _isRE2(entry)) === false ) { return false; }
     }
     if ( node.val instanceof Object ) {
         return _isRE2(node.val);
@@ -121,27 +119,23 @@ const reCharCodeClass = /[%0-9A-Za-z]/;
 function tokenizableStrFromNode(node) {
     switch ( node.type ) {
     case 1: /* T_SEQUENCE, 'Sequence' */ {
-        let s = '';
-        for ( let i = 0; i < node.val.length; i++ ) {
-            s += tokenizableStrFromNode(node.val[i]);
-        }
-        return s;
+        return node.val.map(tokenizableStrFromNode).join('');
     }
     case 2: /* T_ALTERNATION, 'Alternation' */
     case 8: /* T_CHARGROUP, 'CharacterGroup' */ {
         if ( node.flags.NegativeMatch ) { return '\x01'; }
         let firstChar = 0;
         let lastChar = 0;
-        for ( let i = 0; i < node.val.length; i++ ) {
-            const s = tokenizableStrFromNode(node.val[i]);
+        node.val.some(val => {
+            const s = tokenizableStrFromNode(val);
             if ( firstChar === 0 && firstCharCodeClass(s) === 1 ) {
                 firstChar = 1;
             }
             if ( lastChar === 0 && lastCharCodeClass(s) === 1 ) {
                 lastChar = 1;
             }
-            if ( firstChar === 1 && lastChar === 1 ) { break; }
-        }
+            return firstChar === 1 && lastChar === 1;
+        });
         return String.fromCharCode(firstChar, lastChar);
     }
     case 4: /* T_GROUP, 'Group' */ {
@@ -189,12 +183,9 @@ function tokenizableStrFromNode(node) {
             : '\x01';
     }
     case 256: /* T_CHARS, 'Characters' */ {
-        for ( let i = 0; i < node.val.length; i++ ) {
-            if ( firstCharCodeClass(node.val[i]) === 1 ) {
-                return '\x01';
-            }
-        }
-        return '\x00';
+        return node.val.some(val => firstCharCodeClass(val) === 1)
+            ? '\x01'
+            : '\x00';
     }
     // Ranges are assumed to always involve token-related characters.
     case 512: /* T_CHARRANGE, 'CharacterRange' */ {
