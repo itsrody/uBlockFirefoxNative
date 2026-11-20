@@ -1069,10 +1069,10 @@ function injectCSP(fctxt, pageStore, responseHeaders) {
     const staticDirectives =
         staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'csp');
     if ( staticDirectives !== undefined ) {
-        for ( const directive of staticDirectives ) {
-            if ( directive.result !== 1 ) { continue; }
-            cspSubsets.push(directive.value);
-        }
+        cspSubsets.push(...staticDirectives
+            .filter(directive => directive.result === 1)
+            .map(directive => directive.value)
+        );
     }
 
     // URL filtering `allow` rules override static filtering.
@@ -1145,10 +1145,10 @@ function injectPP(fctxt, pageStore, responseHeaders) {
     const permissions = [];
     const directives = staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'permissions');
     if ( directives !== undefined ) {
-        for ( const directive of directives ) {
-            if ( directive.result !== 1 ) { continue; }
-            permissions.push(directive.value.replaceAll('|', ', '));
-        }
+        permissions.push(...directives
+            .filter(directive => directive.result === 1)
+            .map(directive => directive.value.replaceAll('|', ', '))
+        );
     }
 
     if ( logger.enabled && directives !== undefined ) {
