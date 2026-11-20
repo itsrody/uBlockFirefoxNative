@@ -44,9 +44,9 @@ export async function broadcastToAll(message) {
         discarded: false,
     });
     const bcmessage = Object.assign({ broadcast: true }, message);
-    for ( const tab of tabs ) {
+    tabs.forEach(tab => {
         webext.tabs.sendMessage(tab.id, bcmessage).catch(( ) => { });
-    }
+    });
 }
 
 /******************************************************************************/
