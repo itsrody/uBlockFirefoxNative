@@ -30,6 +30,9 @@ import { LineIterator } from './text-utils.js';
 import { getTrustedTokens } from './trusted-tokens.js';
 import staticNetFilteringEngine from './static-net-filtering.js';
 
+// Diagnostic converter: translates current filter lists into DNR-shaped rules
+// for devtools inspection. uBlockFox does not apply these rules at runtime.
+
 /******************************************************************************/
 
 const isRegexOrPath = hn => hn.includes('/');

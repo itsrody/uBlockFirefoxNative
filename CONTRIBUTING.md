@@ -11,6 +11,13 @@ The remaining `vAPI` modules are Firefox capability shims used by the shared
 uBO core; they are not a cross-browser abstraction layer. Guards that remain
 in them cover Firefox desktop/Firefox Android API differences.
 
+### Developer tools
+
+The `SNFE: DNR` button in `devtools.html` exports a DNR-shaped ruleset for
+filter-compatibility diagnostics. It is not an MV3 runtime path: uBlockFox
+blocks requests with the MV2 static filtering engines and does not apply DNR
+rules.
+
 ---
 
 ### Compatibility settings

@@ -82,6 +82,8 @@ function log(text) {
 
 /******************************************************************************/
 
+// Formats the diagnostic DNR export produced by SNFE: DNR. The extension does
+// not use DNR rules for runtime filtering.
 function toDNRText(raw) {
     const result = s14e.deserialize(raw);
     if ( typeof result === 'string' ) { return result; }

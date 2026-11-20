@@ -685,6 +685,8 @@ const filterDumpInfo = (idata) => {
     return fc.dumpInfo(idata);
 };
 
+// DNR hooks in this module support the diagnostic converter in
+// static-dnr-filtering.js; they are not part of MV2 runtime filtering.
 const dnrRuleFromCompiled = (args, rule) => {
     const fc = filterClasses[args[0]];
     if ( fc.dnrFromCompiled === undefined ) { return false; }

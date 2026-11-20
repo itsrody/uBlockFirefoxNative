@@ -1890,6 +1890,8 @@ const onMessage = function(request, sender, callback) {
         return;
 
     case 'snfeToDNR': {
+        // Diagnostic export only: build a DNR ruleset for inspection. The MV2
+        // static filtering engines remain the runtime path.
         const listPromises = [];
         const listNames = [];
         for ( const assetKey of µb.selectedFilterLists ) {
