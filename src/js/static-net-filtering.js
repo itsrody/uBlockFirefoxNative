@@ -1507,6 +1507,14 @@ registerFilterClass(FilterMethod);
 // script: 4 => bit 3
 // ...
 
+const typeBitDescriptors = typeValueToTypeName.map((name, i) =>
+    i === 0 ? undefined : { bit: 1 << (i - 1), name }
+).filter(Boolean);
+
+const dnrTypeBitDescriptors = typeValueToDNRTypeName.map((name, i) =>
+    i === 0 || name === '' ? undefined : { bit: 1 << (i - 1), name }
+).filter(Boolean);
+
 class FilterNotType {
     static match(idata) {
         return $requestTypeValue !== 0 &&
@@ -1528,15 +1536,18 @@ class FilterNotType {
         rule.condition = rule.condition || {};
         const rc = rule.condition;
         rc.excludedResourceTypes ??= [];
-        let bits = args[1];
-        for ( let i = 1; bits !== 0 && i < typeValueToDNRTypeName.length; i++ ) {
-            const bit = 1 << (i - 1);
-            if ( (bits & bit) === 0 ) { continue; }
-            bits &= ~bit;
-            const type = typeValueToDNRTypeName[i];
-            if ( Boolean(type) === false ) { continue; }
-            if ( rc.excludedResourceTypes.includes(type) ) { continue; }
-            rc.excludedResourceTypes.push(type);
+        const bits = args[1];
+        if ( bits !== 0 ) {
+            const seen = new Set(rc.excludedResourceTypes);
+            const types = dnrTypeBitDescriptors
+                .filter(descriptor => (bits & descriptor.bit) !== 0)
+                .map(descriptor => descriptor.name)
+                .filter(type => {
+                    if ( seen.has(type) ) { return false; }
+                    seen.add(type);
+                    return true;
+                });
+            rc.excludedResourceTypes.push(...types);
         }
         if ( rc.excludedResourceTypes.length ) {
             if ( rc.resourceTypes?.includes('main_frame') ) {
@@ -1552,12 +1563,12 @@ class FilterNotType {
     }
 
     static logData(idata, details) {
-        let bits = filterData[idata+1];
-        for ( let i = 1; bits !== 0 && i < typeValueToTypeName.length; i++ ) {
-            const bit = 1 << (i - 1);
-            if ( (bits & bit) === 0 ) { continue; }
-            bits &= ~bit;
-            details.options.push(`~${typeValueToTypeName[i]}`);
+        const bits = filterData[idata+1];
+        if ( bits !== 0 ) {
+            details.options.push(...typeBitDescriptors
+                .filter(descriptor => (bits & descriptor.bit) !== 0)
+                .map(descriptor => `~${descriptor.name}`)
+            );
         }
     }
 
