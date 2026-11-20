@@ -138,25 +138,20 @@ function addDetailsToReportURL(id, collapse = false) {
 function renderData(data, depth = 0) {
     const indent = ' '.repeat(depth);
     if ( Array.isArray(data) ) {
-        const out = [];
-        for ( const value of data ) {
-            out.push(renderData(value, depth));
-        }
-        return out.join('\n');
+        return data.map(value => renderData(value, depth)).join('\n');
     }
     if ( typeof data !== 'object' || data === null ) {
         return `${indent}${data}`;
     }
-    const out = [];
-    for ( const [ name, value ] of Object.entries(data) ) {
+    return Object.entries(data).flatMap(([ name, value ]) => {
         if ( typeof value === 'object' && value !== null ) {
-            out.push(`${indent}${name}:`);
-            out.push(renderData(value, depth + 1));
-            continue;
+            return [
+                `${indent}${name}:`,
+                renderData(value, depth + 1),
+            ];
         }
-        out.push(`${indent}${name}: ${value}`);
-    }
-    return out.join('\n');
+        return [ `${indent}${name}: ${value}` ];
+    }).join('\n');
 }
 
 async function showSupportData() {
@@ -170,9 +165,9 @@ async function showSupportData() {
         sensitiveValues.forEach(prop => { redactValue(shownData, prop); });
         sensitiveKeys.forEach(prop => { redactKeys(shownData, prop); });
     }
-    for ( const prop in shownData ) {
+    Object.keys(shownData).forEach(prop => {
         patchEmptiness(shownData, prop);
-    }
+    });
     if ( reportedPage !== null ) {
         shownData.popupPanel = reportedPage.popupPanel;
     }
