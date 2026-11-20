@@ -2379,13 +2379,18 @@ class FilterModifier {
 
     static fromCompiled(args) {
         const idata = filterDataAllocLen(4);
+        const type = args[2];
+        const value = args[3];
         filterData[idata+0] = args[0];          // fid
         filterData[idata+1] = args[1];          // actionBits
-        filterData[idata+2] = args[2];          // type
-        filterData[idata+3] = filterRefAdd({
-            value: args[3],
-            $cache: null,
-        });
+        filterData[idata+2] = type;             // type
+        // Redirect values are parsed when filters are loaded rather than on
+        // the first request which happens to match them.
+        let cache = null;
+        if ( type === MODIFIER_TYPE_REDIRECT || type === MODIFIER_TYPE_REDIRECTRULE ) {
+            cache = sfp.parseRedirectValue(value);
+        }
+        filterData[idata+3] = filterRefAdd({ value, $cache: cache });
         return idata;
     }
 
