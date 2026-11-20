@@ -83,14 +83,12 @@ let cleanEditText = '';
     dom.attr('.CodeMirror-merge-scrolllock', 'title', i18n$('genericMergeViewScrollLock'));
 
     const translate = function() {
-        let elems = qsa$(commitArrowSelector);
-        for ( const elem of elems ) {
+        qsa$(commitArrowSelector).forEach(elem => {
             dom.attr(elem, 'title', i18nCommitStr);
-        }
-        elems = qsa$(revertArrowSelector);
-        for ( const elem of elems ) {
+        });
+        qsa$(revertArrowSelector).forEach(elem => {
             dom.attr(elem, 'title', i18nRevertStr);
-        }
+        });
     };
 
     const mergeGapObserver = new MutationObserver(translate);
@@ -176,9 +174,8 @@ function rulesToDoc(clearHistory) {
     orig.startOperation();
     edit.startOperation();
 
-    for ( const key in thePanes ) {
-        if ( Object.hasOwn(thePanes, key) === false ) { continue; }
-        const doc = thePanes[key].doc;
+    Object.entries(thePanes).forEach(([ key, pane ]) => {
+        const doc = pane.doc;
         const rules = filterRules(key);
         if (
             clearHistory ||
@@ -186,7 +183,7 @@ function rulesToDoc(clearHistory) {
             rules.length === 0
         ) {
             doc.setValue(rules.length !== 0 ? rules.join('\n') + '\n' : '');
-            continue;
+            return;
         }
         // https://github.com/uBlockOrigin/uBlock-issues/issues/593
         //   Ensure the text content always ends with an empty line to avoid
@@ -216,14 +213,13 @@ function rulesToDoc(clearHistory) {
             const beg = doc.posFromIndex(iedit);
             doc.replaceRange('', beg, end);
         }
-    }
+    });
 
     // Mark ellipses as read-only
-    const marks = edit.getAllMarks();
-    for ( const mark of marks ) {
-        if ( mark.uboEllipsis !== true ) { continue; }
+    edit.getAllMarks().forEach(mark => {
+        if ( mark.uboEllipsis !== true ) { return; }
         mark.clear();
-    }
+    });
     if ( presentationState.isCollapsed ) {
         for ( let iline = 0, n = edit.lineCount(); iline < n; iline++ ) {
             if ( edit.getLine(iline) !== '...' ) { continue; }
@@ -261,13 +257,9 @@ function rulesToDoc(clearHistory) {
 function filterRules(key) {
     const filter = qs$('#ruleFilter input').value;
     const rules = thePanes[key].modified;
-    if ( filter === '' ) { return rules; }
-    const out = [];
-    for ( const rule of rules ) {
-        if ( rule.indexOf(filter) === -1 ) { continue; }
-        out.push(rule);
-    }
-    return out;
+    return filter === ''
+        ? rules
+        : rules.filter(rule => rule.indexOf(filter) !== -1);
 }
 
 /******************************************************************************/
@@ -439,14 +431,11 @@ const onPresentationChanged = (( ) => {
     };
 
     const sort = rules => {
-        const slots = [];
-        for ( let i = 0; i < rules.length; i++ ) {
-            slots.push(slotFromRule(rules[i], 1));
-        }
+        const slots = rules.map(rule => slotFromRule(rule, 1));
         slots.sort((a, b) => a.token.localeCompare(b.token));
-        for ( let i = 0; i < rules.length; i++ ) {
-            rules[i] = slots[i].rule;
-        }
+        slots.forEach((slot, i) => {
+            rules[i] = slot.rule;
+        });
     };
 
     const collapse = ( ) => {
@@ -567,7 +556,7 @@ function revertAllHandler() {
     const toAdd = [], toRemove = [];
     const left = mergeView.leftOriginal();
     const edit = mergeView.editor();
-    for ( const chunk of mergeView.leftChunks() ) {
+    mergeView.leftChunks().forEach(chunk => {
         const addedLines = left.getRange(
             { line: chunk.origFrom, ch: 0 },
             { line: chunk.origTo, ch: 0 }
@@ -578,7 +567,7 @@ function revertAllHandler() {
         );
         toAdd.push(addedLines.trim());
         toRemove.push(removedLines.trim());
-    }
+    });
     applyDiff(false, toAdd.join('\n'), toRemove.join('\n'));
 }
 
@@ -588,7 +577,7 @@ function commitAllHandler() {
     const toAdd = [], toRemove = [];
     const left = mergeView.leftOriginal();
     const edit = mergeView.editor();
-    for ( const chunk of mergeView.leftChunks() ) {
+    mergeView.leftChunks().forEach(chunk => {
         const addedLines = edit.getRange(
             { line: chunk.editFrom, ch: 0 },
             { line: chunk.editTo, ch: 0 }
@@ -599,7 +588,7 @@ function commitAllHandler() {
         );
         toAdd.push(addedLines.trim());
         toRemove.push(removedLines.trim());
-    }
+    });
     applyDiff(true, toAdd.join('\n'), toRemove.join('\n'));
 }
 
@@ -612,15 +601,9 @@ function editSaveHandler() {
         onTextChanged(true);
         return;
     }
-    const toAdd = [], toRemove = [];
     const diffs = getDiffer().diff_main(cleanEditText, editText);
-    for ( const diff of diffs ) {
-        if ( diff[0] === 1 ) {
-            toAdd.push(diff[1]);
-        } else if ( diff[0] === -1 ) {
-            toRemove.push(diff[1]);
-        }
-    }
+    const toAdd = diffs.filter(diff => diff[0] === 1).map(diff => diff[1]);
+    const toRemove = diffs.filter(diff => diff[0] === -1).map(diff => diff[1]);
     applyDiff(false, toAdd.join(''), toRemove.join(''));
 }
 
