@@ -504,7 +504,9 @@ function onHeadersReceived(details) {
     const { responseHeaders } = details;
     if ( Array.isArray(responseHeaders) === false ) { return; }
 
-    if ( isRootDoc === false ) {
+    // The header realm also hosts IP-address filters, so use the engine's
+    // full header-realm capability rather than only header-specific filters.
+    if ( isRootDoc === false && staticNetFilteringEngine.hasHeaderRealmFilters() ) {
         const result = pageStore.filterOnHeaders(fctxt,
             isTrusted,
             responseHeaders,

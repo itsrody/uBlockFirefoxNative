@@ -4574,6 +4574,7 @@ const StaticNetFilteringEngine = function() {
     this.optimizeTaskId = undefined;
     this.modifierFilterTypes = new Set();
     this.requestHeaderFilterCount = 0;
+    this.headerRealmFilterCount = 0;
     // As long as CategoryCount is reasonably low, we will use an array to
     // store buckets using category bits as index. If ever CategoryCount
     // becomes too large, we can just go back to using a Map.
@@ -4613,6 +4614,7 @@ StaticNetFilteringEngine.prototype.reset = function() {
     this.unitsToOptimize.length = 0;
     this.modifierFilterTypes.clear();
     this.requestHeaderFilterCount = 0;
+    this.headerRealmFilterCount = 0;
     this.bitsToBucket.clear();
     this.realmBucketCache.clear();
     this.modifierScratch.results.length = 0;
@@ -4687,6 +4689,7 @@ StaticNetFilteringEngine.prototype.freeze = function() {
     const unserialize = CompiledListReader.unserialize;
 
     let requestHeaderFilterCount = 0;
+    let headerRealmFilterCount = 0;
     const modifierTypes = new Set();
 
     for ( const line of this.goodFilters ) {
@@ -4698,6 +4701,9 @@ StaticNetFilteringEngine.prototype.freeze = function() {
         const args = unserialize(line);
 
         const bits = args[0];
+        if ( (bits & HEADERS_REALM) !== 0 ) {
+            headerRealmFilterCount += 1;
+        }
         const bucket = this.bitsToBucket.get(bits) || (new Map());
         if ( bucket.size === 0 ) {
             this.bitsToBucket.set(bits, bucket);
@@ -4783,6 +4789,7 @@ StaticNetFilteringEngine.prototype.freeze = function() {
         this.modifierFilterTypes.add(type);
     }
     this.requestHeaderFilterCount += requestHeaderFilterCount;
+    this.headerRealmFilterCount += headerRealmFilterCount;
 
     this.notReady = false;
 
@@ -4858,6 +4865,25 @@ StaticNetFilteringEngine.prototype.countRequestHeaderFilters = function() {
 
 StaticNetFilteringEngine.prototype.hasRequestHeaderFilters = function() {
     return this.requestHeaderFilterCount !== 0;
+};
+
+/******************************************************************************/
+
+// Count compiled lines placed in the header realm. This includes IP-address
+// filters, which are also evaluated there, not just $requestheader and
+// $responseheader filters.
+StaticNetFilteringEngine.prototype.countHeaderRealmFilters = function() {
+    let count = 0;
+    for ( const bits of this.bitsToBucket.keys() ) {
+        if ( (bits & HEADERS_REALM) !== 0 ) {
+            count += 1;
+        }
+    }
+    return count;
+};
+
+StaticNetFilteringEngine.prototype.hasHeaderRealmFilters = function() {
+    return this.headerRealmFilterCount !== 0;
 };
 
 /******************************************************************************/
@@ -5457,6 +5483,7 @@ StaticNetFilteringEngine.prototype.fromSelfie = function(selfie) {
     this.realmBucketCache.clear();
     this.modifierFilterTypes = this.collectModifierFilterTypes();
     this.requestHeaderFilterCount = this.countRequestHeaderFilters();
+    this.headerRealmFilterCount = this.countHeaderRealmFilters();
     urlTokenizer.fromSelfie(selfie.urlTokenizer);
 
     // If this point is never reached, it means the internal state is
@@ -5838,6 +5865,8 @@ StaticNetFilteringEngine.prototype.matchRequest = function(fctxt, modifiers = 0)
 /******************************************************************************/
 
 StaticNetFilteringEngine.prototype.matchHeaders = function(fctxt, ...headers) {
+    if ( this.notReady || this.hasHeaderRealmFilters() === false ) { return 0; }
+
     const typeBits = getTypeBits(fctxt) || otherTypeBitValue;
     const partyBits = getPartyBits(fctxt);
 
