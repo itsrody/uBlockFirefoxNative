@@ -91,12 +91,12 @@ export const faIconsInit = (( ) => {
         const icons = (root || document).querySelectorAll('.fa-icon');
         if ( icons.length === 0 ) { return; }
         const svgNS = 'http://www.w3.org/2000/svg';
-        for ( const icon of icons ) {
+        icons.forEach(icon => {
             if ( icon.firstChild === null || icon.firstChild.nodeType !== 3 ) {
-                continue;
+                return;
             }
             const name = icon.firstChild.nodeValue.trim();
-            if ( name === '' ) { continue; }
+            if ( name === '' ) { return; }
             const svg = document.createElementNS(svgNS, 'svg');
             svg.classList.add('fa-icon_' + name);
             const details = svgIcons.get(name);
@@ -107,7 +107,7 @@ export const faIconsInit = (( ) => {
                 } else if ( name.startsWith('md-') ) {
                     file = 'material-design';
                 } else {
-                    continue;
+                    return;
                 }
                 const use = document.createElementNS(svgNS, 'use');
                 use.setAttribute('href', `/img/${file}.svg#${name}`);
@@ -124,7 +124,7 @@ export const faIconsInit = (( ) => {
                 badge.className = 'fa-icon-badge';
                 icon.insertBefore(badge, icon.firstChild.nextSibling);
             }
-        }
+        });
     };
 })();
 
