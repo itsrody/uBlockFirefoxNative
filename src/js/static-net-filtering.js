@@ -6025,20 +6025,14 @@ StaticNetFilteringEngine.prototype.filterQuery = function(fctxt, out = []) {
     if ( qpos === -1 ) { return; }
     let hpos = url.indexOf('#', qpos + 1);
     if ( hpos === -1 ) { hpos = url.length; }
-    const params = [];
     const query = url.slice(qpos + 1, hpos);
-    for ( let i = 0; i < query.length; ) {
-        let pos = query.indexOf('&', i);
-        if ( pos === -1 ) { pos = query.length; }
-        const kv = query.slice(i, pos);
-        i = pos + 1;
-        pos = kv.indexOf('=');
-        if ( pos !== -1 ) {
-            params.push(kv.slice(0, pos), kv.slice(pos + 1));
-        } else {
-            params.push(kv, '');
-        }
-    }
+    // Native splitting and flattening preserve raw keys/values, including
+    // empty parameters and empty query strings.
+    const params = query === '' ? [] : query.split('&').flatMap(kv => {
+        const pos = kv.indexOf('=');
+        if ( pos === -1 ) { return [ kv, '' ]; }
+        return [ kv.slice(0, pos), kv.slice(pos + 1) ];
+    });
     const beforeParamCount = params.length;
     for ( const directive of directives ) {
         if ( params.length === 0 ) { break; }
