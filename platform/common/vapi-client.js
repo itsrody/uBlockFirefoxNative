@@ -21,6 +21,9 @@
 */
 
 // For non-background page
+//
+// Client pages run in Firefox, but the messaging wrapper stays generic because
+// it is shared by the dashboard, popup, and content-script entry points.
 
 /******************************************************************************/
 

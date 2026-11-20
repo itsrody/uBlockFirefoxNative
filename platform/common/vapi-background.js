@@ -22,6 +22,10 @@
 
 // For background page
 
+// The vAPI wrappers below are Firefox capability shims for the shared uBO
+// core. Guards cover Firefox desktop/Android API differences, not other
+// browser families.
+
 /******************************************************************************/
 
 import * as frameManager from './vapi-contexts.js';
@@ -165,6 +169,8 @@ if ( webext.storage.local.getBytesInUse instanceof Function ) {
 //   Do not mess up with existing settings if not assigning them stricter
 //   values.
 
+// Firefox desktop and Android expose different privacy API subsets.
+
 vAPI.browserSettings = (( ) => {
     // Firefox exposes `browser.privacy`; keep the guard for API availability.
     const bp = webext.privacy;
@@ -255,6 +261,8 @@ const toTabId = function(tabId) {
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webNavigation
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs
+
+// vAPI.Tabs normalizes Firefox tab and webNavigation behavior for shared code.
 
 vAPI.Tabs = class {
     async executeScript(...args) {
@@ -518,6 +526,8 @@ vAPI.Tabs = class {
 /******************************************************************************/
 /******************************************************************************/
 
+// Firefox for Android does not expose the windows API.
+
 if ( webext.windows instanceof Object ) {
     vAPI.windows = {
         get: async function() {
@@ -552,6 +562,8 @@ if ( webext.windows instanceof Object ) {
 
 /******************************************************************************/
 /******************************************************************************/
+
+// Firefox for Android does not expose browserAction; MV2 desktop uses it.
 
 if ( webext.browserAction instanceof Object ) {
     vAPI.browserAction = {
@@ -988,6 +1000,9 @@ vAPI.messaging = {
 
 /******************************************************************************/
 
+// Base webRequest normalization layer shared with the Firefox-specific
+// subclass in platform/firefox/vapi-background-ext.js.
+
 vAPI.Net = class {
     constructor() {
         this.validTypes = new Set();
@@ -1200,7 +1215,7 @@ vAPI.Net = class {
 /******************************************************************************/
 
 // https://developer.mozilla.org/en-US/Add-ons/WebExtensions/API/contextMenus#Browser_compatibility
-//   Firefox for Android does no support browser.contextMenus.
+//   Firefox for Android does not support browser.contextMenus.
 
 vAPI.contextMenu = webext.menus && {
     _callback: null,
@@ -1353,6 +1368,8 @@ vAPI.localStorage.start();
 /******************************************************************************/
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/sync
+
+// Cloud sync uses Firefox storage.sync; the guard covers Firefox Android.
 
 vAPI.cloud = (( ) => {
     // Firefox exposes `webext.storage.sync`; keep the guard for API availability.

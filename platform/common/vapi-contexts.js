@@ -21,6 +21,8 @@
 
 import webext from './webext.js';
 
+// Tab/frame context tracking on top of Firefox tabs and webNavigation APIs.
+
 /******************************************************************************/
 
 export const tabDict = new Map();

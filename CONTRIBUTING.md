@@ -4,6 +4,15 @@ Please refer to the sections below to find the appropriate destination for your 
 
 ---
 
+### Architecture
+
+This fork targets Firefox 160+ only and keeps the Manifest V2 background page.
+The remaining `vAPI` modules are Firefox capability shims used by the shared
+uBO core; they are not a cross-browser abstraction layer. Guards that remain
+in them cover Firefox desktop/Firefox Android API differences.
+
+---
+
 ### Translations
 
 You can help translate uBO via [Crowdin](https://crowdin.com/project/ublock).

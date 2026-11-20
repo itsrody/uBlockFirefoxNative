@@ -20,6 +20,9 @@
 */
 
 // For background page, auxiliary pages, and content scripts.
+//
+// Bootstrap for Firefox WebExtension contexts. The generic vAPI name does not
+// imply a non-Firefox target.
 
 /******************************************************************************/
 

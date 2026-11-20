@@ -48,7 +48,8 @@ const skipDNS = proxyInfo =>
 // - https://github.com/uBlockOrigin/uBlock-issues/issues/128
 // - https://bugzilla.mozilla.org/show_bug.cgi?id=1503721
 
-// Extend the base class with Firefox-specific request handling.
+// Extend the base class with Firefox-specific CNAME uncloaking, DNS handling,
+// and request-suspension behavior.
 
 vAPI.Net = class extends vAPI.Net {
     constructor() {

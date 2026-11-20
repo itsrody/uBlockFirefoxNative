@@ -19,4 +19,6 @@
     Home: https://github.com/gorhill/uBlock
 */
 
+// Firefox WebExtension API namespace. The alias is kept so shared uBO core
+// modules do not need to know which Firefox API object they are using.
 export default browser;
