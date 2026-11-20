@@ -43,16 +43,13 @@ const relaxBlockingMode = (( ) => {
 
         const hn = hostnameFromURI(normalURL);
         const curProfileBits = µb.blockingModeFromHostname(hn);
-        let newProfileBits;
-        for ( const profile of µb.liveBlockingProfiles ) {
-            if ( (curProfileBits & profile.bits & ~1) !== curProfileBits ) {
-                newProfileBits = profile.bits;
-                break;
-            }
-        }
+        const profile = µb.liveBlockingProfiles.find(profile =>
+            (curProfileBits & profile.bits & ~1) !== curProfileBits
+        );
 
         // TODO: Reset to original blocking profile?
-        if ( newProfileBits === undefined ) { return; }
+        if ( profile === undefined ) { return; }
+        const newProfileBits = profile.bits;
 
         const noReload = (newProfileBits & 0b00000001) === 0;
 
