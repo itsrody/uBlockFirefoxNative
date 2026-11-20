@@ -171,14 +171,12 @@ const NetFilteringResultCache = class {
     }
 
     lookupAllBlocked(hostname) {
-        const result = [];
-        for ( const entry of this.blocked ) {
-            const pos = entry[0].indexOf(' ');
-            if ( entry[0].slice(0, pos) === hostname ) {
-                result[result.length] = entry[0].slice(pos + 1);
-            }
-        }
-        return result;
+        return Array.from(this.blocked).flatMap(([ key ]) => {
+            const pos = key.indexOf(' ');
+            return key.slice(0, pos) === hostname
+                ? [ key.slice(pos + 1) ]
+                : [];
+        });
     }
 
     static factory() {
