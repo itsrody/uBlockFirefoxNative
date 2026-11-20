@@ -770,28 +770,26 @@ async function assetCacheWrite(assetKey, content, options = {}) {
 
 async function assetCacheRemove(pattern, options = {}) {
     const cacheDict = await getAssetCacheRegistry();
-    const removedEntries = [];
-    const removedContent = [];
-    for ( const assetKey in cacheDict ) {
-        if ( pattern instanceof RegExp ) {
-            if ( pattern.test(assetKey) === false ) { continue; }
-        } else if ( typeof pattern === 'string' ) {
-            if ( assetKey !== pattern ) { continue; }
-        }
-        removedEntries.push(assetKey);
-        removedContent.push(`cache/${assetKey}`);
+    const matches = assetKey => {
+        if ( pattern instanceof RegExp ) { return pattern.test(assetKey); }
+        if ( typeof pattern === 'string' ) { return assetKey === pattern; }
+        return true;
+    };
+    const removedEntries = Object.keys(cacheDict).filter(matches);
+    const removedContent = removedEntries.map(assetKey => `cache/${assetKey}`);
+    removedEntries.forEach(assetKey => {
         delete cacheDict[assetKey];
-    }
+    });
     if ( options.janitor && pattern instanceof RegExp ) {
         const re = new RegExp(
             pattern.source.replace(/^\^/, '^cache\\/'),
             pattern.flags
         );
         const keys = await cacheStorage.keys(re);
-        for ( const key of keys ) {
+        keys.forEach(key => {
             removedContent.push(key);
             ubolog(`Removing stray ${key}`);
-        }
+        });
     }
     if ( removedContent.length !== 0 ) {
         await Promise.all([
@@ -799,11 +797,9 @@ async function assetCacheRemove(pattern, options = {}) {
             cacheStorage.set({ assetCacheRegistry }),
         ]);
     }
-    for ( let i = 0; i < removedEntries.length; i++ ) {
-        fireNotification('after-asset-updated', {
-            assetKey: removedEntries[i]
-        });
-    }
+    removedEntries.forEach(assetKey => {
+        fireNotification('after-asset-updated', { assetKey });
+    });
 }
 
 async function assetCacheGetDetails(assetKey) {
