@@ -195,11 +195,10 @@ const onInitialize = function(options) {
         const parser = new DOMParser(),
             parsed = parser.parseFromString(this.responseText, 'text/html'),
             fromParent = parsed.body;
-        while ( fromParent.firstElementChild !== null ) {
-            widget.appendChild(
-                document.adoptNode(fromParent.firstElementChild)
-            );
-        }
+        widget.append(
+            ...Array.from(fromParent.children)
+                .map(child => document.adoptNode(child))
+        );
 
         faIconsInit(widget);
 
