@@ -1959,7 +1959,7 @@ function trustedSuppressNativeMethod(
  * parent context.
  * 
  * Root issue:
- * https://issues.chromium.org/issues/40202434
+ * Embedded contexts can bypass scriptlet patches applied in the parent context.
  * 
  * @param methodPath
  * The method which calls must be intercepted. The arguments

@@ -24,15 +24,6 @@
 // Custom base64 codecs. These codecs are meant to encode/decode typed arrays
 // to/from strings.
 
-// https://github.com/uBlockOrigin/uBlock-issues/issues/461
-//   Provide a fallback encoding for Chromium 59 and less by issuing a plain
-//   JSON string. The fallback can be removed once min supported version is
-//   above 59.
-
-// TODO: rename µBlock.base64 to µBlock.SparseBase64, now that
-//       µBlock.DenseBase64 has been introduced.
-// TODO: Should no longer need to test presence of TextEncoder/TextDecoder.
-
 const valToDigit = new Uint8Array(64);
 const digitToVal = new Uint8Array(128);
 {

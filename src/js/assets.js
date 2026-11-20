@@ -304,9 +304,7 @@ assets.fetch = function(url, options = {}) {
 
     const timeoutTimer = vAPI.defer.create(onTimeout);
 
-    // Be ready for thrown exceptions:
-    // I am pretty sure it used to work, but now using a URL such as
-    // `file:///` on Chromium 40 results in an exception being thrown.
+    // Be ready for thrown exceptions while configuring the XHR.
     try {
         xhr.open('get', url, true);
         xhr.addEventListener('load', onLoadEvent);

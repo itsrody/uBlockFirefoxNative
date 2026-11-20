@@ -48,7 +48,7 @@ const skipDNS = proxyInfo =>
 // - https://github.com/uBlockOrigin/uBlock-issues/issues/128
 // - https://bugzilla.mozilla.org/show_bug.cgi?id=1503721
 
-// Extend base class to normalize as per platform.
+// Extend the base class with Firefox-specific request handling.
 
 vAPI.Net = class extends vAPI.Net {
     constructor() {

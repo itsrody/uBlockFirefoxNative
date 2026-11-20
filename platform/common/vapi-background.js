@@ -96,8 +96,8 @@ vAPI.generateSecret = (size = 1) => {
  * 
  * https://developer.mozilla.org/docs/Mozilla/Add-ons/WebExtensions/API/storage/session
  * 
- * Session (in-memory) storage is promise-based in all browsers, no need for
- * a webext polyfill. However, not all browsers supports it in MV2.
+ * Session (in-memory) storage is promise-based; no webext polyfill is needed.
+ * The fallback below keeps initialization safe if the API is unavailable.
  * 
  * */
 
@@ -151,7 +151,6 @@ vAPI.storage = {
     QUOTA_BYTES: browser.storage.local.QUOTA_BYTES,
 };
 
-// Not all platforms support getBytesInUse
 if ( webext.storage.local.getBytesInUse instanceof Function ) {
     vAPI.storage.getBytesInUse = function(...args) {
         return webext.storage.local.getBytesInUse(...args).catch(reason => {
@@ -171,7 +170,7 @@ if ( webext.storage.local.getBytesInUse instanceof Function ) {
 //   values.
 
 vAPI.browserSettings = (( ) => {
-    // Not all platforms support `browser.privacy`.
+    // Firefox exposes `browser.privacy`; keep the guard for API availability.
     const bp = webext.privacy;
     if ( bp instanceof Object === false ) { return; }
 
@@ -367,11 +366,11 @@ vAPI.Tabs = class {
         // Open in a standalone window
         //
         // https://github.com/uBlockOrigin/uBlock-issues/issues/168#issuecomment-413038191
-        //   Not all platforms support vAPI.windows.
+        //   Firefox for Android may not support vAPI.windows.
         //
-        // For some reasons, some platforms do not honor the left,top
-        // position when specified. I found that further calling
-        // windows.update again with the same position _may_ help.
+        // Some Firefox versions do not honor the left,top position when
+        // specified. Calling windows.update again with the same position
+        // may help.
         //
         // https://github.com/uBlockOrigin/uBlock-issues/issues/2249
         //   Mind that the creation of the popup window might fail.
@@ -522,11 +521,8 @@ vAPI.Tabs = class {
         vAPI.windows.update(tab.windowId, { focused: true });
     }
 
-    // https://forums.lanik.us/viewtopic.php?f=62&t=32826
-    //   Chromium-based browsers: sanitize target URL. I've seen data: URI with
-    //   newline characters in standard fields, possibly as a way of evading
-    //   filters. As per spec, there should be no whitespaces in a data: URI's
-    //   standard fields.
+    // Defensive normalization for data: URIs whose standard fields contain
+    // whitespace.
 
     sanitizeURL(url) {
         if ( url.startsWith('data:') === false ) { return url; }
@@ -622,16 +618,14 @@ if ( webext.browserAction instanceof Object ) {
 /******************************************************************************/
 /******************************************************************************/
 
-// Must read: https://code.google.com/p/chromium/issues/detail?id=410868#c8
-
 // https://github.com/chrisaljoudi/uBlock/issues/19
 // https://github.com/chrisaljoudi/uBlock/issues/207
 // Since we may be called asynchronously, the tab id may not exist
 // anymore, so this ensures it does still exist.
 
 // https://developer.mozilla.org/en-US/Add-ons/WebExtensions/API/browserAction#Browser_compatibility
-//   Firefox for Android does no support browser.browserAction.setIcon().
-//   Performance: use ImageData for platforms supporting it.
+//   Firefox for Android does not support browser.browserAction.setIcon().
+//   Performance: use ImageData where supported.
 
 // https://github.com/uBlockOrigin/uBlock-issues/issues/32
 //   Ensure ImageData for toolbar icon is valid before use.
@@ -701,7 +695,7 @@ if ( webext.browserAction instanceof Object ) {
         }
 
         // Insert the badge text in the title if:
-        // - the platform does not support browserAction.setIcon(); OR
+        // - Firefox for Android does not support browserAction.setIcon(); OR
         // - the rendering of the badge is disabled
         if ( browserAction.setTitle !== undefined ) {
             const title = titleTemplate.replace('{badge}',
@@ -1224,8 +1218,6 @@ vAPI.Net = class {
 /******************************************************************************/
 /******************************************************************************/
 
-// To be defined by platform-specific code.
-
 vAPI.scriptletsInjector = (( ) => {
     self.uBO_scriptletsInjected = '';
 }).toString();
@@ -1272,15 +1264,6 @@ vAPI.commands = browser.commands;
 
 // https://github.com/gorhill/uBlock/issues/531
 //   Storage area dedicated to admin settings. Read-only.
-
-// https://github.com/gorhill/uBlock/commit/43a5ed735b95a575a9339b6e71a1fcb27a99663b#commitcomment-13965030
-// Not all Chromium-based browsers support managed storage. Merely testing or
-// exception handling in this case does NOT work: I don't know why. The
-// extension on Opera ends up in a non-sensical state, whereas vAPI become
-// undefined out of nowhere. So only solution left is to test explicitly for
-// Opera.
-// https://github.com/gorhill/uBlock/issues/900
-// Also, UC Browser: http://www.upsieutoc.com/image/WXuH
 
 // https://github.com/uBlockOrigin/uAssets/discussions/16939
 //   Use a cached version of admin settings, such that there is no blocking
@@ -1398,13 +1381,12 @@ vAPI.localStorage.start();
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/sync
 
 vAPI.cloud = (( ) => {
-    // Not all platforms support `webext.storage.sync`.
+    // Firefox exposes `webext.storage.sync`; keep the guard for API availability.
     if ( webext.storage.sync instanceof Object === false ) { return; }
 
-    // Currently, only Chromium supports the following constants -- these
-    // values will be assumed for platforms which do not define them.
-    // https://developer.mozilla.org/en-US/Add-ons/WebExtensions/API/storage/sync
-    //   > You can store up to 100KB of data using this API
+    // Firefox does not consistently expose these storage.sync constants; use
+    // conservative defaults when they are absent.
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/storage/sync
     const MAX_ITEMS =
         webext.storage.sync.MAX_ITEMS || 512;
     const QUOTA_BYTES =
@@ -1447,9 +1429,7 @@ vAPI.cloud = (( ) => {
     // This is used to find out a rough count of how many chunks exists:
     // We "poll" at specific index in order to get a rough idea of how
     // large is the stored string.
-    // This allows reading a single item with only 2 sync operations -- a
-    // good thing given chrome.storage.sync.MAX_WRITE_OPERATIONS_PER_MINUTE
-    // and chrome.storage.sync.MAX_WRITE_OPERATIONS_PER_HOUR.
+    // This allows reading a single item with only two sync operations.
 
     const getCoarseChunkCount = async function(datakey) {
         const keys = {};
@@ -1496,11 +1476,7 @@ vAPI.cloud = (( ) => {
             ? await encode(item)
             : JSON.stringify(item);
 
-        // Chunkify taking into account QUOTA_BYTES_PER_ITEM:
-        //   https://developer.chrome.com/extensions/storage#property-sync
-        //   "The maximum size (in bytes) of each individual item in sync
-        //   "storage, as measured by the JSON stringification of its value
-        //   "plus its key length."
+        // Chunkify taking into account QUOTA_BYTES_PER_ITEM.
         const bin = {};
         const chunkCount = Math.ceil(encoded.length / maxChunkSize);
         for ( let i = 0; i < chunkCount; i++ ) {

@@ -1122,11 +1122,7 @@ function injectCSP(fctxt, pageStore, responseHeaders) {
     // Use comma to merge CSP directives.
     // Ref.: https://www.w3.org/TR/CSP2/#implementation-considerations
     //
-    // https://github.com/gorhill/uMatrix/issues/967
-    //   Inject a new CSP header rather than modify an existing one, except
-    //   if the current environment does not support merging headers:
-    //   Firefox 58/webext and less can't merge CSP headers, so we will merge
-    //   them here.
+    // Inject a new CSP header rather than modify an existing one.
 
     responseHeaders.push({
         name: 'Content-Security-Policy',

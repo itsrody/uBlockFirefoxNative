@@ -21,10 +21,8 @@
 
 /******************************************************************************/
 
-// https://bugs.chromium.org/p/v8/issues/detail?id=2869
-//   orphanizeString is to work around String.slice() potentially causing
-//   the whole raw filter list to be held in memory just because we cut out
-//   the title as a substring.
+// orphanizeString prevents a substring from retaining the whole raw filter
+// list in memory.
 
 function orphanizeString(s) {
     return structuredClone(s);
