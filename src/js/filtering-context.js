@@ -154,6 +154,10 @@ export const FilteringContext = class {
         this.redirectURL = undefined;
         this.filter = undefined;
         this.is3rdPartyToDocCache = undefined;
+        // SNF-derived caches: `null` means type bits are not computed yet,
+        // `undefined` is a valid cached type-bits result for unknown types.
+        this.snfTypeBits = null;
+        this.snfPartyBits = undefined;
         if ( other instanceof FilteringContext ) {
             return this.fromFilteringContext(other);
         }
@@ -166,6 +170,7 @@ export const FilteringContext = class {
     set type(a) {
         this.itype = typeStrToIntMap[a] || NO_TYPE;
         this.stype = a;
+        this.snfTypeBits = null;
     }
 
     isRootDocument() {
@@ -198,7 +203,8 @@ export const FilteringContext = class {
         this.tabDomain = other.tabDomain;
         this.redirectURL = other.redirectURL;
         this.filter = undefined;
-        this.is3rdPartyToDocCache = undefined;
+        this.snfTypeBits = null;
+        this._invalidateIs3rdPartyToDoc();
         return this;
     }
 
@@ -215,6 +221,7 @@ export const FilteringContext = class {
 
     _invalidateIs3rdPartyToDoc() {
         this.is3rdPartyToDocCache = undefined;
+        this.snfPartyBits = undefined;
     }
 
     setRealm(a) {

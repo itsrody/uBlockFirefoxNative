@@ -111,6 +111,28 @@ const typeNameToTypeValue = {
 
 const otherTypeBitValue = typeNameToTypeValue.other;
 
+// Resolve SNF bit views once per request context. `snfTypeBits === null` means
+// not computed yet; `undefined` is a valid cached result for unknown types.
+const getTypeBits = fctxt => {
+    let typeBits = fctxt.snfTypeBits;
+    if ( typeBits === null ) {
+        typeBits = typeNameToTypeValue[fctxt.type];
+        fctxt.snfTypeBits = typeBits;
+    }
+    return typeBits;
+};
+
+const getPartyBits = fctxt => {
+    let partyBits = fctxt.snfPartyBits;
+    if ( partyBits === undefined ) {
+        partyBits = fctxt.is3rdPartyToDoc()
+            ? THIRDPARTY_REALM
+            : FIRSTPARTY_REALM;
+        fctxt.snfPartyBits = partyBits;
+    }
+    return partyBits;
+};
+
 const bitFromType = type =>
     1 << ((typeNameToTypeValue[type] >>> TYPE_REALM_OFFSET) - 1);
 
@@ -5440,11 +5462,11 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
 ) {
     if ( this.notReady || this.hasModifierFilters(modifierName) === false ) { return; }
 
-    const typeBits = typeNameToTypeValue[fctxt.type] || otherTypeBitValue;
+    const typeBits = getTypeBits(fctxt) || otherTypeBitValue;
     const modifierType = modifierTypeFromName.get(modifierName);
     const modifierBits = modifierBitsFromType.get(modifierType);
 
-    const partyBits = fctxt.is3rdPartyToDoc() ? THIRDPARTY_REALM : FIRSTPARTY_REALM;
+    const partyBits = getPartyBits(fctxt);
 
     const catBits00 = modifierBits;
     const catBits01 = modifierBits | typeBits;
@@ -5742,7 +5764,7 @@ StaticNetFilteringEngine.prototype.realmMatchString = function(
  * @returns {integer} 0=no match, 1=block, 2=allow (exception)
  */
 StaticNetFilteringEngine.prototype.matchRequest = function(fctxt, modifiers = 0) {
-    let typeBits = typeNameToTypeValue[fctxt.type];
+    let typeBits = getTypeBits(fctxt);
     if ( modifiers === 0 ) {
         if ( typeBits === undefined ) {
             typeBits = otherTypeBitValue;
@@ -5755,7 +5777,7 @@ StaticNetFilteringEngine.prototype.matchRequest = function(fctxt, modifiers = 0)
         typeBits |= 0x80000000;
     }
 
-    const partyBits = fctxt.is3rdPartyToDoc() ? THIRDPARTY_REALM : FIRSTPARTY_REALM;
+    const partyBits = getPartyBits(fctxt);
 
     resetRegisters(fctxt, typeBits);
 
@@ -5780,8 +5802,8 @@ StaticNetFilteringEngine.prototype.matchRequest = function(fctxt, modifiers = 0)
 /******************************************************************************/
 
 StaticNetFilteringEngine.prototype.matchHeaders = function(fctxt, ...headers) {
-    const typeBits = typeNameToTypeValue[fctxt.type] || otherTypeBitValue;
-    const partyBits = fctxt.is3rdPartyToDoc() ? THIRDPARTY_REALM : FIRSTPARTY_REALM;
+    const typeBits = getTypeBits(fctxt) || otherTypeBitValue;
+    const partyBits = getPartyBits(fctxt);
 
     resetRegisters(fctxt, typeBits);
 
