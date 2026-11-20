@@ -27,25 +27,27 @@ self.uBlockDashboard = self.uBlockDashboard || {};
 
 /******************************************************************************/
 
+// Preserve the original line splitting: '\n' wins globally, and '\r' is
+// honored only in the tail after the last '\n'.
+const splitLines = value => {
+    const parts = value.split('\n');
+    const tail = parts.pop().split('\r');
+    const lines = parts.map(line => line.trim());
+    lines.push(...tail.map(line => line.trim()));
+    while ( lines.length !== 0 && lines[lines.length - 1] === '' ) {
+        lines.pop();
+    }
+    return lines;
+};
+
 // Helper for client panes:
 //   Remove literal duplicate lines from a set based on another set.
 
 self.uBlockDashboard.mergeNewLines = function(text, newText) {
     // Step 1: build dictionary for existing lines.
     const fromDict = new Map();
-    let lineBeg = 0;
-    let textEnd = text.length;
-    while ( lineBeg < textEnd ) {
-        let lineEnd = text.indexOf('\n', lineBeg);
-        if ( lineEnd === -1 ) {
-            lineEnd = text.indexOf('\r', lineBeg);
-            if ( lineEnd === -1 ) {
-                lineEnd = textEnd;
-            }
-        }
-        const line = text.slice(lineBeg, lineEnd).trim();
-        lineBeg = lineEnd + 1;
-        if ( line.length === 0 ) { continue; }
+    splitLines(text).forEach(line => {
+        if ( line.length === 0 ) { return; }
         const hash = line.slice(0, 8);
         const bucket = fromDict.get(hash);
         if ( bucket === undefined ) {
@@ -55,42 +57,31 @@ self.uBlockDashboard.mergeNewLines = function(text, newText) {
         } else /* if ( Array.isArray(bucket) ) */ {
             bucket.push(line);
         }
-    }
+    });
 
     // Step 2: use above dictionary to filter out duplicate lines.
     const out = [ '' ];
-    lineBeg = 0;
-    textEnd = newText.length;
-    while ( lineBeg < textEnd ) {
-        let lineEnd = newText.indexOf('\n', lineBeg);
-        if ( lineEnd === -1 ) {
-            lineEnd = newText.indexOf('\r', lineBeg);
-            if ( lineEnd === -1 ) {
-                lineEnd = textEnd;
-            }
-        }
-        const line = newText.slice(lineBeg, lineEnd).trim();
-        lineBeg = lineEnd + 1;
+    splitLines(newText).forEach(line => {
         if ( line.length === 0 ) {
             if ( out[out.length - 1] !== '' ) {
                 out.push('');
             }
-            continue;
+            return;
         }
         const bucket = fromDict.get(line.slice(0, 8));
         if ( bucket === undefined ) {
             out.push(line);
-            continue;
+            return;
         }
         if ( typeof bucket === 'string' && line !== bucket ) {
             out.push(line);
-            continue;
+            return;
         }
         if ( bucket.indexOf(line) === -1 ) {
             out.push(line);
-            /* continue; */
+            /* return; */
         }
-    }
+    });
 
     const append = out.join('\n').trim();
     if ( text !== '' && append !== '' ) {
