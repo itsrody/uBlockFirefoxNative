@@ -152,6 +152,7 @@ export const FilteringContext = class {
         this.tabDomain = undefined;
         this.redirectURL = undefined;
         this.filter = undefined;
+        this.is3rdPartyToDocCache = undefined;
     }
 
     get type() {
@@ -193,6 +194,7 @@ export const FilteringContext = class {
         this.tabDomain = other.tabDomain;
         this.redirectURL = other.redirectURL;
         this.filter = undefined;
+        this.is3rdPartyToDocCache = undefined;
         return this;
     }
 
@@ -205,6 +207,10 @@ export const FilteringContext = class {
 
     duplicate() {
         return (new FilteringContext(this));
+    }
+
+    _invalidateIs3rdPartyToDoc() {
+        this.is3rdPartyToDocCache = undefined;
     }
 
     setRealm(a) {
@@ -221,6 +227,7 @@ export const FilteringContext = class {
         if ( a !== this.url ) {
             this.hostname = this.domain = this.ipaddress = undefined;
             this.url = a;
+            this._invalidateIs3rdPartyToDoc();
         }
         return this;
     }
@@ -236,6 +243,7 @@ export const FilteringContext = class {
         if ( a !== this.hostname ) {
             this.domain = undefined;
             this.hostname = a;
+            this._invalidateIs3rdPartyToDoc();
         }
         return this;
     }
@@ -249,6 +257,7 @@ export const FilteringContext = class {
 
     setDomain(a) {
         this.domain = a;
+        this._invalidateIs3rdPartyToDoc();
         return this;
     }
 
@@ -285,6 +294,7 @@ export const FilteringContext = class {
         if ( a !== this.docOrigin ) {
             this.docHostname = this.docDomain = undefined;
             this.docOrigin = a;
+            this._invalidateIs3rdPartyToDoc();
         }
         return this;
     }
@@ -304,6 +314,7 @@ export const FilteringContext = class {
         if ( a !== this.docHostname ) {
             this.docDomain = undefined;
             this.docHostname = a;
+            this._invalidateIs3rdPartyToDoc();
         }
         return this;
     }
@@ -317,22 +328,32 @@ export const FilteringContext = class {
 
     setDocDomain(a) {
         this.docDomain = a;
+        this._invalidateIs3rdPartyToDoc();
         return this;
     }
 
     // The idea is to minimize the amount of work done to figure out whether
     // the resource is 3rd-party to the document.
     is3rdPartyToDoc() {
+        if ( this.is3rdPartyToDocCache !== undefined ) {
+            return this.is3rdPartyToDocCache;
+        }
         let docDomain = this.getDocDomain();
         if ( docDomain === '' ) { docDomain = this.docHostname; }
+        let result;
         if ( this.domain !== undefined && this.domain !== '' ) {
-            return this.domain !== docDomain;
+            result = this.domain !== docDomain;
+        } else {
+            const hostname = this.getHostname();
+            if ( hostname.endsWith(docDomain) === false ) {
+                result = true;
+            } else {
+                const i = hostname.length - docDomain.length;
+                result = i !== 0 && hostname.charCodeAt(i - 1) !== 0x2E /* '.' */;
+            }
         }
-        const hostname = this.getHostname();
-        if ( hostname.endsWith(docDomain) === false ) { return true; }
-        const i = hostname.length - docDomain.length;
-        if ( i === 0 ) { return false; }
-        return hostname.charCodeAt(i - 1) !== 0x2E /* '.' */;
+        this.is3rdPartyToDocCache = result;
+        return result;
     }
 
     setTabId(a) {
@@ -348,6 +369,7 @@ export const FilteringContext = class {
         if ( a !== this.tabOrigin ) {
             this.tabHostname = this.tabDomain = undefined;
             this.tabOrigin = a;
+            this._invalidateIs3rdPartyToDoc();
         }
         return this;
     }
@@ -380,6 +402,7 @@ export const FilteringContext = class {
 
     setTabDomain(a) {
         this.docDomain = a;
+        this._invalidateIs3rdPartyToDoc();
         return this;
     }
 
