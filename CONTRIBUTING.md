@@ -11,6 +11,12 @@ The remaining `vAPI` modules are Firefox capability shims used by the shared
 uBO core; they are not a cross-browser abstraction layer. Guards that remain
 in them cover Firefox desktop/Firefox Android API differences.
 
+### Builds
+
+Use `make firefox` to build the Firefox 160+ XPI. `npm run lint` and
+`npm run benchmark:dataset` are developer helpers only; there are no other
+publish targets.
+
 ### Developer tools
 
 The `SNFE: DNR` button in `devtools.html` exports a DNR-shaped ruleset for

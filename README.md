@@ -113,6 +113,12 @@ For real-world measurements, replace it with your own JSON array or NDJSON file
 where each row has `url`, `frameUrl`, and `cpt`, then set the hidden setting
 `benchmarkDatasetURL` to that path or URL.
 
+## Development notes
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the Firefox-native architecture,
+retained compatibility settings, and diagnostic-only DNR export notes. There is
+only one build target: `make firefox`.
+
 ## Release history
 
 [Releases page][Releases]

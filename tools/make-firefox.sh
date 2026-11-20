@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# This script assumes a linux environment
+# This script assumes a Unix-like environment (Linux or macOS).
 
 set -e
 
-echo "*** uBlock0.firefox: Creating web store package"
+echo "*** uBlock0.firefox: Creating Firefox XPI package"
 
 BLDIR=dist/build
 DES="$BLDIR"/uBlock0.firefox
@@ -19,7 +19,7 @@ echo "*** uBlock0.firefox: Copying firefox-specific files"
 cp platform/firefox/*.json $DES/
 cp platform/firefox/*.js   $DES/js/
 
-# Firefox store-specific
+# Firefox add-on locale alias
 cp -R $DES/_locales/nb     $DES/_locales/no
 
 # Firefox/webext-specific

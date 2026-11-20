@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# This script assumes a linux environment
+# This script assumes a Unix-like environment (Linux or macOS).
 
 set -e
 
