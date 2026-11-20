@@ -24,7 +24,11 @@ import { hostnameFromURI } from './uri-utils.js';
 
 /******************************************************************************/
 
-function uBO_legacyMainWorldWrapper(details) {
+// First-navigation fallback for the MAIN world. Native content-script
+// registration covers later navigations; this path covers a document that is
+// already committing while registration is in flight. Keep it paired with the
+// per-world sentinels in uBO_assembleCode().
+function uBO_mainWorldFallbackWrapper(details) {
 
     (function earlyBailoutCode(){})();
 
@@ -90,10 +94,13 @@ function uBO_legacyMainWorldWrapper(details) {
 
 /******************************************************************************/
 
-function uBO_assembleLegacyCode(details) {
+// Assemble the MAIN-world fallback code used by manuallyInject(). It is
+// combined with the isolated-world code from uBO_assembleCode() so a single
+// injection preserves their relative execution order.
+function uBO_assembleFallbackCode(details) {
     const { earlyBailoutCode, mainCode } = details;
     if ( Boolean(mainCode) === false ) { return; }
-    let wrapperCode = uBO_legacyMainWorldWrapper.toString();
+    let wrapperCode = uBO_mainWorldFallbackWrapper.toString();
     if ( earlyBailoutCode ) {
         const match = /\(function earlyBailoutCode\(\)\{\}\)\(\);/.exec(wrapperCode);
         wrapperCode = wrapperCode.slice(0, match.index) +
@@ -159,7 +166,7 @@ function prepareContentScript(url, tabId = -1, frameId = 0) {
         // that a single injection preserves their relative execution order.
         entry.manuallyInjectedCode = [
             entry.isolatedCode,
-            uBO_assembleLegacyCode(result),
+            uBO_assembleFallbackCode(result),
         ].filter(Boolean).join('\n') || null;
     } else {
         entry.manuallyInjectedCode = null;
