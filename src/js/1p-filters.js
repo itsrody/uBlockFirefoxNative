@@ -165,33 +165,34 @@ function threeWayMerge(newContent) {
         getEditorText().trim().split(/\n/)
     );
     const out = [];
-    let i = 0, j = 0, k = 0;
-    while ( i < prvContent.length ) {
-        for ( ; j < newChanges.length; j++ ) {
-            const change = newChanges[j];
-            if ( change[0] !== 1 ) { break; }
-            out.push(change[1]);
-        }
-        for ( ; k < usrChanges.length; k++ ) {
-            const change = usrChanges[k];
-            if ( change[0] !== 1 ) { break; }
-            out.push(change[1]);
-        }
+    const firstNonInsertion = (changes, start) => {
+        const i = changes.findIndex((change, index) =>
+            index >= start && change[0] !== 1
+        );
+        return i === -1 ? changes.length : i;
+    };
+    const pushInsertions = (changes, start) => {
+        const stop = firstNonInsertion(changes, start);
+        out.push(...changes.slice(start, stop).map(change => change[1]));
+        return stop;
+    };
+    let j = 0, k = 0;
+    prvContent.forEach(line => {
+        j = pushInsertions(newChanges, j);
+        k = pushInsertions(usrChanges, k);
         if ( k === usrChanges.length || usrChanges[k][0] !== -1 ) {
-            out.push(prvContent[i]);
+            out.push(line);
         }
-        i += 1; j += 1; k += 1;
-    }
-    for ( ; j < newChanges.length; j++ ) {
-        const change = newChanges[j];
-        if ( change[0] !== 1 ) { continue; }
-        out.push(change[1]);
-    }
-    for ( ; k < usrChanges.length; k++ ) {
-        const change = usrChanges[k];
-        if ( change[0] !== 1 ) { continue; }
-        out.push(change[1]);
-    }
+        j += 1; k += 1;
+    });
+    out.push(...newChanges.slice(j)
+        .filter(change => change[0] === 1)
+        .map(change => change[1])
+    );
+    out.push(...usrChanges.slice(k)
+        .filter(change => change[0] === 1)
+        .map(change => change[1])
+    );
     return out.join('\n');
 }
 
