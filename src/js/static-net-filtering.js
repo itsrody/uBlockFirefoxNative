@@ -6077,13 +6077,14 @@ StaticNetFilteringEngine.prototype.filterQuery = function(fctxt, out = []) {
     if ( params.length !== beforeParamCount ) {
         fctxt.redirectURL = url.slice(0, qpos);
         if ( params.length !== 0 ) {
-            const queryParts = [];
-            for ( let i = 0; i < params.length; i += 2 ) {
-                const key = params[i+0];
-                const val = params[i+1];
-                queryParts.push(val !== '' ? `${key}=${val}` : key);
-            }
-            fctxt.redirectURL += '?' + queryParts.join('&');
+            fctxt.redirectURL += '?' + Array.from(
+                { length: params.length / 2 },
+                (_, i) => {
+                    const key = params[i*2+0];
+                    const val = params[i*2+1];
+                    return val !== '' ? `${key}=${val}` : key;
+                }
+            ).join('&');
         }
         if ( hpos !== url.length ) {
             fctxt.redirectURL += url.slice(hpos);
