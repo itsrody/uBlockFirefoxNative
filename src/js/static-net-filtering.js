@@ -4666,10 +4666,7 @@ const compiledHasRequestHeaderFilter = args => {
         fc !== undefined &&
         (args[0] === FilterCollection.fid || fc.prototype instanceof FilterCollection);
     if ( isCollection === false || Array.isArray(args[1]) === false ) { return false; }
-    for ( const unit of args[1] ) {
-        if ( compiledHasRequestHeaderFilter(unit) ) { return true; }
-    }
-    return false;
+    return args[1].some(unit => compiledHasRequestHeaderFilter(unit));
 };
 
 /******************************************************************************/
@@ -4687,9 +4684,9 @@ const collectCompiledModifierTypes = (args, types) => {
         fc !== undefined &&
         (args[0] === FilterCollection.fid || fc.prototype instanceof FilterCollection);
     if ( isCollection === false || Array.isArray(args[1]) === false ) { return; }
-    for ( const unit of args[1] ) {
+    args[1].forEach(unit => {
         collectCompiledModifierTypes(unit, types);
-    }
+    });
 };
 
 /******************************************************************************/
