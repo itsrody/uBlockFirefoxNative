@@ -133,6 +133,33 @@ const getPartyBits = fctxt => {
     return partyBits;
 };
 
+// The four bucket lookups are repeated for every realm pass. Their inputs
+// occupy disjoint bit ranges, so one OR'ed key is enough to reuse the quartet.
+const getRealmBuckets = (engine, realmBits, typeBits, partyBits) => {
+    const key = (realmBits | typeBits | partyBits) >>> 0;
+    let buckets = engine.realmBucketCache.get(key);
+    if ( buckets === undefined ) {
+        const exactType = typeBits & 0x80000000;
+        const plainTypeBits = typeBits & 0x7FFFFFFF;
+        buckets = [
+            exactType === 0
+                ? engine.bitsToBucket.get(realmBits)
+                : undefined,
+            exactType !== 0 || plainTypeBits !== 0
+                ? engine.bitsToBucket.get(realmBits | plainTypeBits)
+                : undefined,
+            exactType === 0 && partyBits !== 0
+                ? engine.bitsToBucket.get(realmBits | partyBits)
+                : undefined,
+            (exactType !== 0 || plainTypeBits !== 0) && partyBits !== 0
+                ? engine.bitsToBucket.get(realmBits | plainTypeBits | partyBits)
+                : undefined,
+        ];
+        engine.realmBucketCache.set(key, buckets);
+    }
+    return buckets;
+};
+
 const bitFromType = type =>
     1 << ((typeNameToTypeValue[type] >>> TYPE_REALM_OFFSET) - 1);
 
@@ -4551,6 +4578,7 @@ const StaticNetFilteringEngine = function() {
     // store buckets using category bits as index. If ever CategoryCount
     // becomes too large, we can just go back to using a Map.
     this.bitsToBucket = new Map();
+    this.realmBucketCache = new Map();
     this.goodFilters = new Set();
     this.badFilters = new Set();
     this.unitsToOptimize = [];
@@ -4580,6 +4608,7 @@ StaticNetFilteringEngine.prototype.reset = function() {
     this.modifierFilterTypes.clear();
     this.requestHeaderFilterCount = 0;
     this.bitsToBucket.clear();
+    this.realmBucketCache.clear();
 
     urlTokenizer.resetKnownTokens();
 
@@ -4733,6 +4762,10 @@ StaticNetFilteringEngine.prototype.freeze = function() {
     this.badFilters.clear();
     this.goodFilters.clear();
     filterArgsToUnit.clear();
+
+    // freeze() can add buckets, so cached quartets may contain stale
+    // undefined entries for previously empty combinations.
+    this.realmBucketCache.clear();
 
     // freeze() is also used after incremental user-filter changes, when only
     // newly compiled filters are present in goodFilters. Keep prior counts.
@@ -5411,6 +5444,7 @@ StaticNetFilteringEngine.prototype.fromSelfie = function(selfie) {
     this.acceptedCount = selfie.acceptedCount;
     this.discardedCount = selfie.discardedCount;
     this.bitsToBucket = selfie.bitsToBucket;
+    this.realmBucketCache.clear();
     this.modifierFilterTypes = this.collectModifierFilterTypes();
     this.requestHeaderFilterCount = this.countRequestHeaderFilters();
     urlTokenizer.fromSelfie(selfie.urlTokenizer);
@@ -5473,16 +5507,11 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
     const catBits10 = modifierBits | partyBits;
     const catBits11 = modifierBits | typeBits | partyBits;
 
-    const bucket00 = this.bitsToBucket.get(catBits00);
-    const bucket01 = typeBits !== 0
-        ? this.bitsToBucket.get(catBits01)
-        : undefined;
-    const bucket10 = partyBits !== 0
-        ? this.bitsToBucket.get(catBits10)
-        : undefined;
-    const bucket11 = typeBits !== 0 && partyBits !== 0
-        ? this.bitsToBucket.get(catBits11)
-        : undefined;
+    const buckets = getRealmBuckets(this, modifierBits, typeBits, partyBits);
+    const bucket00 = buckets[0];
+    const bucket01 = buckets[1];
+    const bucket10 = buckets[2];
+    const bucket11 = buckets[3];
 
     if (
         bucket00 === undefined && bucket01 === undefined &&
@@ -5634,26 +5663,18 @@ StaticNetFilteringEngine.prototype.realmMatchString = function(
 ) {
     if ( this.notReady ) { return false; }
 
-    const exactType = typeBits & 0x80000000;
-    typeBits &= 0x7FFFFFFF;
+    const plainTypeBits = typeBits & 0x7FFFFFFF;
 
     const catBits00 = realmBits;
-    const catBits01 = realmBits | typeBits;
+    const catBits01 = realmBits | plainTypeBits;
     const catBits10 = realmBits | partyBits;
-    const catBits11 = realmBits | typeBits | partyBits;
+    const catBits11 = realmBits | plainTypeBits | partyBits;
 
-    const bucket00 = exactType === 0
-        ? this.bitsToBucket.get(catBits00)
-        : undefined;
-    const bucket01 = exactType !== 0 || typeBits !== 0
-        ? this.bitsToBucket.get(catBits01)
-        : undefined;
-    const bucket10 = exactType === 0 && partyBits !== 0
-        ? this.bitsToBucket.get(catBits10)
-        : undefined;
-    const bucket11 = (exactType !== 0 || typeBits !== 0) && partyBits !== 0
-        ? this.bitsToBucket.get(catBits11)
-        : undefined;
+    const buckets = getRealmBuckets(this, realmBits, typeBits, partyBits);
+    const bucket00 = buckets[0];
+    const bucket01 = buckets[1];
+    const bucket10 = buckets[2];
+    const bucket11 = buckets[3];
 
     if (
         bucket00 === undefined && bucket01 === undefined &&
