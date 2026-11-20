@@ -1423,6 +1423,11 @@ registerFilterClass(FilterRegex);
 
 /******************************************************************************/
 
+const methodBitDescriptors = Array.from({ length: 8 }, (_, i) => {
+    const bit = 1 << (i + 1);
+    return { bit, name: FilteringContext.getMethodName(bit) };
+});
+
 class FilterMethod {
     static match(idata) {
         if ( $requestMethodBit === 0 ) { return false; }
@@ -1455,16 +1460,20 @@ class FilterMethod {
         if ( notMethodBits !== 0 && rc.excludedRequestMethods === undefined ) {
             rc.excludedRequestMethods = [];
         }
-        for ( let i = 1; methodBits !== 0 || notMethodBits !== 0; i++ ) {
-            const bit = 1 << i;
-            const methodName = FilteringContext.getMethodName(bit);
-            if ( (methodBits & bit) !== 0 ) {
-                methodBits &= ~bit;
-                rc.requestMethods.push(methodName);
-            } else if ( (notMethodBits & bit) !== 0 ) {
-                notMethodBits &= ~bit;
-                rc.excludedRequestMethods.push(methodName);
-            }
+        if ( methodBits !== 0 ) {
+            rc.requestMethods.push(...methodBitDescriptors
+                .filter(descriptor => (methodBits & descriptor.bit) !== 0)
+                .map(descriptor => descriptor.name)
+            );
+        }
+        if ( notMethodBits !== 0 ) {
+            // A positive bit wins over an excluded bit at the same position,
+            // matching the original else-if scan.
+            const excludedBits = notMethodBits & ~methodBits;
+            rc.excludedRequestMethods.push(...methodBitDescriptors
+                .filter(descriptor => (excludedBits & descriptor.bit) !== 0)
+                .map(descriptor => descriptor.name)
+            );
         }
     }
 
@@ -1473,20 +1482,13 @@ class FilterMethod {
     }
 
     static logData(idata, details) {
-        const methods = [];
-        let methodBits = filterData[idata+1];
-        let notMethodBits = filterData[idata+2];
-        for ( let i = 0; methodBits !== 0 || notMethodBits !== 0; i++ ) {
-            const bit = 1 << i;
-            const methodName = FilteringContext.getMethodName(bit);
-            if ( (methodBits & bit) !== 0 ) {
-                methodBits &= ~bit;
-                methods.push(methodName);
-            } else if ( (notMethodBits & bit) !== 0 ) {
-                notMethodBits &= ~bit;
-                methods.push(`~${methodName}`);
-            }
-        }
+        const methodBits = filterData[idata+1];
+        const notMethodBits = filterData[idata+2];
+        const methods = methodBitDescriptors.flatMap(({ bit, name }) => {
+            if ( (methodBits & bit) !== 0 ) { return [ name ]; }
+            if ( (notMethodBits & bit) !== 0 ) { return [ `~${name}` ]; }
+            return [];
+        });
         details.options.push(`method=${methods.join('|')}`);
     }
 
