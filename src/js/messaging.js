@@ -677,8 +677,13 @@ const retrieveContentScriptParameters = async function(sender, request) {
         a.domain = domainFromHostname(a.hostname);
     });
 
+    // Keep engine options separate from the response payload sent to the
+    // content script.
     const scf = response.specificCosmeticFilters =
-        cosmeticFilteringEngine.retrieveSpecificSelectors(request, response);
+        cosmeticFilteringEngine.retrieveSpecificSelectors(request, {
+            noSpecificCosmeticFiltering: response.noSpecificCosmeticFiltering,
+            noGenericCosmeticFiltering: response.noGenericCosmeticFiltering,
+        });
 
     // The procedural filterer's code is loaded only when needed and must be
     // present before returning response to caller.
