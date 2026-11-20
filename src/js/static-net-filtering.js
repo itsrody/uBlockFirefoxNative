@@ -4579,6 +4579,12 @@ const StaticNetFilteringEngine = function() {
     // becomes too large, we can just go back to using a Map.
     this.bitsToBucket = new Map();
     this.realmBucketCache = new Map();
+    this.modifierScratch = {
+        results: [],
+        toAddImportant: new Map(),
+        toAdd: new Map(),
+        toRemove: new Map(),
+    };
     this.goodFilters = new Set();
     this.badFilters = new Set();
     this.unitsToOptimize = [];
@@ -4609,6 +4615,10 @@ StaticNetFilteringEngine.prototype.reset = function() {
     this.requestHeaderFilterCount = 0;
     this.bitsToBucket.clear();
     this.realmBucketCache.clear();
+    this.modifierScratch.results.length = 0;
+    this.modifierScratch.toAddImportant.clear();
+    this.modifierScratch.toAdd.clear();
+    this.modifierScratch.toRemove.clear();
 
     urlTokenizer.resetKnownTokens();
 
@@ -5524,7 +5534,9 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
     // actually exists for this request.
     resetRegisters(fctxt, typeBits);
 
-    const results = [];
+    const scratch = this.modifierScratch;
+    const results = scratch.results;
+    results.length = 0;
     const env = {
         type: modifierType || 0,
         bits: 0,
@@ -5583,9 +5595,12 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
         return [ result ];
     }
 
-    const toAddImportant = new Map();
-    const toAdd = new Map();
-    const toRemove = new Map();
+    const toAddImportant = scratch.toAddImportant;
+    const toAdd = scratch.toAdd;
+    const toRemove = scratch.toRemove;
+    toAddImportant.clear();
+    toAdd.clear();
+    toRemove.clear();
 
     for ( const result of results ) {
         const actionBits = result.bits & BLOCKALLOW_REALM;
