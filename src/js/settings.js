@@ -268,16 +268,16 @@ function onUserSettingsReceived(details) {
         changeUserSettings(name, checkbox.checked);
         synchronizeDOM();
     };
-    for ( const checkbox of checkboxes ) {
+    checkboxes.forEach(checkbox => {
         const name = dom.attr(checkbox, 'data-setting-name') || '';
         if ( details[name] === undefined ) {
             dom.attr(checkbox.closest('.checkbox'), 'disabled', '');
             dom.attr(checkbox, 'disabled', '');
-            continue;
+            return;
         }
         checkbox.checked = details[name] === true;
         dom.on(checkbox, 'change', onchange);
-    }
+    });
 
     if ( details.canLeakLocalIPAddresses === true ) {
         qs$('[data-setting-name="webrtcIPAddressHidden"]')
