@@ -230,6 +230,7 @@ const CosmeticFilteringEngine = function() {
     this.selectorCachePruneDelay = 10; // 10 minutes
     this.selectorCacheCountMin = 40;
     this.selectorCacheCountMax = 50;
+    this.netSelectorCacheCountMax = SelectorCacheEntry.netHighWaterMark;
     this.selectorCacheTimer = vAPI.defer.create(( ) => {
         this.pruneSelectorCacheAsync();
     });
