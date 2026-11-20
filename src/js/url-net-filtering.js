@@ -256,17 +256,13 @@ class DynamicURLRuleFiltering {
     }
 
     toArray() {
-        const out = [];
-        for ( const [ key, entries ] of this.rules ) {
-            let pos = key.indexOf(' ');
-            const hn = key.slice(0, pos);
-            pos = key.lastIndexOf(' ');
-            const type = key.slice(pos + 1);
-            for ( const { url, action } of entries ) {
-                out.push(`${hn} ${url} ${type} ${actionToNameMap[action]}`);
-            }
-        }
-        return out;
+        return Array.from(this.rules).flatMap(([ key, entries ]) => {
+            const hn = key.slice(0, key.indexOf(' '));
+            const type = key.slice(key.lastIndexOf(' ') + 1);
+            return entries.map(({ url, action }) =>
+                `${hn} ${url} ${type} ${actionToNameMap[action]}`
+            );
+        });
     }
 
     toString() {
