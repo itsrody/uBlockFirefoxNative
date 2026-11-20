@@ -703,11 +703,9 @@ CosmeticFilteringEngine.prototype.retrieveGenericSelectors = function(request) {
     // the exceptions to be applied.
     const excepted = [];
     if ( selectorsSet.size !== 0 && Array.isArray(request.exceptions) ) {
-        for ( const exception of request.exceptions ) {
-            if ( selectorsSet.delete(exception) ) {
-                excepted.push(exception);
-            }
-        }
+        excepted.push(...request.exceptions.filter(exception =>
+            selectorsSet.delete(exception)
+        ));
     }
 
     if ( selectorsSet.size === 0 && excepted.length === 0 ) { return; }
