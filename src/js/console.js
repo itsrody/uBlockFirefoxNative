@@ -45,9 +45,9 @@ let ubolog = (( ) => {
         pending.push(args);
     };
     store.process = function() {
-        for ( const args of pending ) {
+        pending.forEach(args => {
             ubologDo(...args);
-        }
+        });
     };
     return store;
 })();
