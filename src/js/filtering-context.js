@@ -128,9 +128,10 @@ const reIPv4 = /^\d+\.\d+\.\d+\.\d+$/;
 
 export const FilteringContext = class {
     constructor(other) {
-        if ( other instanceof FilteringContext ) {
-            return this.fromFilteringContext(other);
-        }
+        // Own every hot field before the copy branch so duplicates keep the
+        // same hidden class. SpiderMonkey can then keep request-path accesses
+        // monomorphic instead of creating a second shape for duplicated
+        // contexts.
         this.tstamp = 0;
         this.realm = '';
         this.method = 0;
@@ -153,6 +154,9 @@ export const FilteringContext = class {
         this.redirectURL = undefined;
         this.filter = undefined;
         this.is3rdPartyToDocCache = undefined;
+        if ( other instanceof FilteringContext ) {
+            return this.fromFilteringContext(other);
+        }
     }
 
     get type() {

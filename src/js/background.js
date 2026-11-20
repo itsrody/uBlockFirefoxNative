@@ -280,7 +280,7 @@ const µBlock = {  // jshint ignore:line
     maybeFromDocumentURL(documentUrl) {
         if ( documentUrl === undefined ) { return; }
         if ( documentUrl.startsWith(this.getTabOrigin()) ) { return; }
-        this.tabOrigin = originFromURI(µBlock.normalizeTabURL(0, documentUrl));
+        this.setTabOrigin(originFromURI(µBlock.normalizeTabURL(0, documentUrl)));
     }
 
     // https://github.com/uBlockOrigin/uBlock-issues/issues/459
