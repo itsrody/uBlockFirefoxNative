@@ -1,3 +1,6 @@
+> **uBlockFox** targets native Firefox 160+ only. Non-Firefox builds, MV3/uBO Lite
+> tooling, and Node.js/npm packaging have been removed from this fork.
+
 - [[scriptlets] Add (back) support for path-based targets](https://github.com/gorhill/uBlock/commit/a23b117141)
 - [[picker] Fix unpleasant flickering of mouse cursor in picking mode](https://github.com/gorhill/uBlock/commit/765c51daa1)
 - [[security] Use shadow DOM when programmatically injecting scriptlets](https://github.com/gorhill/uBlock/commit/e743ee760f)

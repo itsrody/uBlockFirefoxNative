@@ -69,7 +69,7 @@ import µb from './background.js';
 /******************************************************************************/
 /******************************************************************************/
 
-const browser = globalThis.browser ?? globalThis.chrome;
+const browser = globalThis.browser;
 
 // Default handler
 //      privileged
@@ -1389,11 +1389,7 @@ const getSupportData = async function() {
         removedListset = undefined;
     }
 
-    let browserFamily = (( ) => {
-        if ( vAPI.webextFlavor.soup.has('firefox') ) { return 'Firefox'; }
-        if ( vAPI.webextFlavor.soup.has('chromium') ) { return 'Chromium'; }
-        return 'Unknown';
-    })();
+    let browserFamily = 'Firefox';
     if ( vAPI.webextFlavor.soup.has('mobile') ) {
         browserFamily += ' Mobile';
     }

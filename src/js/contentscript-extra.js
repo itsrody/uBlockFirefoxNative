@@ -299,16 +299,6 @@ class PSelectorShadowTask extends PSelectorTask {
         if ( PSelectorShadowTask.openOrClosedShadowRoot !== undefined ) {
             return PSelectorShadowTask.openOrClosedShadowRoot;
         }
-        const { chrome }  = self;
-        if ( typeof chrome === 'object' && chrome !== null ) {
-            if ( chrome.dom instanceof Object ) {
-                if ( typeof chrome.dom.openOrClosedShadowRoot === 'function' ) {
-                    PSelectorShadowTask.openOrClosedShadowRoot =
-                        chrome.dom.openOrClosedShadowRoot;
-                    return PSelectorShadowTask.openOrClosedShadowRoot;
-                }
-            }
-        }
         PSelectorShadowTask.openOrClosedShadowRoot = node =>
             node.openOrClosedShadowRoot || null;
         return PSelectorShadowTask.openOrClosedShadowRoot;

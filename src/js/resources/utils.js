@@ -350,15 +350,8 @@ registerScriptlet(sleepFn, {
 
 export function lookupElementsFn(directive, until = 0) {
     if ( lookupElementsFn.querySelectorEx === undefined ) {
-        lookupElementsFn.getShadowRoot = elem => {
-            if ( elem.openOrClosedShadowRoot ) { // Firefox
-                return elem.openOrClosedShadowRoot;
-            }
-            if ( self.chrome?.dom?.openOrClosedShadowRoot ) { // Chromium
-                return self.chrome.dom.openOrClosedShadowRoot(elem);
-            }
-            return elem.shadowRoot;
-        };
+        lookupElementsFn.getShadowRoot = elem =>
+            elem.openOrClosedShadowRoot || elem.shadowRoot;
         lookupElementsFn.queryOrEvaluateSelector = (selector, context) => {
             if ( selector.startsWith('xpath:') === false ) {
                 return Array.from(context.querySelectorAll(selector));

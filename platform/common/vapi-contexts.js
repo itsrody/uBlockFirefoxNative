@@ -19,8 +19,6 @@
     Home: https://github.com/gorhill/uBlock
 */
 
-/* global browser */
-
 import webext from './webext.js';
 
 /******************************************************************************/

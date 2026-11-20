@@ -19,8 +19,6 @@
     Home: https://github.com/gorhill/uBlock
 */
 
-/* global browser */
-
 /******************************************************************************/
 
 import * as fc from  './filtering-context.js';

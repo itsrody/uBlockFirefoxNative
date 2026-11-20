@@ -21,11 +21,7 @@
 
 /******************************************************************************/
 
-const i18n =
-    self.browser instanceof Object &&
-    self.browser instanceof Element === false
-        ? self.browser.i18n
-        : self.chrome.i18n;
+const i18n = self.browser.i18n;
 
 const i18n$ = (...args) => i18n.getMessage(...args);
 

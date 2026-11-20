@@ -22,8 +22,6 @@
 
 // For background page
 
-/* global browser */
-
 /******************************************************************************/
 
 import * as frameManager from './vapi-contexts.js';
@@ -38,11 +36,8 @@ vAPI.cantWebsocket =
     browser.webRequest.ResourceType instanceof Object === false  ||
     browser.webRequest.ResourceType.WEBSOCKET !== 'websocket';
 
-vAPI.canWASM = vAPI.webextFlavor.soup.has('chromium') === false;
-if ( vAPI.canWASM === false ) {
-    const csp = manifest.content_security_policy;
-    vAPI.canWASM = csp !== undefined && csp.indexOf("'wasm-unsafe-eval'") !== -1;
-}
+// Firefox supports WASM in content scripts.
+vAPI.canWASM = true;
 
 /******************************************************************************/
 
@@ -231,11 +226,6 @@ vAPI.browserSettings = (( ) => {
                     //   using the API.
                     const mustEnable = !details[setting];
                     if ( this.canLeakLocalIPAddresses === false ) {
-                        if ( mustEnable && vAPI.webextFlavor.soup.has('chromium') ) {
-                            bp.network.webRTCIPHandlingPolicy.clear({
-                                scope: 'regular',
-                            });
-                        }
                         continue;
                     }
                     if ( mustEnable ) {
@@ -673,74 +663,6 @@ if ( webext.browserAction instanceof Object ) {
             browserAction.setBadgeTextColor({ color: '#FFFFFF' });
         }
 
-        // As of 2018-05, benchmarks show that only Chromium benefits for sure
-        // from using ImageData.
-        //
-        // Chromium creates a new ImageData instance every call to setIcon
-        // with paths:
-        // https://cs.chromium.org/chromium/src/extensions/renderer/resources/set_icon.js?l=56&rcl=99be185c25738437ecfa0dafba72a26114196631
-        //
-        // Firefox uses an internal cache for each setIcon's paths:
-        // https://searchfox.org/mozilla-central/rev/5ff2d7683078c96e4b11b8a13674daded935aa44/browser/components/extensions/parent/ext-browserAction.js#631
-        if ( vAPI.webextFlavor.soup.has('chromium') === false ) { return; }
-
-        const imgs = [];
-        for ( let i = 0; i < icons.length; i++ ) {
-            for ( const key of Object.keys(icons[i].path) ) {
-                if ( parseInt(key, 10) >= 64 ) { continue; }
-                imgs.push({ i: i, p: key, cached: false });
-            }
-        }
-
-        // https://github.com/uBlockOrigin/uBlock-issues/issues/296
-        const safeGetImageData = function(ctx, w, h) {
-            let data;
-            try {
-                data = ctx.getImageData(0, 0, w, h);
-            } catch {
-            }
-            return data;
-        };
-
-        const onLoaded = function() {
-            for ( const img of imgs ) {
-                if ( img.r.complete === false ) { return; }
-            }
-            const ctx = document.createElement('canvas')
-                .getContext('2d', { willReadFrequently: true });
-            const iconData = [ null, null ];
-            for ( const img of imgs ) {
-                if ( img.cached ) { continue; }
-                const w = img.r.naturalWidth, h = img.r.naturalHeight;
-                ctx.width = w; ctx.height = h;
-                ctx.clearRect(0, 0, w, h);
-                ctx.drawImage(img.r, 0, 0);
-                if ( iconData[img.i] === null ) { iconData[img.i] = {}; }
-                const imgData = safeGetImageData(ctx, w, h);
-                if (
-                    imgData instanceof Object === false ||
-                    imgData.data instanceof Uint8ClampedArray === false ||
-                    imgData.data[0] !== 0 ||
-                    imgData.data[1] !== 0 ||
-                    imgData.data[2] !== 0 ||
-                    imgData.data[3] !== 0
-                ) {
-                    return;
-                }
-                iconData[img.i][img.p] = imgData;
-                img.cached = true;
-            }
-            for ( let i = 0; i < iconData.length; i++ ) {
-                if ( iconData[i] ) {
-                    icons[i] = { imageData: iconData[i] };
-                }
-            }
-        };
-        for ( const img of imgs ) {
-            img.r = new Image();
-            img.r.addEventListener('load', onLoaded, { once: true });
-            img.r.src = icons[img.i].path[img.p];
-        }
     })();
 
     // parts: bit 0 = icon
@@ -891,19 +813,6 @@ vAPI.messaging = {
             port => this.onPortConnect(port)
         );
 
-        // https://bugzilla.mozilla.org/show_bug.cgi?id=1392067
-        //   Workaround: manually remove ports matching removed tab.
-        if (
-            vAPI.webextFlavor.soup.has('firefox') &&
-            vAPI.webextFlavor.major < 61
-        ) {
-            browser.tabs.onRemoved.addListener(tabId => {
-                for ( const { port, tabId: portTabId } of this.ports.values() ) {
-                    if ( portTabId !== tabId ) { continue; }
-                    this.onPortDisconnect(port);
-                }
-            });
-        }
     },
 
     onFrameworkMessage: function(request, port, callback) {

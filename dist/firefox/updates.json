@@ -6,10 +6,10 @@
           "version": "1.76.5.6",
           "browser_specific_settings": {
             "gecko": {
-              "strict_min_version": "128.0"
+              "strict_min_version": "160.0"
             }
           },
-          "update_link": "https://github.com/gorhill/uBlock/releases/download/1.76.5b6/uBlock0_1.76.5b6.firefox.signed.xpi"
+          "update_link": "https://github.com/itsrody/uBlockFox/releases/download/1.76.5.6/uBlock0_1.76.5.6.firefox.xpi"
         }
       ]
     }

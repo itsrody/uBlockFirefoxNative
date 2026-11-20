@@ -1,103 +1,43 @@
-# INSTALL
+# Install
 
-## Chromium
+This fork targets **native Firefox 160 or later** only.
 
-1. Download and unzip `ublock0.chromium.zip` ([latest release desirable](https://github.com/gorhill/uBlock/releases)).
-2. Rename the unzipped directory to `ublock`.
-   - When you update manually, replace the **content** of the `ublock` folder with the **content** of the latest zipped version. This ensures all extension settings are preserved.
-   - As long as the extension loads from the same folder path as it was originally installed, your settings will be kept.
-3. Open Chromium/Chrome and go to *Extensions*.
-4. Click to enable *Developer mode*.
-5. Click *Load unpacked extension...*.
-6. In the file selector dialog:
-   - Select the `ublock` directory you created.
-   - Click *Open*.
+## Firefox 160+
 
-The extension will now be available in your Chromium/Chromium-based browser.
+### From a release build
 
-**Note:** You must update manually. For some users, manual updates are beneficial because:
-- You can update when **you** want.
-- If a new version is unsatisfactory, you can easily reinstall the previous one.
+1. Download `uBlock0_<version>.firefox.xpi` from [the releases page](https://github.com/itsrody/uBlockFox/releases).
+2. Open the downloaded file in Firefox and follow the prompts to install it.
 
-## Firefox
-
-Compatible with Firefox 52 and beyond.
-
-### For Stable Release Version
-
-This method only works if you set `xpinstall.signatures.required` to `false` in `about:config`.<sup>[see "Add-on signing in Firefox"](https://support.mozilla.org/en-US/kb/add-on-signing-in-firefox)</sup>
-
-1. Download `ublock0.firefox.xpi` ([latest release desirable](https://github.com/gorhill/uBlock/releases)).
-   - Right-click and choose _"Save As..."_.
-2. Drag and drop the downloaded `ublock0.firefox.xpi` into Firefox.
-
-### For Beta Version
-
-- Click on `ublock0.firefox.signed.xpi` ([latest release desirable](https://github.com/gorhill/uBlock/releases)).
-
-### Location of uBO Settings
+### Location of uBO settings
 
 On Linux, the settings are saved in a JSON file located at:
+
 ```
 ~/.mozilla/firefox/[profile name]/browser-extension-data/uBlock0@raymondhill.net/storage.js
 ```
+
 When you uninstall the extension, Firefox deletes this file, and all your settings will be lost.
 
-### Firefox Legacy
+## Build instructions (for developers)
 
-Compatible with Firefox 24-56, [Pale Moon](https://www.palemoon.org/), and [SeaMonkey](https://www.seamonkey-project.org/).
-
-1. Download `ublock0.firefox-legacy.xpi` ([latest release desirable](https://github.com/gorhill/uBlock-for-firefox-legacy/releases)).
-   - Right-click and select "Save Link As..."
-2. Drag and drop the downloaded `ublock0.firefox-legacy.xpi` into Firefox.
-
-For Firefox 43 and beyond, you may need to toggle the setting `xpinstall.signatures.required` to `false` in `about:config`.<sup>[see "Add-on signing in Firefox"](https://support.mozilla.org/en-US/kb/add-on-signing-in-firefox)</sup>
-
-Your uBlock Origin settings are preserved even after uninstalling the addon.
-
-- On Linux, settings are saved in a SQLite file located at:
-```
-~/.mozilla/firefox/[profile name]/extension-data/ublock0.sqlite
-```
-- On Windows, settings are saved in a SQLite file located at:
-```
-%APPDATA%\Mozilla\Firefox\Profiles\[profile name]\extension-data\ublock0.sqlite
-```
-
-## Build Instructions (for Developers)
-
-1. Clone the [uBlock repository](https://github.com/gorhill/uBlock):
+1. Clone this repository:
    ```bash
-   git clone https://github.com/gorhill/uBlock.git
+   git clone https://github.com/itsrody/uBlockFox.git
+   cd uBlockFox
    ```
-2. Set the path to uBlock:
+2. Build the extension:
    ```bash
-   cd uBlock
+   make firefox
    ```
-3. The official version of uBO is in the `master` branch:
-   ```bash
-   git checkout master
-   ```
-4. Build the plugin:
-   - Chromium: 
-     ```bash
-     make chromium
-     ```
-   - Firefox:
-     ```bash
-     make firefox
-     ```
-   - NPM package:
-     ```bash
-     make npm
-     ```
-5. Load the result of the build into your browser:
-   - **Chromium:**
-     - Navigate to `chrome://extensions/`
-     - Check _"Developer mode"_
-     - Click _"Load unpacked"_
-     - Select `/uBlock/dist/build/uBlock0.chromium/`
-   - **Firefox:**
-     - Navigate to `about:debugging#/runtime/this-firefox`
-     - Click _"Load Temporary Add-on..."_ 
-     - Select `/uBlock/dist/build/uBlock0.firefox/`
+   This creates `dist/build/uBlock0.firefox.xpi` and the unpacked extension in
+   `dist/build/uBlock0.firefox/`. The build downloads filter lists from
+   [uAssets](https://github.com/uBlockOrigin/uAssets) into `dist/build/uAssets`.
+
+3. Load the unpacked extension into Firefox:
+   - Navigate to `about:debugging#/runtime/this-firefox`
+   - Click _"Load Temporary Add-on..."_
+   - Select `dist/build/uBlock0.firefox/manifest.json`
+
+Use `make cleanassets` to remove downloaded assets, and `make clean` to remove
+all build output.

@@ -19,8 +19,6 @@
     Home: https://github.com/gorhill/uBlock
 */
 
-/* global browser */
-
 import * as frameManager from './vapi-contexts.js';
 import { hostnameFromURI } from './uri-utils.js';
 

@@ -19,8 +19,6 @@
     Home: https://github.com/gorhill/uBlock
 */
 
-/* global browser */
-
 /******************************************************************************/
 
 import './vapi-common.js';
@@ -353,11 +351,6 @@ const createDefaultProps = ( ) => {
             µb.loadLocalSettings(),
         ]);
 
-        // https://github.com/uBlockOrigin/uBlock-issues/issues/1547
-        if ( lastVersionInt === 0 && vAPI.webextFlavor.soup.has('chromium') ) {
-            vAPI.app.restart();
-            return;
-        }
     } catch (ex) {
         console.trace(ex);
     }

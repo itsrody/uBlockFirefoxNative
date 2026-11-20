@@ -29,7 +29,7 @@ if ( vAPI === null ) { return; }
 if ( vAPI.pickerFrame ) { return; }
 vAPI.pickerFrame = true;
 
-const browser = globalThis.browser ?? globalThis.chrome;
+const browser = globalThis.browser;
 const pickerUniqueId = `z${self.crypto.randomUUID().replaceAll('-', '').slice(16)}`;
 const reCosmeticAnchor = /^#(\$|\?|\$\?)?#/;
 const netFilterCandidates = [];

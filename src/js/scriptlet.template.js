@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin Lite - a comprehensive, MV3-compliant content blocker
+    uBlock Origin - a comprehensive content blocker for Firefox 160+
     Copyright (C) 2014-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify

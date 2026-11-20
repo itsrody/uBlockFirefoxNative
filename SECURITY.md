@@ -2,4 +2,6 @@
 
 ## Reporting a Vulnerability
 
-Please report security issues [here](https://github.com/gorhill/uBlock/security/advisories) by clicking "New draft security advisory", or directly at ubo-security [at-sign] raymondhill.net
+For vulnerabilities specific to this fork, please open a [security advisory](https://github.com/itsrody/uBlockFox/security/advisories/new) or a private report in the [issue tracker](https://github.com/itsrody/uBlockFox/issues).
+
+For vulnerabilities in the shared uBO core code, please follow the [upstream security policy](https://github.com/gorhill/uBlock/blob/master/SECURITY.md).

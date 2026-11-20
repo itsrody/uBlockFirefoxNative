@@ -22,8 +22,6 @@
 
 // For background page or non-background pages
 
-/* global browser */
-
 /******************************************************************************/
 
 vAPI.T0 = Date.now();
@@ -163,9 +161,13 @@ vAPI.webextFlavor = {
         window.dispatchEvent(new CustomEvent('webextFlavor'));
     };
 
-    // This is always true.
+    // This fork runs only on native Firefox 160+.
     soup.add('ublock').add('webext');
     soup.add('ipaddress');
+    soup.add('firefox').add('html_filtering');
+    flavor.isGecko = true;
+    const match = /Firefox\/(\d+)/.exec(ua);
+    flavor.major = match && parseInt(match[1], 10) || 160;
 
     // Whether this is a dev build.
     const manifest = browser.runtime.getManifest();
@@ -180,35 +182,6 @@ vAPI.webextFlavor = {
 
     if ( CSS.supports('selector(a:has(b))') ) {
         soup.add('native_css_has');
-    }
-
-    const extensionOrigin = browser.runtime.getURL('');
-
-    // Order of tests is important
-    flavor.isGecko = extensionOrigin.startsWith('moz-extension://');
-    if ( flavor.isGecko ) {
-        soup.add('firefox')
-            .add('html_filtering');
-        const match = /Firefox\/(\d+)/.exec(ua);
-        flavor.major = match && parseInt(match[1], 10) || 128;
-    } else {
-        const match = /\bChrom(?:e|ium)\/(\d+)/.exec(ua);
-        if ( match !== null ) {
-            soup.add('chromium');
-        }
-        flavor.major = match && parseInt(match[1], 10) || 120;
-        // Brave can't be told apart through the user agent string, which is
-        // identical to Chrome's. Both tests below are synchronous, whereas
-        // navigator.brave.isBrave() is promise-based -- the flavor must be
-        // settled before filter lists are compiled and cached. Either test
-        // alone would do, the second one is a fallback for the first.
-        // https://github.com/brave/brave-browser/wiki/Detecting-Brave-(for-Websites)
-        if (
-            navigator.brave instanceof Object ||
-            navigator.userAgentData?.brands?.some(a => a.brand === 'Brave')
-        ) {
-            soup.add('brave');
-        }
     }
 
     // Don't starve potential listeners
@@ -238,14 +211,7 @@ vAPI.getURL = browser.runtime.getURL;
 //   `window.open('', '_self').close()`. 
 
 vAPI.closePopup = function() {
-    if ( vAPI.webextFlavor.soup.has('firefox') ) {
-        window.close();
-        return;
-    }
-
-    // TODO: try to figure why this was used instead of a plain window.close().
-    // https://github.com/gorhill/uBlock/commit/b301ac031e0c2e9a99cb6f8953319d44e22f33d2#diff-bc664f26b9c453e0d43a9379e8135c6a
-    window.open('', '_self').close();
+    window.close();
 };
 
 /******************************************************************************/
