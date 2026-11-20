@@ -186,12 +186,12 @@ if ( isBackgroundProcess !== true ) {
         const docu = document;
         const root = context || docu;
 
-        for ( const elem of root.querySelectorAll('[data-i18n]') ) {
+        root.querySelectorAll('[data-i18n]').forEach(elem => {
             let text = i18n$(elem.getAttribute('data-i18n'));
-            if ( !text ) { continue; }
+            if ( !text ) { return; }
             if ( text.indexOf('{{') === -1 ) {
                 safeTextToDOM(text, elem);
-                continue;
+                return;
             }
             // Handle selector-based placeholders: these placeholders tell where
             // existing child DOM element are to be positioned relative to the
@@ -236,27 +236,27 @@ if ( isBackgroundProcess !== true ) {
                 safeTextToDOM(textBefore, fragment);
             }
             elem.appendChild(fragment);
-        }
+        });
 
-        for ( const elem of root.querySelectorAll('[data-i18n-title]') ) {
+        root.querySelectorAll('[data-i18n-title]').forEach(elem => {
             const text = i18n$(elem.getAttribute('data-i18n-title'));
-            if ( !text ) { continue; }
+            if ( !text ) { return; }
             elem.setAttribute('title', expandHtmlEntities(text));
-        }
+        });
 
-        for ( const elem of root.querySelectorAll('[aria-label]') ) {
+        root.querySelectorAll('[aria-label]').forEach(elem => {
             const text = i18n$(elem.getAttribute('aria-label'));
-            if ( !text ) { continue; }
+            if ( !text ) { return; }
             elem.setAttribute('aria-label', expandHtmlEntities(text));
-        }
+        });
 
-        for ( const elem of root.querySelectorAll('[placeholder]') ) {
+        root.querySelectorAll('[placeholder]').forEach(elem => {
             const text = i18n$(elem.getAttribute('placeholder'));
-            if ( text === '' ) { continue; }
+            if ( text === '' ) { return; }
             elem.setAttribute('placeholder', text);
-        }
+        });
 
-        for ( const elem of root.querySelectorAll('[data-i18n-tip]') ) {
+        root.querySelectorAll('[data-i18n-tip]').forEach(elem => {
             const text = i18n$(elem.getAttribute('data-i18n-tip'))
                        .replace(/<br>/g, '\n')
                        .replace(/\n{3,}/g, '\n\n');
@@ -264,12 +264,12 @@ if ( isBackgroundProcess !== true ) {
             if ( elem.getAttribute('aria-label') === 'data-tip' ) {
                 elem.setAttribute('aria-label', text);
             }
-        }
+        });
 
-        for ( const elem of root.querySelectorAll('[data-i18n-label]') ) {
+        root.querySelectorAll('[data-i18n-label]').forEach(elem => {
             const text = i18n$(elem.getAttribute('data-i18n-label'));
             elem.setAttribute('label', text);
-        }
+        });
     };
 
     i18n.renderElapsedTimeToString = function(tstamp) {
