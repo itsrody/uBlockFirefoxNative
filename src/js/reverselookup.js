@@ -50,9 +50,9 @@ const stopWorker = function() {
     worker.terminate();
     worker = null;
     needLists = true;
-    for ( const resolver of pendingResponses.values() ) {
+    pendingResponses.forEach(resolver => {
         resolver();
-    }
+    });
     pendingResponses.clear();
 };
 
@@ -92,31 +92,24 @@ const initWorker = function() {
         });
     };
 
-    for ( const listKey in µb.availableFilterLists ) {
-        if ( Object.hasOwn(µb.availableFilterLists, listKey) === false ) {
-            continue;
-        }
-        const entry = µb.availableFilterLists[listKey];
-        if ( entry.off === true ) { continue; }
+    Object.entries(µb.availableFilterLists).forEach(([listKey, entry]) => {
+        if ( entry.off === true ) { return; }
         entries.set(listKey, {
             title: listKey !== µb.userFiltersPath ?
                 entry.title :
                 i18n$('1pPageName'),
             supportURL: entry.supportURL || ''
         });
-    }
+    });
     if ( entries.size === 0 ) {
         return Promise.resolve();
     }
 
-    const promises = [];
-    for ( const listKey of entries.keys() ) {
-        promises.push(
-            µb.getCompiledFilterList(listKey).then(details => {
-                onListLoaded(details);
-            })
-        );
-    }
+    const promises = Array.from(entries.keys(), listKey =>
+        µb.getCompiledFilterList(listKey).then(details => {
+            onListLoaded(details);
+        })
+    );
     return Promise.all(promises);
 };
 
