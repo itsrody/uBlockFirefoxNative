@@ -838,27 +838,21 @@ async function assetCacheSetDetails(assetKey, details) {
 
 async function assetCacheMarkAsDirty(pattern, exclude) {
     const cacheDict = await getAssetCacheRegistry();
+    const matches = (selector, assetKey) => {
+        if ( selector instanceof RegExp ) { return selector.test(assetKey); }
+        if ( typeof selector === 'string' ) { return selector === assetKey; }
+        if ( Array.isArray(selector) ) { return selector.includes(assetKey); }
+    };
     let mustSave = false;
-    for ( const assetKey in cacheDict ) {
-        if ( pattern instanceof RegExp ) {
-            if ( pattern.test(assetKey) === false ) { continue; }
-        } else if ( typeof pattern === 'string' ) {
-            if ( assetKey !== pattern ) { continue; }
-        } else if ( Array.isArray(pattern) ) {
-            if ( pattern.indexOf(assetKey) === -1 ) { continue; }
-        }
-        if ( exclude instanceof RegExp ) {
-            if ( exclude.test(assetKey) ) { continue; }
-        } else if ( typeof exclude === 'string' ) {
-            if ( assetKey === exclude ) { continue; }
-        } else if ( Array.isArray(exclude) ) {
-            if ( exclude.indexOf(assetKey) !== -1 ) { continue; }
-        }
+    Object.keys(cacheDict).filter(assetKey => {
+        if ( matches(pattern, assetKey) === false ) { return false; }
+        return matches(exclude, assetKey) !== true;
+    }).forEach(assetKey => {
         const cacheEntry = cacheDict[assetKey];
-        if ( !cacheEntry.writeTime ) { continue; }
-        cacheDict[assetKey].writeTime = 0;
+        if ( !cacheEntry.writeTime ) { return; }
+        cacheEntry.writeTime = 0;
         mustSave = true;
-    }
+    });
     if ( mustSave ) {
         cacheStorage.set({ assetCacheRegistry });
     }
