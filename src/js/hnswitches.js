@@ -82,19 +82,19 @@ class DynamicSwitchRuleFiltering {
 
     assign(from) {
         // Remove rules not in other
-        for ( const hn of this.switches.keys() ) {
+        this.switches.forEach((_, hn) => {
             if ( from.switches.has(hn) === false ) {
                 this.switches.delete(hn);
                 this.changed = true;
             }
-        }
+        });
         // Add/change rules in other
-        for ( const [hn, bits] of from.switches ) {
+        from.switches.forEach((bits, hn) => {
             if ( this.switches.get(hn) !== bits ) {
                 this.switches.set(hn, bits);
                 this.changed = true;
             }
-        }
+        });
     }
 
     copyRules(from, srcHostname) {
@@ -160,15 +160,15 @@ class DynamicSwitchRuleFiltering {
         // Turn off all descendant switches, they will inherit the state of the
         // branch's origin.
         const targetLen = targetHostname.length;
-        for ( const hostname of this.switches.keys() ) {
-            if ( hostname === targetHostname ) { continue; }
-            if ( hostname.length <= targetLen ) { continue; }
-            if ( hostname.endsWith(targetHostname) === false ) { continue; }
+        this.switches.forEach((_, hostname) => {
+            if ( hostname === targetHostname ) { return; }
+            if ( hostname.length <= targetLen ) { return; }
+            if ( hostname.endsWith(targetHostname) === false ) { return; }
             if ( hostname.charAt(hostname.length - targetLen - 1) !== '.' ) {
-                continue;
+                return;
             }
             this.toggle(switchName, hostname, 0);
-        }
+        });
 
         return this.changed;
     }
@@ -199,17 +199,17 @@ class DynamicSwitchRuleFiltering {
             return false;
         }
         this.n = switchName;
-        for ( const shn of decomposeHostname(hostname, decomposedSource) ) {
+        this.r = 0;
+        decomposeHostname(hostname, decomposedSource).some(shn => {
             let bits = this.switches.get(shn);
-            if ( bits === undefined ) { continue; }
+            if ( bits === undefined ) { return false; }
             bits = bits >>> bitOffset & 3;
-            if ( bits === 0 ) { continue; }
+            if ( bits === 0 ) { return false; }
             this.z = shn;
             this.r = bits;
-            return bits === 1;
-        }
-        this.r = 0;
-        return false;
+            return true;
+        });
+        return this.r === 1;
     }
 
     toLogData() {
@@ -222,17 +222,17 @@ class DynamicSwitchRuleFiltering {
 
     toArray() {
         const out = [];
-        for ( const hostname of this.switches.keys() ) {
+        this.switches.forEach((_, hostname) => {
             const prettyHn = hostname.includes('xn--') && punycode
                 ? punycode.toUnicode(hostname)
                 : hostname;
-            for ( const switchName in switchBitOffsets ) {
-                if ( switchBitOffsets[switchName] === undefined ) { continue; }
+            Object.entries(switchBitOffsets).forEach(([switchName, bitOffset]) => {
+                if ( bitOffset === undefined ) { return; }
                 const val = this.evaluate(switchName, hostname);
-                if ( val === 0 ) { continue; }
+                if ( val === 0 ) { return; }
                 out.push(`${switchName}: ${prettyHn} ${switchStateToNameMap[val]}`);
-            }
-        }
+            });
+        });
         return out;
     }
 
