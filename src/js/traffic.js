@@ -39,11 +39,6 @@ import µb from './background.js';
 
 /******************************************************************************/
 
-// For platform-specific behavior.
-const isGecko = vAPI.webextFlavor.isGecko;
-
-/******************************************************************************/
-
 const patchLocalRedirectURL = url => url.charCodeAt(0) === 0x2F /* '/' */
     ? vAPI.getURL(url)
     : url;
@@ -586,7 +581,8 @@ function onHeadersReceived(details) {
     //   Use `no-cache` instead of `no-cache, no-store, must-revalidate`, this
     //   allows Firefox's offline mode to work as expected.
     // Optional compatibility override; default `unset` keeps built-in behavior.
-    if ( modifiedHeaders && isGecko ) {
+    // This is a native Firefox build, so no platform guard is needed here.
+    if ( modifiedHeaders ) {
         const cacheControl = µb.hiddenSettings.cacheControlForFirefox1376932;
         if ( cacheControl !== 'unset' ) {
             let i = headerIndexFromName('cache-control', responseHeaders);
@@ -699,6 +695,8 @@ function textResponseFilterer(session, directives) {
 /******************************************************************************/
 
 function htmlResponseFilterer(session, selectors) {
+    if ( selectors === undefined ) { return; }
+
     if ( htmlResponseFilterer.domParser === null ) {
         htmlResponseFilterer.domParser = new DOMParser();
         htmlResponseFilterer.xmlSerializer = new XMLSerializer();
@@ -709,7 +707,6 @@ function htmlResponseFilterer(session, selectors) {
         session.mime
     );
 
-    if ( selectors === undefined ) { return; }
     if ( htmlFilteringEngine.apply(doc, session, selectors) !== true ) { return; }
 
     // https://stackoverflow.com/questions/6088972/get-doctype-of-an-html-as-string-with-javascript/10162353#10162353

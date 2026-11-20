@@ -140,6 +140,8 @@ const onNetWhitelistReady = (netWhitelistRaw, adminExtra) => {
 const onUserSettingsReady = fetched => {
     // Terminate suspended state?
     const tnow = Date.now() - vAPI.T0;
+    // Firefox request suspension is always supported; there is no
+    // non-suspendable startup path on this platform.
     if (
         vAPI.Net.canSuspend() &&
         fetched.suspendUntilListsAreLoaded === false
@@ -147,12 +149,6 @@ const onUserSettingsReady = fetched => {
         vAPI.net.unsuspend({ all: true, discard: true });
         ubolog(`Unsuspend network activity listener at ${tnow} ms`);
         µb.supportStats.unsuspendAfter = `${tnow} ms`;
-    } else if (
-        vAPI.Net.canSuspend() === false &&
-        fetched.suspendUntilListsAreLoaded
-    ) {
-        vAPI.net.suspend();
-        ubolog(`Suspend network activity listener at ${tnow} ms`);
     }
 
     // `externalLists` will be deprecated in some future, it is kept around

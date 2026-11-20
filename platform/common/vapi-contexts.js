@@ -215,18 +215,27 @@ export function getAncestors(details) {
     return out.slice(1).filter(a => isHTTP(a));
 }
 
+// Avoid exception-driven control flow for tabless and behind-the-scene
+// requests: a missing frame URL is an expected state on Firefox.
+const topFrameURL = tabId => {
+    const url = tabDict.get(tabId)?.frameDict.get(0)?.url;
+    return typeof url === 'string' && url !== '' ? url : undefined;
+};
+
 export function getTopURL(tabId) {
+    const rawURL = topFrameURL(tabId);
+    if ( rawURL === undefined ) { return; }
     try {
-        const url = new URL(tabDict.get(tabId)?.frameDict.get(0)?.url);
-        return url.href;
+        return new URL(rawURL).href;
     } catch {
     }
 }
 
 export function getTopOrigin(tabId) {
+    const rawURL = topFrameURL(tabId);
+    if ( rawURL === undefined ) { return; }
     try {
-        const url = new URL(tabDict.get(tabId)?.frameDict.get(0)?.url);
-        return url.origin;
+        return new URL(rawURL).origin;
     } catch {
     }
 }
