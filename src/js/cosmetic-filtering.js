@@ -610,15 +610,18 @@ CosmeticFilteringEngine.prototype.removeFromSelectorCache = function(
     type = undefined
 ) {
     const targetHostnameLength = targetHostname.length;
-    for ( const [ hostname, item ] of this.selectorCache ) {
-        if ( targetHostname !== '*' ) {
-            if ( hostname.endsWith(targetHostname) === false ) { continue; }
-            if ( hostname.length !== targetHostnameLength ) {
-                if ( hostname.at(-1) !== '.' ) { continue; }
-            }
-        }
-        item.remove(type);
-    }
+    Array.from(this.selectorCache)
+        .filter(([ hostname ]) => {
+            if ( targetHostname === '*' ) { return true; }
+            if ( hostname.endsWith(targetHostname) === false ) { return false; }
+            return (
+                hostname.length === targetHostnameLength ||
+                hostname.at(-1) === '.'
+            );
+        })
+        .forEach(([ , item ]) => {
+            item.remove(type);
+        });
 };
 
 /******************************************************************************/
