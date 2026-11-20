@@ -24,6 +24,35 @@ filter-compatibility diagnostics. It is not an MV3 runtime path: uBlockFox
 blocks requests with the MV2 static filtering engines and does not apply DNR
 rules.
 
+### Native and upstream-only performance work
+
+This repository ships a WebExtension. SpiderMonkey, WarpJIT, Gecko networking,
+GeckoView, and browser C++ patches cannot be packaged in the XPI produced by
+`make firefox`. Optimization work here must stay within Firefox's MV2 WebExtension
+APIs and JavaScript engine behavior.
+
+Ideas that require browser internals belong upstream in Mozilla, not in this
+extension:
+
+| Idea | Destination | Why it is not a uBlockFox patch |
+| :--- | :---------- | :------------------------------ |
+| JIT/Warp heuristics for filter match loops | SpiderMonkey | No WebExtension control over JIT compilation or inline caches. |
+| Native URL, header, or response parsing | Gecko network stack | `webRequest` exposes detail objects, not parser or pipeline hooks. |
+| CNAME/DNS resolution changes in the network process | Gecko/Necko | `browser.dns` is the only supported extension surface. |
+| Selector-engine or `:has()` matching changes | Gecko style system | Content scripts can only query the engine Firefox provides. |
+| GeckoView embedding or injection changes | Firefox for Android / GeckoView | The extension can only use the exposed Android WebExtension APIs. |
+
+Mozilla-side work requires a separate Gecko source checkout, its own build and
+test cycle, and an upstream review. This repository intentionally keeps no
+native source tree or native build target. When such work is proposed, record
+it as an upstream note and keep the shipped extension behavior unchanged.
+
+For extension-side performance changes, use the built-in devtools benchmarks and
+the deterministic dataset described in [README.md](README.md#benchmarks). Prefer
+changes that reduce allocations, repeated parsing, stale caches, or unnecessary
+API work without altering filtering semantics, hidden compatibility settings,
+or the retained Firefox Android guards.
+
 ---
 
 ### Compatibility settings

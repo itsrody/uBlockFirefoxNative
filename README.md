@@ -116,8 +116,9 @@ where each row has `url`, `frameUrl`, and `cpt`, then set the hidden setting
 ## Development notes
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the Firefox-native architecture,
-retained compatibility settings, and diagnostic-only DNR export notes. There is
-only one build target: `make firefox`.
+retained compatibility settings, diagnostic-only DNR export notes, and the
+boundary for native/upstream-only performance work. There is only one build
+target: `make firefox`.
 
 ## Release history
 
