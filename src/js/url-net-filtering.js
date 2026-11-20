@@ -130,15 +130,15 @@ class DynamicURLRuleFiltering {
 
     assign(other) {
         // Remove rules not in other
-        for ( const key of this.rules.keys() ) {
+        this.rules.forEach((_, key) => {
             if ( other.rules.has(key) === false ) {
                 this.rules.delete(key);
             }
-        }
+        });
         // Add/change rules in other
-        for ( const entry of other.rules ) {
-            this.rules.set(entry[0], entry[1].slice());
-        }
+        other.rules.forEach((entries, key) => {
+            this.rules.set(key, entries.slice());
+        });
         this.changed = true;
     }
 
@@ -182,7 +182,7 @@ class DynamicURLRuleFiltering {
         this.r = 0;
         if ( this.rules.size === 0 ) { return 0; }
         decomposeHostname(context, decomposedSource);
-        for ( const srchn of decomposedSource ) {
+        decomposedSource.some(srchn => {
             this.context = srchn;
             let entries = this.rules.get(`${srchn} ${type}`);
             if ( entries !== undefined ) {
@@ -192,7 +192,7 @@ class DynamicURLRuleFiltering {
                     this.url = entry.url;
                     this.type = type;
                     this.r = entry.action;
-                    return this.r;
+                    return true;
                 }
             }
             entries = this.rules.get(`${srchn} *`);
@@ -203,11 +203,12 @@ class DynamicURLRuleFiltering {
                     this.url = entry.url;
                     this.type = '*';
                     this.r = entry.action;
-                    return this.r;
+                    return true;
                 }
             }
-        }
-        return 0;
+            return false;
+        });
+        return this.r;
     }
 
     mustAllowCellZ(context, target, type) {
@@ -230,9 +231,7 @@ class DynamicURLRuleFiltering {
     }
 
     copyRules(other, context, urls, type) {
-        let i = urls.length;
-        while ( i-- ) {
-            const url = urls[i];
+        urls.toReversed().forEach(url => {
             other.evaluateZ(context, url, type);
             const otherOwn = other.r !== 0 &&
                              other.context === context &&
@@ -251,7 +250,7 @@ class DynamicURLRuleFiltering {
                 this.removeRule(context, url, type);
                 this.changed = true;
             }
-        }
+        });
         return this.changed;
     }
 
