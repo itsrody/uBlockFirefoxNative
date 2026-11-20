@@ -57,13 +57,13 @@ const cacheStorage = (( ) => {
     const exGet = async (api, wanted, outbin) => {
         ubolog('cacheStorage.get:', api.name || 'storage.local', wanted.join());
         const missing = [];
-        for ( const key of wanted ) {
+        wanted.forEach(key => {
             if ( pendingWrite.has(key) ) {
                 outbin[key] = pendingWrite.get(key);
             } else {
                 missing.push(key);
             }
-        }
+        });
         if ( missing.length === 0 ) { return; }
         return api.get(missing).then(inbin => {
             inbin = inbin || {};
@@ -71,10 +71,10 @@ const cacheStorage = (( ) => {
             Object.assign(outbin, inbin);
             if ( found.length === wanted.length ) { return; }
             const missing = [];
-            for ( const key of wanted ) {
-                if ( Object.hasOwn(outbin, key) ) { continue; }
+            wanted.forEach(key => {
+                if ( Object.hasOwn(outbin, key) ) { return; }
                 missing.push(key);
-            }
+            });
             return missing;
         });
     };
@@ -113,15 +113,14 @@ const cacheStorage = (( ) => {
                 if ( wanted === undefined ) { return; }
                 if ( argbin instanceof Object === false ) { return; }
                 if ( Array.isArray(argbin) ) { return; }
-                for ( const key of wanted ) {
-                    if ( Object.hasOwn(argbin, key) === false ) { continue; }
+                wanted.forEach(key => {
+                    if ( Object.hasOwn(argbin, key) === false ) { return; }
                     outbin[key] = argbin[key];
-                }
+                });
             }).then(( ) => {
-                const promises = [];
-                for ( const key of Object.keys(outbin) ) {
-                    promises.push(decompress(outbin, key));
-                }
+                const promises = Object.keys(outbin).map(key =>
+                    decompress(outbin, key)
+                );
                 return Promise.all(promises).then(( ) => outbin);
             }).catch(reason => {
                 ubolog(reason);
@@ -135,10 +134,10 @@ const cacheStorage = (( ) => {
             ]);
             const keys = new Set(results[0]);
             const bin = results[1] || {};
-            for ( const key of Object.keys(bin) ) {
-                if ( regex && regex.test(key) === false ) { continue; }
+            Object.keys(bin).forEach(key => {
+                if ( regex && regex.test(key) === false ) { return; }
                 keys.add(key);
-            }
+            });
             return keys;
         },
 
@@ -146,15 +145,14 @@ const cacheStorage = (( ) => {
             const keys = Object.keys(rawbin);
             if ( keys.length === 0 ) { return; }
             ubolog('cacheStorage.set:', keys.join());
-            for ( const key of keys ) {
+            keys.forEach(key => {
                 pendingWrite.set(key, rawbin[key]);
-            }
+            });
             try {
                 const serializedbin = {};
-                const promises = [];
-                for ( const key of keys ) {
-                    promises.push(compress(serializedbin, key, rawbin[key]));
-                }
+                const promises = keys.map(key =>
+                    compress(serializedbin, key, rawbin[key])
+                );
                 await Promise.all(promises);
                 await Promise.all([
                     cacheAPIs[fastCache].set(rawbin, serializedbin),
@@ -163,9 +161,9 @@ const cacheStorage = (( ) => {
             } catch(reason) {
                 ubolog(reason);
             }
-            for ( const key of keys ) {
+            keys.forEach(key => {
                 pendingWrite.delete(key);
-            }
+            });
         },
 
         remove(...args) {
@@ -185,10 +183,10 @@ const cacheStorage = (( ) => {
         select(api) {
             if ( Object.hasOwn(cacheAPIs, api) === false ) { return fastCache; }
             fastCache = api;
-            for ( const k of Object.keys(cacheAPIs) ) {
-                if ( k === api ) { continue; }
+            Object.keys(cacheAPIs).forEach(k => {
+                if ( k === api ) { return; }
                 cacheAPIs[k]['clear']();
-            }
+            });
             return fastCache;
         },
     };
