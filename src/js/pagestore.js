@@ -676,10 +676,10 @@ const PageStore = class {
         return result;
     }
 
-    filterOnHeaders(fctxt, ...headers) {
+    filterOnHeaders(fctxt, isTrusted, ...headers) {
         fctxt.filter = undefined;
 
-        if ( this.isTrusted(fctxt) ) { return 0; }
+        if ( isTrusted ) { return 0; }
 
         let result = staticNetFilteringEngine.matchHeaders(fctxt, ...headers);
         if ( result === 0 ) { return 0; }

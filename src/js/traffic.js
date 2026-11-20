@@ -483,7 +483,8 @@ function onHeadersReceived(details) {
         if ( isRootDoc === false ) { return; }
         pageStore = µb.bindTabToPageStore(fctxt.tabId, 'beforeRequest');
     }
-    if ( pageStore.isTrusted(fctxt) ) { return; }
+    const isTrusted = pageStore.isTrusted(fctxt);
+    if ( isTrusted ) { return; }
 
     // To enforce strict-blocking with ipaddress option
     if ( isRootDoc && fctxt.ipaddress ) {
@@ -504,6 +505,7 @@ function onHeadersReceived(details) {
 
     if ( isRootDoc === false ) {
         const result = pageStore.filterOnHeaders(fctxt,
+            isTrusted,
             responseHeaders,
             requestHeadersManager.lookup(details)
         );
@@ -518,7 +520,11 @@ function onHeadersReceived(details) {
         }
     }
 
-    const mime = mimeFromHeaders(responseHeaders);
+    const headerIndex = makeHeaderIndex(responseHeaders);
+    const contentType =
+        headerValueFromIndex('content-type', headerIndex, responseHeaders) ||
+        contentTypeFromDetails(details);
+    const mime = mimeFromContentType(contentType);
 
     // https://github.com/gorhill/uBlock/issues/2813
     //   Disable the blocking of large media elements if the document is itself
@@ -532,7 +538,7 @@ function onHeadersReceived(details) {
         }
     }
 
-    if ( bodyFilterer.canFilter(fctxt, details) ) {
+    if ( bodyFilterer.canFilter(fctxt, details, contentType, mime, headerIndex) ) {
         const jobs = [];
         // `replace=` filter option
         const replaceDirectives =
@@ -585,8 +591,10 @@ function onHeadersReceived(details) {
     if ( modifiedHeaders ) {
         const cacheControl = µb.hiddenSettings.cacheControlForFirefox1376932;
         if ( cacheControl !== 'unset' ) {
-            let i = headerIndexFromName('cache-control', responseHeaders);
-            if ( i !== -1 ) {
+            // Header filters and CSP/PP injection may have mutated the array.
+            const finalHeaderIndex = makeHeaderIndex(responseHeaders);
+            const i = finalHeaderIndex.get('cache-control');
+            if ( i !== undefined ) {
                 responseHeaders[i].value = cacheControl;
             } else {
                 responseHeaders.push({ name: 'Cache-Control', value: cacheControl });
@@ -604,15 +612,22 @@ const reMediaContentTypes = /^(?:audio|image|video)\/|(?:\/ogg)$/;
 
 /******************************************************************************/
 
-const mimeFromHeaders = headers => {
-    if ( Array.isArray(headers) === false ) { return ''; }
-    return mimeFromContentType(headerValueFromName('content-type', headers));
-};
-
 const mimeFromContentType = contentType => {
     const match = reContentTypeMime.exec(contentType);
     if ( match === null ) { return ''; }
     return match[0].toLowerCase();
+};
+
+const contentTypeFromDetails = details => {
+    switch ( details.type ) {
+    case 'script':
+        return 'text/javascript; charset=utf-8';
+    case 'stylesheet':
+        return 'text/css';
+    default:
+        break;
+    }
+    return '';
 };
 
 const reContentTypeMime = /^[^;]+/i;
@@ -755,18 +770,6 @@ const bodyFilterer = (( ) => {
     let textDecoder, textEncoder;
     let mime = '';
     let charset = '';
-
-    const contentTypeFromDetails = details => {
-        switch ( details.type ) {
-        case 'script':
-            return 'text/javascript; charset=utf-8';
-        case 'stylesheet':
-            return 'text/css';
-        default:
-            break;
-        }
-        return '';
-    };
 
     const charsetFromContentType = contentType => {
         const match = reContentTypeCharset.exec(contentType);
@@ -954,7 +957,7 @@ const bodyFilterer = (( ) => {
             session.stream.onerror = onStreamError;
             sessions.set(session.stream, session);
         }
-        static canFilter(fctxt, details) {
+        static canFilter(fctxt, details, contentType, mimeFromResponse, headerIndex) {
             if ( µb.canFilterResponseData !== true ) { return; }
 
             if ( (fctxt.itype & BINARY_TYPES) !== 0 ) { return; }
@@ -974,17 +977,18 @@ const bodyFilterer = (( ) => {
 
             // https://bugzilla.mozilla.org/show_bug.cgi?id=1426789
             const headers = details.responseHeaders;
-            const disposition = headerValueFromName('content-disposition', headers);
+            const disposition = headerValueFromIndex(
+                'content-disposition',
+                headerIndex,
+                headers
+            );
             if ( disposition !== '' ) {
                 if ( disposition.startsWith('inline') === false ) { return; }
             }
 
-            mime = 'text/plain';
+            mime = contentType === '' ? 'text/plain' : mimeFromResponse;
             charset = 'utf-8';
-            const contentType = headerValueFromName('content-type', headers) ||
-                contentTypeFromDetails(details);
             if ( contentType !== '' ) {
-                mime = mimeFromContentType(contentType);
                 if ( mime === undefined ) { return; }
                 if ( mime.startsWith('text/') === false ) {
                     if ( otherValidMimes.has(mime) === false ) { return; }
@@ -1190,6 +1194,22 @@ function foilLargeMediaElement(details, fctxt, pageStore) {
 foilLargeMediaElement.TYPE_BITS = fc.IMAGE | fc.MEDIA | fc.XMLHTTPREQUEST;
 
 /******************************************************************************/
+
+// Build one lowercase-name index per response and reuse it for read-only
+// lookups. The first occurrence wins, matching headerIndexFromName().
+const makeHeaderIndex = headers => {
+    const index = new Map();
+    for ( let i = 0, n = headers.length; i < n; i++ ) {
+        const name = headers[i].name.toLowerCase();
+        if ( index.has(name) === false ) { index.set(name, i); }
+    }
+    return index;
+};
+
+const headerValueFromIndex = (name, index, headers) => {
+    const i = index.get(name);
+    return i === undefined ? '' : headers[i].value;
+};
 
 // Caller must ensure headerName is normalized to lower case.
 
