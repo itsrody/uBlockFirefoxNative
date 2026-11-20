@@ -4523,6 +4523,7 @@ const StaticNetFilteringEngine = function() {
 
     this.MAX_TOKEN_LENGTH = MAX_TOKEN_LENGTH;
     this.optimizeTaskId = undefined;
+    this.modifierFilterTypes = new Set();
     this.requestHeaderFilterCount = 0;
     // As long as CategoryCount is reasonably low, we will use an array to
     // store buckets using category bits as index. If ever CategoryCount
@@ -4554,6 +4555,7 @@ StaticNetFilteringEngine.prototype.reset = function() {
     this.goodFilters.clear();
     this.badFilters.clear();
     this.unitsToOptimize.length = 0;
+    this.modifierFilterTypes.clear();
     this.requestHeaderFilterCount = 0;
     this.bitsToBucket.clear();
 
@@ -4600,10 +4602,31 @@ const compiledHasRequestHeaderFilter = args => {
 
 /******************************************************************************/
 
+// Collect modifier types from a compiled filter, including modifier units
+// nested inside collection units.
+const collectCompiledModifierTypes = (args, types) => {
+    if ( Array.isArray(args) === false ) { return; }
+    if ( args[0] === FilterModifier.fid ) {
+        types.add(args[2]);
+        return;
+    }
+    const fc = filterClasses[args[0]];
+    const isCollection =
+        fc !== undefined &&
+        (args[0] === FilterCollection.fid || fc.prototype instanceof FilterCollection);
+    if ( isCollection === false || Array.isArray(args[1]) === false ) { return; }
+    for ( const unit of args[1] ) {
+        collectCompiledModifierTypes(unit, types);
+    }
+};
+
+/******************************************************************************/
+
 StaticNetFilteringEngine.prototype.freeze = function() {
     const unserialize = CompiledListReader.unserialize;
 
     let requestHeaderFilterCount = 0;
+    const modifierTypes = new Set();
 
     for ( const line of this.goodFilters ) {
         if ( this.badFilters.has(line) ) {
@@ -4625,6 +4648,7 @@ StaticNetFilteringEngine.prototype.freeze = function() {
         if ( compiledHasRequestHeaderFilter(fdata) ) {
             requestHeaderFilterCount += 1;
         }
+        collectCompiledModifierTypes(fdata, modifierTypes);
 
         let iunit = bucket.get(tokenHash) || 0;
 
@@ -4690,6 +4714,9 @@ StaticNetFilteringEngine.prototype.freeze = function() {
 
     // freeze() is also used after incremental user-filter changes, when only
     // newly compiled filters are present in goodFilters. Keep prior counts.
+    for ( const type of modifierTypes ) {
+        this.modifierFilterTypes.add(type);
+    }
     this.requestHeaderFilterCount += requestHeaderFilterCount;
 
     this.notReady = false;
@@ -4703,6 +4730,38 @@ StaticNetFilteringEngine.prototype.freeze = function() {
         this.optimizeTaskId = undefined;
         this.optimize(30);
     }, 2000);
+};
+
+/******************************************************************************/
+
+// Collect modifier types from already-compiled buckets. This is used when the
+// engine is restored from a selfie, where goodFilters is unavailable.
+StaticNetFilteringEngine.prototype.collectModifierFilterTypes = function() {
+    const types = new Set();
+    const visit = idata => {
+        const fid = filterData[idata];
+        if ( fid === FilterModifier.fid ) {
+            types.add(FilterModifier.getModifierType(idata));
+            return;
+        }
+        const fc = filterClasses[fid];
+        const isCollection =
+            fc !== undefined &&
+            (fid === FilterCollection.fid || fc.prototype instanceof FilterCollection);
+        if ( isCollection === false ) { return; }
+        FilterCollection.forEach(idata, iunit => visit(iunit));
+    };
+    for ( const bucket of this.bitsToBucket.values() ) {
+        for ( const idata of bucket.values() ) {
+            visit(idata);
+        }
+    }
+    return types;
+};
+
+StaticNetFilteringEngine.prototype.hasModifierFilters = function(modifierName) {
+    const modifierType = modifierTypeFromName.get(modifierName);
+    return modifierType !== undefined && this.modifierFilterTypes.has(modifierType);
 };
 
 /******************************************************************************/
@@ -5330,6 +5389,7 @@ StaticNetFilteringEngine.prototype.fromSelfie = function(selfie) {
     this.acceptedCount = selfie.acceptedCount;
     this.discardedCount = selfie.discardedCount;
     this.bitsToBucket = selfie.bitsToBucket;
+    this.modifierFilterTypes = this.collectModifierFilterTypes();
     this.requestHeaderFilterCount = this.countRequestHeaderFilters();
     urlTokenizer.fromSelfie(selfie.urlTokenizer);
 
@@ -5378,7 +5438,7 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
     fctxt,
     modifierName
 ) {
-    if ( this.notReady ) { return; }
+    if ( this.notReady || this.hasModifierFilters(modifierName) === false ) { return; }
 
     const typeBits = typeNameToTypeValue[fctxt.type] || otherTypeBitValue;
     const modifierType = modifierTypeFromName.get(modifierName);
