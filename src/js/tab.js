@@ -338,16 +338,27 @@ import µb from './background.js';
         const { sourceTabId, sourceFrameId, tabId } = createDetails;
         const popup = popupCandidates.get(tabId);
         if ( popup === undefined ) {
-            const openerDetails = await Promise.all([
-                webext.webNavigation.getFrame({
-                    tabId: createDetails.sourceTabId,
-                    frameId: 0,
-                }),
-                webext.webNavigation.getFrame({
+            let openerDetails;
+            if ( sourceFrameId === 0 ) {
+                // Both lookups would be identical: use one Firefox API call.
+                const frame = await webext.webNavigation.getFrame({
                     tabId: sourceTabId,
-                    frameId: sourceFrameId,
-                }),
-            ]).catch(( ) => { });
+                    frameId: 0,
+                }).catch(( ) => { });
+                if ( frame === undefined ) { return; }
+                openerDetails = [ frame, frame ];
+            } else {
+                openerDetails = await Promise.all([
+                    webext.webNavigation.getFrame({
+                        tabId: sourceTabId,
+                        frameId: 0,
+                    }),
+                    webext.webNavigation.getFrame({
+                        tabId: sourceTabId,
+                        frameId: sourceFrameId,
+                    }),
+                ]).catch(( ) => { });
+            }
             if ( Array.isArray(openerDetails) === false ) { return; }
             if ( openerDetails.length !== 2 ) { return; }
             if ( openerDetails[1] === null ) { return; }

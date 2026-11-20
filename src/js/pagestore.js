@@ -41,6 +41,17 @@ import { redirectEngine } from './redirect-engine.js';
 import staticNetFilteringEngine from './static-net-filtering.js';
 import µb from './background.js';
 
+/******************************************************************************/
+
+// A `?` inside a fragment is not a query string. This avoids re-tokenizing the
+// URL merely to decide whether query-pruning filters should be evaluated.
+const hasQueryString = url => {
+    const qpos = url.indexOf('?');
+    if ( qpos === -1 ) { return false; }
+    const hpos = url.indexOf('#');
+    return hpos === -1 || qpos < hpos;
+};
+
 /*******************************************************************************
 
 A PageRequestStore object is used to store net requests in two ways:
@@ -730,7 +741,7 @@ const PageStore = class {
     redirectNonBlockedRequest(fctxt) {
         const directives = [];
         staticNetFilteringEngine.transformURL(fctxt, directives);
-        if ( staticNetFilteringEngine.hasQuery(fctxt) ) {
+        if ( hasQueryString(fctxt.url) ) {
             staticNetFilteringEngine.filterQuery(fctxt, directives);
         }
         if ( this.urlSkippableResources.has(fctxt.itype) ) {

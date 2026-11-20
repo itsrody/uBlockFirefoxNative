@@ -5282,9 +5282,6 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
     if ( this.notReady ) { return; }
 
     const typeBits = typeNameToTypeValue[fctxt.type] || otherTypeBitValue;
-
-    resetRegisters(fctxt, typeBits);
-
     const modifierType = modifierTypeFromName.get(modifierName);
     const modifierBits = modifierBitsFromType.get(modifierType);
 
@@ -5312,6 +5309,10 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
     ) {
         return;
     }
+
+    // Only tokenize and populate the shared registers once a modifier bucket
+    // actually exists for this request.
+    resetRegisters(fctxt, typeBits);
 
     const results = [];
     const env = {
