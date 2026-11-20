@@ -66,14 +66,7 @@ const lookupFilterLists = async ( ) => {
         rawFilter: details.fs,
     });
     if ( response instanceof Object === false ) { return; }
-    let lists;
-    for ( const rawFilter in response ) {
-        if ( Object.hasOwn(response, rawFilter) ) {
-            lists = response[rawFilter];
-            break;
-        }
-    }
-    return lists;
+    return Object.values(response)[0];
 };
 
 /******************************************************************************/
@@ -151,7 +144,7 @@ if ( typeof details.to === 'string' && details.to.length !== 0 ) {
         parentNode.appendChild(li);
 
         const params = new self.URLSearchParams(search);
-        for ( const [ name, value ] of params ) {
+        params.forEach((value, name) => {
             const li = liFromParam(name, value);
             if ( depth < 2 && reURL.test(value) ) {
                 const ul = dom.create('ul');
@@ -159,7 +152,7 @@ if ( typeof details.to === 'string' && details.to.length !== 0 ) {
                 li.appendChild(ul);
             }
             parentNode.appendChild(li);
-        }
+        });
 
         return true;
     };
@@ -268,8 +261,7 @@ lookupFilterLists().then((lists = []) => {
 
     const listTemplate = qs$('template.filterList');
     const parent = qs$(whyExtra, '.why-extra');
-    let separator = '';
-    for ( const list of lists ) {
+    lists.forEach((list, i) => {
         const listElem = listTemplate.content.cloneNode(true);
         const sourceElem = qs$(listElem, '.filterListSource');
         sourceElem.href += encodeURIComponent(list.assetKey);
@@ -279,9 +271,8 @@ lookupFilterLists().then((lists = []) => {
             dom.attr(supportElem, 'href', list.supportURL);
             dom.cl.remove(supportElem, 'hidden');
         }
-        parent.append(separator, listElem);
-        separator = '\u00A0\u2022\u00A0';
-    }
+        parent.append(i === 0 ? '' : '\u00A0\u2022\u00A0', listElem);
+    });
     faIconsInit(whyExtra);
     qs$('#why .why').after(whyExtra);
 });
