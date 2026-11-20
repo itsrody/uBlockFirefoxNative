@@ -86,31 +86,19 @@ const hashFromAdvancedSettings = function(raw) {
 /******************************************************************************/
 
 const arrayFromObject = function(o) {
-    const out = [];
-    for ( const k in o ) {
-        if ( Object.hasOwn(o, k) === false ) { continue; }
-        out.push([ k, `${o[k]}` ]);
-    }
-    return out;
+    return Object.entries(o).map(([ k, v ]) => [ k, `${v}` ]);
 };
 
 const arrayFromString = function(s) {
-    const out = [];
-    for ( let line of s.split(/[\n\r]+/) ) {
-        line = line.trim();
-        if ( line === '' ) { continue; }
-        const pos = line.indexOf(' ');
-        let k, v;
-        if ( pos !== -1 ) {
-            k = line.slice(0, pos);
-            v = line.slice(pos + 1);
-        } else {
-            k = line;
-            v = '';
-        }
-        out.push([ k.trim(), v.trim() ]);
-    }
-    return out;
+    return s.split(/[\n\r]+/)
+        .map(line => line.trim())
+        .filter(line => line !== '')
+        .map(line => {
+            const pos = line.indexOf(' ');
+            const k = pos === -1 ? line : line.slice(0, pos);
+            const v = pos === -1 ? '' : line.slice(pos + 1);
+            return [ k.trim(), v.trim() ];
+        });
 };
 
 /******************************************************************************/
@@ -145,29 +133,25 @@ const renderAdvancedSettings = async function(first) {
     const pretty = [];
     const roLines = [];
     const entries = arrayFromObject(details.current);
-    let max = 0;
-    for ( const [ k ] of entries ) {
-        if ( k.length > max ) { max = k.length; }
-    }
-    for ( let i = 0; i < entries.length; i++ ) {
-        const [ k, v ] = entries[i];
+    const max = entries.reduce((max, [ k ]) => Math.max(max, k.length), 0);
+    entries.forEach(([ k, v ], i) => {
         pretty.push(' '.repeat(max - k.length) + `${k} ${v}`);
         if ( adminSettings.has(k) ) {
             roLines.push(i);
         }
-    }
+    });
     pretty.push('');
     cmEditor.setValue(pretty.join('\n'));
     if ( first ) {
         cmEditor.clearHistory();
     }
-    for ( const line of roLines ) {
+    roLines.forEach(line => {
         cmEditor.markText(
             { line, ch: 0 },
             { line: line + 1, ch: 0 },
             { readOnly: true }
         );
-    }
+    });
     advancedSettingsChanged();
     cmEditor.focus();
 };
