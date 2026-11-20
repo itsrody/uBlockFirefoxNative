@@ -41,13 +41,11 @@ function trustedSiteMatcher(data, url, hn) {
             return (new RegExp(directive.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*?'))).test(url);
         });
     const matchBucket = trustedSiteMatcher.matchBucket ??
-        (trustedSiteMatcher.matchBucket = (bucket, url, hn) => {
-            if ( bucket === undefined ) { return -1; }
-            for ( let i = 0; i < bucket.length; i++ ) {
-                if ( matchDirective(bucket[i], url, hn) ) { return i; }
-            }
-            return -1;
-        });
+        (trustedSiteMatcher.matchBucket = (bucket, url, hn) =>
+            bucket === undefined
+                ? -1
+                : bucket.findIndex(directive => matchDirective(directive, url, hn))
+        );
     for ( let pos = 0; ; pos += 1 ) {
         const key = hn.slice(pos);
         const i = matchBucket(data.get(key), url, hn);
