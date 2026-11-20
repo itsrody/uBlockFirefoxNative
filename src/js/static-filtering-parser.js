@@ -4253,6 +4253,8 @@ export const proceduralOperatorTokens = new Map([
 
 export const utils = (( ) => {
 
+    // Filter-list compatibility tokens. Historical browser names select
+    // list rules; they are not browser support targets. See CONTRIBUTING.md.
     const preparserTokens = new Map([
         [ 'ext_ublock', 'ublock' ],
         [ 'ext_ubol', 'ubol' ],

@@ -30,14 +30,25 @@ rules.
 
 The following compatibility surfaces are intentionally retained:
 
-- `modifyWebextFlavor` — admin/advanced override for filter-list preparser tokens.
+- `modifyWebextFlavor` — admin/advanced override for filter-list preparser tokens, including `-native_css_has`.
 - `cacheControlForFirefox1376932` — optional override for Firefox's modified-response cache workaround; default `unset`.
 - backup restore migration for old Firefox/Chromium backups.
 - `chrome-extension-scheme` and `chrome:` opener exclusions, because Firefox still uses `chrome:` internal URLs and older stored settings may use the legacy scheme name.
 - Firefox-specific undefined-`fetched` storage guard.
+- filter-list preparser tokens for historical browser names (for example `env_chromium`); these select filter-list rules and are not browser support targets.
 
 These are compatibility records, not plans to support other browsers. Do not
 remove them without a separate migration review.
+
+Code markers for these records:
+
+- Hidden defaults and trusted-site directives: `src/js/background.js`
+- Flavor tokens: `platform/common/vapi-common.js`
+- Preparser tokens: `src/js/static-filtering-parser.js`
+- Storage guard: `src/js/start.js`
+- Backup migration: `src/js/messaging.js`
+- Response rewriting and cache override: `src/js/traffic.js`
+- Firefox desktop/Android API differences: `platform/common/vapi-background.js`
 
 ---
 

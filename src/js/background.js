@@ -157,7 +157,8 @@ const µBlock = {  // jshint ignore:line
 
     noDashboard: false,
 
-    // Features detection.
+    // Feature detection. `filterResponseData` is the Firefox MV2 response
+    // rewriting capability; Android builds may differ. See CONTRIBUTING.md.
     privacySettingsSupported: vAPI.browserSettings instanceof Object,
     cloudStorageSupported: vAPI.cloud instanceof Object,
     canFilterResponseData: typeof browser.webRequest.filterResponseData === 'function',
