@@ -150,8 +150,9 @@ vAPI.webextFlavor = {
     }
 };
 
+// Native `:has()` is guaranteed by the Firefox 160 manifest floor. The
+// hidden `modifyWebextFlavor` setting can still remove the token.
 // https://bugzilla.mozilla.org/show_bug.cgi?id=1858743
-//   Add support for native `:has()` for Firefox 121+
 
 (( ) => {
     const ua = navigator.userAgent;
@@ -180,9 +181,7 @@ vAPI.webextFlavor = {
         soup.add('mobile');
     }
 
-    if ( CSS.supports('selector(a:has(b))') ) {
-        soup.add('native_css_has');
-    }
+    soup.add('native_css_has');
 
     // Don't starve potential listeners
     vAPI.setTimeout(dispatch, 97);
