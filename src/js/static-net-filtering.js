@@ -627,7 +627,7 @@ const filterDataFromSelfie = selfie => {
     return true;
 };
 
-const filterRefs = [ null ];
+let filterRefs = [ null ];
 let filterRefsWritePtr = 1;
 const filterRefAdd = ref => {
     const i = filterRefsWritePtr;
@@ -636,7 +636,10 @@ const filterRefAdd = ref => {
     return i;
 };
 const filterRefsReset = ( ) => {
-    filterRefs.fill(null);
+    // Truncation is enough: stale refs are no longer reachable, and the next
+    // filterRefAdd() will grow the array back to the needed length.
+    filterRefs.length = 1;
+    filterRefs[0] = null;
     filterRefsWritePtr = 1;
 };
 const filterRefsToSelfie = ( ) =>
@@ -644,10 +647,8 @@ const filterRefsToSelfie = ( ) =>
 
 const filterRefsFromSelfie = selfie => {
     if ( Array.isArray(selfie) === false ) { return false; }
-    for ( let i = 0, n = selfie.length; i < n; i++ ) {
-        filterRefs[i] = selfie[i];
-    }
-    filterRefsWritePtr = selfie.length;
+    filterRefs = selfie.slice();
+    filterRefsWritePtr = filterRefs.length;
     return true;
 };
 
