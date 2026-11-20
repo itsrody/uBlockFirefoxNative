@@ -114,19 +114,19 @@ class DynamicHostRuleFiltering {
 
     assign(other) {
         // Remove rules not in other
-        for ( const k of this.rules.keys() ) {
+        this.rules.forEach((_, k) => {
             if ( other.rules.has(k) === false ) {
                 this.rules.delete(k);
                 this.changed = true;
             }
-        }
+        });
         // Add/change rules in other
-        for ( const entry of other.rules ) {
-            if ( this.rules.get(entry[0]) !== entry[1] ) {
-                this.rules.set(entry[0], entry[1]);
+        other.rules.forEach((bits, k) => {
+            if ( this.rules.get(k) !== bits ) {
+                this.rules.set(k, bits);
                 this.changed = true;
             }
-        }
+        });
     }
 
     copyRules(from, srcHostname, desHostnames) {
@@ -155,7 +155,7 @@ class DynamicHostRuleFiltering {
         }
 
         // Specific destinations
-        for ( const desHostname in desHostnames ) {
+        Object.keys(desHostnames).forEach(desHostname => {
             key = `* ${desHostname}`;
             thisBits = this.rules.get(key);
             fromBits = from.rules.get(key);
@@ -178,7 +178,7 @@ class DynamicHostRuleFiltering {
                 }
                 this.changed = true;
             }
-        }
+        });
 
         return this.changed;
     }
@@ -195,17 +195,14 @@ class DynamicHostRuleFiltering {
         key = `${srcHostname} *`;
         if ( this.rules.get(key) !== other.rules.get(key) ) { return false; }
         // Specific destinations
-        for ( const desHostname in desHostnames ) {
+        return Object.keys(desHostnames).every(desHostname => {
             key = `* ${desHostname}`;
             if ( this.rules.get(key) !== other.rules.get(key) ) {
                 return false;
             }
             key = `${srcHostname} ${desHostname}`;
-            if ( this.rules.get(key) !== other.rules.get(key) ) {
-                return false;
-            }
-        }
-        return true;
+            return this.rules.get(key) === other.rules.get(key);
+        });
     }
 
     setCell(srcHostname, desHostname, type, state) {
@@ -248,17 +245,18 @@ class DynamicHostRuleFiltering {
         decomposeHostname(srcHostname, decomposedSource);
         this.type = type;
         const bitOffset = typeBitOffsets[type];
-        for ( const srchn of decomposedSource ) {
+        this.r = 0;
+        decomposedSource.some(srchn => {
             this.z = srchn;
             let v = this.rules.get(`${srchn} ${desHostname}`);
-            if ( v === undefined ) { continue; }
+            if ( v === undefined ) { return false; }
             v = v >>> bitOffset & 3;
-            if ( v === 0 ) { continue; }
-            return (this.r = v);
-        }
+            if ( v === 0 ) { return false; }
+            this.r = v;
+            return true;
+        });
         // srcHostname is '*' at this point
-        this.r = 0;
-        return 0;
+        return this.r;
     }
 
     evaluateCellZY(srcHostname, desHostname, type) {
@@ -272,13 +270,17 @@ class DynamicHostRuleFiltering {
 
         // Specific-destination, any party, any type
         decomposeHostname(desHostname, decomposedDestination);
-        for ( const deshn of decomposedDestination ) {
-            if ( deshn === '*' ) { break; }
+        let found = false;
+        decomposedDestination.some(deshn => {
+            if ( deshn === '*' ) { return true; }
             this.y = deshn;
             if ( this.evaluateCellZ(srcHostname, deshn, '*') !== 0 ) {
-                return this.r;
+                found = true;
+                return true;
             }
-        }
+            return false;
+        });
+        if ( found ) { return this.r; }
 
         const thirdParty = is3rdParty(srcHostname, desHostname);
 
@@ -370,7 +372,7 @@ class DynamicHostRuleFiltering {
 
     toArray() {
         const out = [];
-        for ( const key of this.rules.keys() ) {
+        this.rules.forEach((_, key) => {
             const srchn = this.srcHostnameFromRule(key);
             const deshn = this.desHostnameFromRule(key);
             const srchnPretty = srchn.includes('xn--') && punycode
@@ -379,15 +381,15 @@ class DynamicHostRuleFiltering {
             const deshnPretty = deshn.includes('xn--') && punycode
                 ? punycode.toUnicode(deshn)
                 : deshn;
-            for ( const type in typeBitOffsets ) {
-                if ( typeBitOffsets[type] === undefined ) { continue; }
+            Object.entries(typeBitOffsets).forEach(([type, bitOffset]) => {
+                if ( bitOffset === undefined ) { return; }
                 const val = this.evaluateCell(srchn, deshn, type);
-                if ( val === 0 ) { continue; }
+                if ( val === 0 ) { return; }
                 const action = intToActionMap.get(val);
-                if ( action === undefined ) { continue; }
+                if ( action === undefined ) { return; }
                 out.push(`${srchnPretty} ${deshnPretty} ${type} ${action}`);
-            }
-        }
+            });
+        });
         return out;
     }
 
@@ -459,17 +461,15 @@ class DynamicHostRuleFiltering {
     }
 
     export1stPartyRules() {
-        const out = [];
         const bitoffset = typeBitOffsets['*'];
-        for ( const [ srcdes, bits ] of this.rules ) {
+        return Array.from(this.rules).flatMap(([ srcdes, bits ]) => {
             const match = /^(\S+) (\S+)/.exec(srcdes);
-            if ( match === null ) { continue; }
-            if ( match[1] !== match[2] && match[2] !== '*' ) { continue; }
+            if ( match === null ) { return []; }
+            if ( match[1] !== match[2] && match[2] !== '*' ) { return []; }
             const value = (bits >>> bitoffset) & 0b11;
-            if  ( value === 0 ) { continue; }
-            out.push([ match[1], value === 2 ]);
-        }
-        return out;
+            if  ( value === 0 ) { return []; }
+            return [ [ match[1], value === 2 ] ];
+        });
     }
 
     toSelfie() {
