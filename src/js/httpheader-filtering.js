@@ -34,11 +34,9 @@ let acceptedCount = 0;
 let discardedCount = 0;
 
 const headerIndexFromName = function(name, headers, start = 0) {
-    for ( let i = start; i < headers.length; i++ ) {
-        if ( headers[i].name.toLowerCase() !== name ) { continue; }
-        return i;
-    }
-    return -1;
+    return headers.findIndex((header, i) =>
+        i >= start && header.name.toLowerCase() === name
+    );
 };
 
 const logOne = function(isException, token, fctxt) {
