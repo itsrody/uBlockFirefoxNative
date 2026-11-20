@@ -130,17 +130,17 @@ const NetFilteringResultCache = class {
 
     prune() {
         const obsolete = Date.now() - this.shelfLife;
-        for ( const entry of this.blocked ) {
-            if ( entry[1] <= obsolete ) {
-                this.results.delete(entry[0]);
-                this.blocked.delete(entry[0]);
+        this.blocked.forEach((tstamp, key) => {
+            if ( tstamp <= obsolete ) {
+                this.results.delete(key);
+                this.blocked.delete(key);
             }
-        }
-        for ( const entry of this.results ) {
-            if ( entry[1].tstamp <= obsolete ) {
-                this.results.delete(entry[0]);
+        });
+        this.results.forEach((entry, key) => {
+            if ( entry.tstamp <= obsolete ) {
+                this.results.delete(key);
             }
-        }
+        });
         if ( this.blocked.size !== 0 || this.results.size !== 0 ) {
             this.pruneAsync();
         }
@@ -235,9 +235,9 @@ const HostnameDetailsMap = class extends Map {
         this.clear();
     }
     dispose() {
-        for ( const item of this.values() ) {
+        this.forEach(item => {
             item.dispose();
-        }
+        });
         this.reset();
     }
 };
@@ -891,11 +891,11 @@ const PageStore = class {
         // some resources it's not possible to detect whether they were blocked
         // content script-side (i.e. `iframes` -- unlike `img`).
         if ( Array.isArray(resources) && resources.length !== 0 ) {
-            for ( const resource of resources ) {
+            resources.forEach(resource => {
                 this.filterRequest(
                     fctxt.setType(resource.type).setURL(resource.url)
                 );
-            }
+            });
         }
         if ( this.netFilteringCache.hash === response.hash ) { return; }
         response.hash = this.netFilteringCache.hash;
