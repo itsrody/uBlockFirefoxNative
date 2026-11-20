@@ -91,6 +91,28 @@ in Firefox and choose _Load Temporary Add-on..._.
 
 Run `make lint` to check the JavaScript and JSON sources.
 
+## Benchmarks
+
+The build includes a deterministic benchmark dataset at
+`assets/requests.json`, so uBO's built-in devtools benchmarks are enabled by
+default.
+
+1. Load the unpacked extension with `about:debugging`.
+2. Open `moz-extension://<extension-id>/devtools.html`.
+3. Click **SNFE: Benchmark**, **CFE: Benchmark**, or **SFE: Benchmark**.
+4. Read the result in the devtools log.
+
+The dataset is synthetic and is only used for string matching; no request is
+made to any host in it. Regenerate it with:
+
+```bash
+npm run benchmark:dataset -- 2000
+```
+
+For real-world measurements, replace it with your own JSON array or NDJSON file
+where each row has `url`, `frameUrl`, and `cpt`, then set the hidden setting
+`benchmarkDatasetURL` to that path or URL.
+
 ## Release history
 
 [Releases page][Releases]

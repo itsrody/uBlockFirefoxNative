@@ -51,7 +51,7 @@ const hiddenSettingsDefault = {
     autoUpdateAssetFetchPeriod: 5,
     autoUpdateDelayAfterLaunch: 37,
     autoUpdatePeriod: 1,
-    benchmarkDatasetURL: 'unset',
+    benchmarkDatasetURL: 'assets/requests.json',
     blockingProfiles: '11111/#F00 11010/#C0F 11001/#00F 00001',
     cacheStorageCompression: true,
     cacheStorageCompressionThreshold: 65536,

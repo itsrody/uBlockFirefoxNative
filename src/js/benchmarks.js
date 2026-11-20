@@ -37,31 +37,20 @@ import µb from './background.js';
 
 /******************************************************************************/
 
-// The requests.json.gz file can be downloaded from:
-//   https://cdn.cliqz.com/adblocking/requests_top500.json.gz
+// A deterministic benchmark dataset is checked in at assets/requests.json.
+// Regenerate it with:
+//   node tools/make-benchmark-dataset.mjs [count]
 //
-// Which is linked from:
-//   https://whotracks.me/blog/adblockers_performance_study.html
+// The hidden setting benchmarkDatasetURL points to that file by default, which
+// enables the benchmark buttons in devtools.html. Each row is a JSON object
+// with `url`, `frameUrl`, and `cpt`; NDJSON is also accepted. To use a different
+// dataset, set benchmarkDatasetURL in the dashboard to an extension-relative
+// path or an absolute URL.
 //
-// Copy the file into ./tmp/requests.json.gz
-//
-// If the file is present when you build uBO using `make-[target].sh` from
-// the shell, the resulting package will have `./assets/requests.json`, which
-// will be looked-up by the method below to launch a benchmark session.
-//
-// From uBO's dev console, launch the benchmark:
-//   µBlock.staticNetFilteringEngine.benchmark();
-//
-// The usual browser dev tools can be used to obtain useful profiling
-// data, i.e. start the profiler, call the benchmark method from the
-// console, then stop the profiler when it completes.
-//
-// Keep in mind that the measurements at the blog post above where obtained
-// with ONLY EasyList. The CPU reportedly used was:
-//   https://www.cpubenchmark.net/cpu.php?cpu=Intel+Core+i7-6600U+%40+2.60GHz&id=2608
-//
-// Rename ./tmp/requests.json.gz to something else if you no longer want
-// ./assets/requests.json in the build.
+// The benchmarks are module exports only. They are invoked by the devtools
+// buttons through the `devTools` messaging channel. For lower-level profiling,
+// start Firefox Profiler, click a benchmark button, then stop the profiler when
+// it completes.
 
 const loadBenchmarkDataset = (( ) => {
     let datasetPromise;
