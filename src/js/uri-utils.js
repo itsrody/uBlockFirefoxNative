@@ -94,8 +94,10 @@ function hostnameFromURI(uri) {
         if ( match === null ) { return ''; }
     }
     let hostname = match[1];
-    while ( hostname.endsWith('.') ) {
-        hostname = hostname.slice(0, -1);
+    // Keep the common no-trailing-dot path allocation-free, then use the
+    // native regexp engine to strip a whole run of trailing dots.
+    if ( hostname.endsWith('.') ) {
+        hostname = hostname.replace(/\.+$/, '');
     }
     if ( reMustNormalizeHostname.test(hostname) ) {
         hostname = punycode.toASCII(hostname.toLowerCase());

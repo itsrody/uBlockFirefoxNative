@@ -594,11 +594,9 @@ const filterDataShrink = ( ) => {
     filterData = newBuf;
 };
 const filterDataAlloc = (...args) => {
-    const len = args.length;
-    const idata = filterDataAllocLen(len);
-    for ( let i = 0; i < len; i++ ) {
-        filterData[idata+i] = args[i];
-    }
+    const idata = filterDataAllocLen(args.length);
+    // Let the typed array implementation perform the copy in native code.
+    filterData.set(args, idata);
     return idata;
 };
 const filterDataAllocLen = len => {
