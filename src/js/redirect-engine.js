@@ -103,11 +103,12 @@ class RedirectEntry {
             const secret = warSecret();
             if ( secret !== '' ) { params.push(`secret=${secret}`); }
             if ( this.params !== undefined ) {
-                for ( const name of this.params ) {
+                params.push(...this.params.flatMap(name => {
                     const value = fctxt[name];
-                    if ( value === undefined ) { continue; }
-                    params.push(`${name}=${encodeURIComponent(value)}`);
-                }
+                    return value === undefined
+                        ? []
+                        : [ `${name}=${encodeURIComponent(value)}` ];
+                }));
             }
             let url = `${this.warURL}`;
             if ( params.length !== 0 ) {
