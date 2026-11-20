@@ -1201,15 +1201,13 @@ foilLargeMediaElement.TYPE_BITS = fc.IMAGE | fc.MEDIA | fc.XMLHTTPREQUEST;
 /******************************************************************************/
 
 // Build one lowercase-name index per response and reuse it for read-only
-// lookups. The first occurrence wins, matching headerIndexFromName().
-const makeHeaderIndex = headers => {
-    const index = new Map();
-    for ( let i = 0, n = headers.length; i < n; i++ ) {
-        const name = headers[i].name.toLowerCase();
-        if ( index.has(name) === false ) { index.set(name, i); }
-    }
-    return index;
-};
+// lookups. Traversing in reverse lets the native reducer keep the lowest
+// index for duplicate names, matching headerIndexFromName().
+const makeHeaderIndex = headers =>
+    headers.reduceRight((index, header, i) => {
+        index.set(header.name.toLowerCase(), i);
+        return index;
+    }, new Map());
 
 const headerValueFromIndex = (name, index, headers) => {
     const i = index.get(name);
@@ -1218,12 +1216,8 @@ const headerValueFromIndex = (name, index, headers) => {
 
 // Caller must ensure headerName is normalized to lower case.
 
-const headerIndexFromName = function(headerName, headers) {
-    for ( let i = 0, n = headers.length; i < n; i++ ) {
-        if ( headers[i].name.toLowerCase() === headerName ) { return i; }
-    }
-    return -1;
-};
+const headerIndexFromName = (headerName, headers) =>
+    headers.findIndex(header => header.name.toLowerCase() === headerName);
 
 const headerValueFromName = function(headerName, headers) {
     const i = headerIndexFromName(headerName, headers);
