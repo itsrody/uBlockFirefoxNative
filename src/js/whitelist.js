@@ -116,12 +116,12 @@ async function renderWhitelist(first = false) {
         whitelistDefaultSet = new Set(details.whitelistDefault);
     }
     const toAdd = new Set(whitelistDefaultSet);
-    for ( const line of details.whitelist ) {
+    details.whitelist.some(line => {
         const directive = directiveFromLine(line);
-        if ( whitelistDefaultSet.has(directive) === false ) { continue; }
+        if ( whitelistDefaultSet.has(directive) === false ) { return false; }
         toAdd.delete(directive);
-        if ( toAdd.size === 0 ) { break; }
-    }
+        return toAdd.size === 0;
+    });
     if ( toAdd.size !== 0 ) {
         details.whitelist.push(...Array.from(toAdd).map(a => `# ${a}`));
     }
