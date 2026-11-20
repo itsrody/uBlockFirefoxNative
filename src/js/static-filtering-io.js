@@ -43,9 +43,9 @@ class CompiledListWriter {
         this.block.push(serialize(args));
     }
     pushMany(many) {
-        for ( const args of many ) {
+        many.forEach(args => {
             this.block.push(serialize(args));
-        }
+        });
     }
     last() {
         if ( Array.isArray(this.block) && this.block.length !== 0 ) {
@@ -65,14 +65,14 @@ class CompiledListWriter {
         const result = [];
         const sortedBlocks =
             Array.from(this.blocks).sort((a, b) => a[0] - b[0]);
-        for ( const [ id, lines ] of sortedBlocks ) {
-            if ( lines.length === 0 ) { continue; }
+        sortedBlocks.forEach(([ id, lines ]) => {
+            if ( lines.length === 0 ) { return; }
             result.push(
                 blockStartPrefix + id,
                 lines.join('\n'),
                 blockEndPrefix + id
             );
-        }
+        });
         return result.join('\n');
     }
     static serialize(arg) {
