@@ -72,34 +72,23 @@ class RuleEntry {
 
 function indexOfURL(entries, url) {
     // TODO: binary search -- maybe, depends on common use cases
+    // URLs must be ordered by increasing length. Stop at the first entry
+    // longer than the target, then confirm the native scan actually matched.
     const urlLen = url.length;
-    // URLs must be ordered by increasing length.
-    for ( let i = 0; i < entries.length; i++ ) {
-        const entry = entries[i];
-        if ( entry.url.length > urlLen ) { break; }
-        if ( entry.url === url ) { return i; }
-    }
-    return -1;
+    const i = entries.findIndex(entry =>
+        entry.url.length > urlLen || entry.url === url
+    );
+    return i !== -1 && entries[i].url === url ? i : -1;
 }
 
 /******************************************************************************/
 
 function indexOfMatch(entries, url) {
-    const urlLen = url.length;
-    let i = entries.length;
-    while ( i-- ) {
-        if ( entries[i].url.length <= urlLen ) {
-            break;
-        }
-    }
-    if ( i !== -1 ) {
-        do {
-            if ( url.startsWith(entries[i].url) ) {
-                return i;
-            }
-        } while ( i-- );
-    }
-    return -1;
+    // A longer rule can never prefix a shorter URL, so one native reverse
+    // scan can both find the length pivot and pick the best prefix match.
+    return entries.findLastIndex(entry =>
+        entry.url.length <= url.length && url.startsWith(entry.url)
+    );
 }
 
 /******************************************************************************/
@@ -107,10 +96,7 @@ function indexOfMatch(entries, url) {
 function indexFromLength(entries, len) {
     // TODO: binary search -- maybe, depends on common use cases
     // URLs must be ordered by increasing length.
-    for ( let i = 0; i < entries.length; i++ ) {
-        if ( entries[i].url.length > len ) { return i; }
-    }
-    return -1;
+    return entries.findIndex(entry => entry.url.length > len);
 }
 
 /******************************************************************************/
