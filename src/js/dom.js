@@ -54,24 +54,25 @@ const makeEventHandler = (selector, callback) => {
 
 class dom {
     static attr(target, attr, value = undefined) {
-        for ( const elem of normalizeTarget(target) ) {
-            if ( value === undefined ) {
-                return elem.getAttribute(attr);
-            }
+        const elements = normalizeTarget(target);
+        if ( value === undefined ) {
+            return elements.length !== 0
+                ? elements[0].getAttribute(attr)
+                : undefined;
+        }
+        elements.forEach(elem => {
             if ( value === null ) {
                 elem.removeAttribute(attr);
             } else {
                 elem.setAttribute(attr, value);
             }
-        }
+        });
     }
 
     static clear(target) {
-        for ( const elem of normalizeTarget(target) ) {
-            while ( elem.firstChild !== null ) {
-                elem.removeChild(elem.firstChild);
-            }
-        }
+        normalizeTarget(target).forEach(elem => {
+            elem.replaceChildren();
+        });
     }
 
     static clone(target) {
@@ -87,10 +88,13 @@ class dom {
     }
 
     static prop(target, prop, value = undefined) {
-        for ( const elem of normalizeTarget(target) ) {
-            if ( value === undefined ) { return elem[prop]; }
-            elem[prop] = value;
+        const elements = normalizeTarget(target);
+        if ( value === undefined ) {
+            return elements.length !== 0 ? elements[0][prop] : undefined;
         }
+        elements.forEach(elem => {
+            elem[prop] = value;
+        });
     }
 
     static text(target, text) {
@@ -98,23 +102,23 @@ class dom {
         if ( text === undefined ) {
             return targets.length !== 0 ? targets[0].textContent : undefined;
         }
-        for ( const elem of targets ) {
+        targets.forEach(elem => {
             elem.textContent = text;
-        }
+        });
     }
 
     static remove(target) {
-        for ( const elem of normalizeTarget(target) ) {
+        normalizeTarget(target).forEach(elem => {
             elem.remove();
-        }
+        });
     }
 
     static empty(target) {
-        for ( const elem of normalizeTarget(target) ) {
-            while ( elem.firstElementChild !== null ) {
-                elem.firstElementChild.remove();
-            }
-        }
+        normalizeTarget(target).forEach(elem => {
+            Array.from(elem.children).forEach(child => {
+                child.remove();
+            });
+        });
     }
 
     // target, type, callback, [options]
@@ -139,9 +143,9 @@ class dom {
         const targets = target instanceof Window || target instanceof Document
             ? [ target ]
             : normalizeTarget(target);
-        for ( const elem of targets ) {
+        targets.forEach(elem => {
             elem.addEventListener(type, callback, options);
-        }
+        });
     }
 
     static off(target, type, callback, options) {
@@ -152,9 +156,9 @@ class dom {
         const targets = target instanceof Window || target instanceof Document
             ? [ target ]
             : normalizeTarget(target);
-        for ( const elem of targets ) {
+        targets.forEach(elem => {
             elem.removeEventListener(type, callback, options);
-        }
+        });
     }
 
     static onFirstShown(fn, elem) {
@@ -170,32 +174,29 @@ class dom {
 
 dom.cl = class {
     static add(target, name) {
-        for ( const elem of normalizeTarget(target) ) {
+        normalizeTarget(target).forEach(elem => {
             elem.classList.add(name);
-        }
+        });
     }
 
     static remove(target, ...names) {
-        for ( const elem of normalizeTarget(target) ) {
+        normalizeTarget(target).forEach(elem => {
             elem.classList.remove(...names);
-        }
+        });
     }
 
     static toggle(target, name, state) {
         let r;
-        for ( const elem of normalizeTarget(target) ) {
+        normalizeTarget(target).forEach(elem => {
             r = elem.classList.toggle(name, state);
-        }
+        });
         return r;
     }
 
     static has(target, name) {
-        for ( const elem of normalizeTarget(target) ) {
-            if ( elem.classList.contains(name) ) {
-                return true;
-            }
-        }
-        return false;
+        return normalizeTarget(target).some(elem =>
+            elem.classList.contains(name)
+        );
     }
 };
 
