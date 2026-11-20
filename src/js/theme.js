@@ -67,12 +67,11 @@ function setAccentColor(
         hsl[1] = Math.round(Math.min(100, Math.max(0, hsl[1])));
         // Use normalized result to derive all shades
         const shades = [ 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95 ];
-        const text = [];
-        text.push(':root.accented {');
-        for ( const shade of shades ) {
+        const text = [ ':root.accented {' ];
+        text.push(...shades.map(shade => {
             hsl[2] = shade;
-            text.push(`   --primary-${shade}: ${toRGB(hsl)};`);
-        }
+            return `   --primary-${shade}: ${toRGB(hsl)};`;
+        }));
         text.push('}');
         hsl[1] = Math.min(25, hsl[1]);
         hsl[2] = 80;
