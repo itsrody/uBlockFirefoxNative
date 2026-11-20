@@ -94,11 +94,11 @@ httpheaderFilteringEngine.compile = function(parser, writer) {
     //   Ignore instances of exception filter with negated hostnames,
     //   because there is no way to create an exception to an exception.
 
-    for ( const { hn, not, bad } of parser.getExtFilterDomainIterator() ) {
-        if ( bad ) { continue; }
+    parser.getExtFilterDomainIterator().forEach(({ hn, not, bad }) => {
+        if ( bad ) { return; }
         const prefix = ((isException ? 1 : 0) ^ (not ? 1 : 0)) ? '-' : '+';
         writer.push([ 64, hn, `${prefix}${headerName}` ]);
-    }
+    });
 };
 
 // 01234567890123456789
@@ -145,27 +145,27 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
     // Split filters in different groups
     const filters = new Set();
     const exceptions = new Set();
-    for ( const s of all ) {
+    all.forEach(s => {
         const selector = s.slice(1);
         if ( s.charCodeAt(0) === 0x2D /* - */ ) {
             exceptions.add(selector);
         } else {
             filters.add(selector);
         }
-    }
+    });
 
     const hasGlobalException = exceptions.has('');
 
     let modified = false;
     let i = 0;
 
-    for ( const name of filters ) {
+    filters.forEach(name => {
         const isExcepted = hasGlobalException || exceptions.has(name);
         if ( isExcepted ) {
             if ( logger.enabled ) {
                 logOne(true, hasGlobalException ? '' : name, fctxt);
             }
-            continue;
+            return;
         }
         i = 0;
         for (;;) {
@@ -177,7 +177,7 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
             }
             modified = true;
         }
-    }
+    });
 
     return modified;
 };
