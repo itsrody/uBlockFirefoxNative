@@ -121,11 +121,13 @@ const TRIE0_START = TRIE0_SLOT + 4 << 2;    //       272
 const roundToPageSize = v => (v + PAGE_SIZE-1) & ~(PAGE_SIZE-1);
 
 // http://www.cse.yorku.ca/~oz/hash.html#djb2
-const i32Checksum = (buf32) => {
-    return buf32.reduce(
-        (hash, v) => (hash << 5) + hash ^ v,
-        177573 ^ buf32.length
-    );
+const i32Checksum = buf32 => {
+    const n = buf32.length;
+    let hash = 177573 ^ n;
+    for ( let i = 0; i < n; i++ ) {
+        hash = (hash << 5) + hash ^ buf32[i];
+    }
+    return hash;
 };
 
 class HNTrieContainer {
