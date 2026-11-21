@@ -23,7 +23,45 @@ import '../lib/regexanalyzer/regex.js';
 
 import * as sfp from './static-filtering-parser.js';
 
+import {
+    ALLOW_REALM,
+    ALLPARTIES_REALM,
+    ANYPARTY_REALM,
+    BLOCKALLOW_REALM,
+    BLOCKIMPORTANT_REALM,
+    BLOCK_REALM,
+    CSP_REALM,
+    FIRSTPARTY_REALM,
+    HEADERS_REALM,
+    IMPORTANT_REALM,
+    MODIFIER_TYPE_CSP,
+    MODIFIER_TYPE_PERMISSIONS,
+    MODIFIER_TYPE_REDIRECT,
+    MODIFIER_TYPE_REDIRECTRULE,
+    MODIFIER_TYPE_REMOVEPARAM,
+    MODIFIER_TYPE_REPLACE,
+    MODIFIER_TYPE_URLSKIP,
+    MODIFIER_TYPE_URLTRANSFORM,
+    MODIFY_REALMS,
+    PERMISSIONS_REALM,
+    REDIRECT_REALM,
+    REMOVEPARAM_REALM,
+    REPLACE_REALM,
+    THIRDPARTY_REALM,
+    TYPE_REALM,
+    URLSKIP_REALM,
+    URLTRANSFORM_REALM,
+    modifierBitsFromType,
+    modifierNameFromType,
+    modifierTypeFromName,
+} from './static-net-filtering-protocol.js';
 import { dropTask, queueTask } from './tasks.js';
+import {
+    filterQuery,
+    redirectRequest,
+    transformURL,
+    urlSkip,
+} from './static-net-filtering-modifiers.js';
 import { isRE2, toHeaderPattern, tokenizableStrFromRegex } from './regex-analyzer.js';
 
 import BidiTrieContainer from './biditrie.js';
@@ -31,7 +69,6 @@ import { CompiledListReader } from './static-filtering-io.js';
 import { FilteringContext } from './filtering-context.js';
 import HNTrieContainer from './hntrie.js';
 import { domainFromHostname } from './uri-utils.js';
-import { urlSkip } from './urlskip.js';
 
 /******************************************************************************/
 
@@ -46,38 +83,6 @@ const keyvalStore = typeof vAPI !== 'undefined'
     : { getItem() { return null; }, setItem() {}, removeItem() {} };
 
 /******************************************************************************/
-
-// 10fedcba9876543210
-// ||||||||    | || |
-// ||||||||    | || |
-// ||||||||    | || |
-// ||||||||    | || |
-// ||||||||    | || +---- bit  0- 1: block=0, allow=1, block important=2
-// ||||||||    | |+------ bit     2: unused
-// ||||||||    | +------- bit  3- 4: party [0-3]
-// ||||||||    +--------- bit  5- 9: type [0-31]
-// |||||||+-------------- bit    10: headers-based filters
-// ||||||+--------------- bit 13-11: modify type
-
-const BLOCK_REALM          = 0b0000_0000_0000_0000_0000;
-const ALLOW_REALM          = 0b0000_0000_0000_0000_0001;
-const IMPORTANT_REALM      = 0b0000_0000_0000_0000_0010;
-const BLOCKALLOW_REALM     = BLOCK_REALM | ALLOW_REALM | IMPORTANT_REALM;
-const BLOCKIMPORTANT_REALM = BLOCK_REALM | IMPORTANT_REALM;
-const ANYPARTY_REALM       = 0b0000_0000_0000_0000_0000;
-const FIRSTPARTY_REALM     = 0b0000_0000_0000_0000_1000;
-const THIRDPARTY_REALM     = 0b0000_0000_0000_0001_0000;
-const ALLPARTIES_REALM     = FIRSTPARTY_REALM | THIRDPARTY_REALM;
-const TYPE_REALM           = 0b0000_0000_0011_1110_0000;
-const HEADERS_REALM        = 0b0000_0000_0100_0000_0000;
-const REDIRECT_REALM       = 0b0000_0000_1000_0000_0000;
-const REMOVEPARAM_REALM    = 0b0000_0001_0000_0000_0000;
-const CSP_REALM            = 0b0000_0001_1000_0000_0000;
-const PERMISSIONS_REALM    = 0b0000_0010_0000_0000_0000;
-const URLTRANSFORM_REALM   = 0b0000_0010_1000_0000_0000;
-const REPLACE_REALM        = 0b0000_0011_0000_0000_0000;
-const URLSKIP_REALM        = 0b0000_0011_1000_0000_0000;
-const MODIFY_REALMS        = 0b0000_0011_1000_0000_0000;
 
 const TYPE_REALM_OFFSET = 5;
 
@@ -220,50 +225,6 @@ const typeValueToDNRTypeName = [
     'ping',
     'other',
 ];
-
-// Do not change order. Compiled filter lists rely on this order being
-// consistent across sessions.
-const MODIFIER_TYPE_REDIRECT = 1;
-const MODIFIER_TYPE_REDIRECTRULE = 2;
-const MODIFIER_TYPE_REMOVEPARAM = 3;
-const MODIFIER_TYPE_CSP = 4;
-const MODIFIER_TYPE_PERMISSIONS = 5;
-const MODIFIER_TYPE_URLTRANSFORM = 6;
-const MODIFIER_TYPE_REPLACE = 7;
-const MODIFIER_TYPE_URLSKIP = 8;
-
-const modifierBitsFromType = new Map([
-    [ MODIFIER_TYPE_REDIRECT, REDIRECT_REALM ],
-    [ MODIFIER_TYPE_REDIRECTRULE, REDIRECT_REALM ],
-    [ MODIFIER_TYPE_REMOVEPARAM, REMOVEPARAM_REALM ],
-    [ MODIFIER_TYPE_CSP, CSP_REALM ],
-    [ MODIFIER_TYPE_PERMISSIONS, PERMISSIONS_REALM ],
-    [ MODIFIER_TYPE_URLTRANSFORM, URLTRANSFORM_REALM ],
-    [ MODIFIER_TYPE_REPLACE, REPLACE_REALM ],
-    [ MODIFIER_TYPE_URLSKIP, URLSKIP_REALM ],
-]);
-
-const modifierTypeFromName = new Map([
-    [ 'redirect', MODIFIER_TYPE_REDIRECT ],
-    [ 'redirect-rule', MODIFIER_TYPE_REDIRECTRULE ],
-    [ 'removeparam', MODIFIER_TYPE_REMOVEPARAM ],
-    [ 'csp', MODIFIER_TYPE_CSP ],
-    [ 'permissions', MODIFIER_TYPE_PERMISSIONS ],
-    [ 'uritransform', MODIFIER_TYPE_URLTRANSFORM ],
-    [ 'replace', MODIFIER_TYPE_REPLACE ],
-    [ 'urlskip', MODIFIER_TYPE_URLSKIP ],
-]);
-
-const modifierNameFromType = new Map([
-    [ MODIFIER_TYPE_REDIRECT, 'redirect' ],
-    [ MODIFIER_TYPE_REDIRECTRULE, 'redirect-rule' ],
-    [ MODIFIER_TYPE_REMOVEPARAM, 'removeparam' ],
-    [ MODIFIER_TYPE_CSP, 'csp' ],
-    [ MODIFIER_TYPE_PERMISSIONS, 'permissions' ],
-    [ MODIFIER_TYPE_URLTRANSFORM, 'uritransform' ],
-    [ MODIFIER_TYPE_REPLACE, 'replace' ],
-    [ MODIFIER_TYPE_URLSKIP, 'urlskip' ],
-]);
 
 //const typeValueFromCatBits = catBits => (catBits >>> TYPE_REALM_OFFSET) & 0b11111;
 
@@ -5907,110 +5868,17 @@ StaticNetFilteringEngine.prototype.matchHeaders = function(fctxt, ...headers) {
 /******************************************************************************/
 
 StaticNetFilteringEngine.prototype.redirectRequest = function(redirectEngine, fctxt) {
-    const directives = this.matchAndFetchModifiers(fctxt, 'redirect-rule');
-    // No directive is the most common occurrence.
-    if ( directives === undefined ) { return; }
-    const highest = directives.length - 1;
-    // More than a single directive means more work.
-    if ( highest !== 0 ) {
-        directives.sort((a, b) => compareRedirectRequests(redirectEngine, a, b));
-    }
-    // Redirect to highest-ranked directive
-    const directive = directives[highest];
-    if ( (directive.bits & ALLOW_REALM) !== 0 ) { return directives; }
-    const { token } = parseRedirectRequestValue(directive);
-    fctxt.redirectURL = redirectEngine.tokenToURL(fctxt, token);
-    if ( fctxt.redirectURL === undefined ) { return; }
-    return directives;
+    return redirectRequest(this, redirectEngine, fctxt);
 };
-
-function parseRedirectRequestValue(directive) {
-    if ( directive.cache === null ) {
-        directive.cache = sfp.parseRedirectValue(directive.value);
-    }
-    return directive.cache;
-}
-
-function compareRedirectRequests(redirectEngine, a, b) {
-    const { token: atok, priority: aint, bits: abits } =
-        parseRedirectRequestValue(a);
-    if ( redirectEngine.hasToken(atok) === false ) { return -1; }
-    const { token: btok, priority: bint, bits: bbits } =
-        parseRedirectRequestValue(b);
-    if ( redirectEngine.hasToken(btok) === false ) { return 1; }
-    if ( abits !== bbits ) {
-        if ( (abits & IMPORTANT_REALM) !== 0 ) { return 1; }
-        if ( (bbits & IMPORTANT_REALM) !== 0 ) { return -1; }
-        if ( (abits & ALLOW_REALM) !== 0 ) { return -1; }
-        if ( (bbits & ALLOW_REALM) !== 0 ) { return 1; }
-    }
-    return aint - bint;
-}
 
 /******************************************************************************/
 
 StaticNetFilteringEngine.prototype.transformURL = function(fctxt, out = []) {
-    const directives = this.matchAndFetchModifiers(fctxt, 'uritransform');
-    if ( directives === undefined ) { return; }
-    const redirectURL = new URL(fctxt.url);
-    for ( const directive of directives ) {
-        if ( (directive.bits & ALLOW_REALM) !== 0 ) {
-            out.push(directive);
-            continue;
-        }
-        if ( directive.cache === null ) {
-            directive.cache = sfp.parseReplaceByRegexValue(directive.value);
-        }
-        const cache = directive.cache;
-        if ( cache === undefined ) { continue; }
-        let { re } = cache;
-        const before = redirectURL.href;
-        if ( re === undefined ) {
-            const logdata = directive.logData();
-            if ( logdata === undefined ) { continue; }
-            try { re = new RegExp(logdata.regex, cache.flags); }
-            catch { continue; }
-        }
-        if ( re.test(before) !== true ) { continue; }
-        const after = before.replace(re, cache.replacement);
-        try { void new URL(after); } catch { continue; }
-        if ( after === before ) { continue; }
-        redirectURL.href = after;
-        out.push(directive);
-        break;
-    }
-    if ( out.length === 0 ) { return; }
-    if ( redirectURL.href !== fctxt.url ) {
-        fctxt.redirectURL = redirectURL.href;
-    }
-    return out;
+    return transformURL(this, fctxt, out);
 };
 
-StaticNetFilteringEngine.prototype.urlSkip = function(
-    fctxt,
-    blocked,
-    out = []
-) {
-    if ( fctxt.redirectURL !== undefined ) { return; }
-    const directives = this.matchAndFetchModifiers(fctxt, 'urlskip');
-    if ( directives === undefined ) { return; }
-    for ( const directive of directives ) {
-        if ( (directive.bits & ALLOW_REALM) !== 0 ) {
-            out.push(directive);
-            continue;
-        }
-        const urlin = fctxt.url;
-        const value = directive.value;
-        const steps = value.includes(' ') && value.split(/ +/) || [ value ];
-        const urlout = urlSkip(urlin, blocked, steps, directive);
-        if ( urlout === undefined ) { continue; }
-        if ( urlout === urlin ) { continue; }
-        fctxt.redirectURL = urlout;
-        out.push(directive);
-        break;
-    }
-    if ( out.length === 0 ) { return; }
-    return out;
+StaticNetFilteringEngine.prototype.urlSkip = function(fctxt, blocked, out = []) {
+    return urlSkip(this, fctxt, blocked, out);
 };
 
 /******************************************************************************/
@@ -6019,89 +5887,8 @@ StaticNetFilteringEngine.prototype.urlSkip = function(
 //   Do not redirect when the number of query parameters does not change.
 
 StaticNetFilteringEngine.prototype.filterQuery = function(fctxt, out = []) {
-    if ( fctxt.redirectURL !== undefined ) { return; }
-    const directives = this.matchAndFetchModifiers(fctxt, 'removeparam');
-    if ( directives === undefined ) { return; }
-    const url = fctxt.url;
-    const qpos = url.indexOf('?');
-    if ( qpos === -1 ) { return; }
-    let hpos = url.indexOf('#', qpos + 1);
-    if ( hpos === -1 ) { hpos = url.length; }
-    const query = url.slice(qpos + 1, hpos);
-    // Native splitting and flattening preserve raw keys/values, including
-    // empty parameters and empty query strings.
-    const params = query === '' ? [] : query.split('&').flatMap(kv => {
-        const pos = kv.indexOf('=');
-        if ( pos === -1 ) { return [ kv, '' ]; }
-        return [ kv.slice(0, pos), kv.slice(pos + 1) ];
-    });
-    const beforeParamCount = params.length;
-    for ( const directive of directives ) {
-        if ( params.length === 0 ) { break; }
-        const isException = (directive.bits & ALLOW_REALM) !== 0;
-        if ( isException && directive.value === '' ) {
-            out.push(directive);
-            break;
-        }
-        const { all, bad, name, not, re } = parseQueryPruneValue(directive);
-        if ( bad ) { continue; }
-        if ( all ) {
-            if ( isException === false ) { params.length = 0; }
-            out.push(directive);
-            break;
-        }
-        let filtered = false;
-        let matched = false;
-        let i = params.length;
-        while ( i > 0 ) {
-            i -= 2;
-            if ( name !== undefined ) {
-                matched = params[i] === name;
-            } else if ( re !== undefined ) {
-                const key = params[i+0];
-                const raw = params[i+1];
-                let value = raw;
-                try { value = decodeURIComponent(value); }
-                catch { }
-                matched = re.test(`${key}=${value}`);
-            }
-            if ( matched === not ) { continue; }
-            if ( isException === false ) {
-                params.splice(i, 2);
-            }
-            filtered = true;
-        }
-        if ( filtered ) {
-            out.push(directive);
-        }
-    }
-    if ( out.length === 0 ) { return; }
-    if ( params.length !== beforeParamCount ) {
-        fctxt.redirectURL = url.slice(0, qpos);
-        if ( params.length !== 0 ) {
-            fctxt.redirectURL += '?' + Array.from(
-                { length: params.length / 2 },
-                (_, i) => {
-                    const key = params[i*2+0];
-                    const val = params[i*2+1];
-                    return val !== '' ? `${key}=${val}` : key;
-                }
-            ).join('&');
-        }
-        if ( hpos !== url.length ) {
-            fctxt.redirectURL += url.slice(hpos);
-        }
-    }
-    return out;
+    return filterQuery(this, fctxt, out);
 };
-
-function parseQueryPruneValue(directive) {
-    if ( directive.cache === null ) {
-        directive.cache =
-            sfp.parseQueryPruneValue(directive.value);
-    }
-    return directive.cache;
-}
 
 /******************************************************************************/
 
