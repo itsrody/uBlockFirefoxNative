@@ -404,10 +404,10 @@ const toggleFilterList = (elem, on, ui = false) => {
     const childListEntries = searchMode
         ? qsa$(listEntry, '.listEntry.searchMatch')
         : qsa$(listEntry, '.listEntry');
-    for ( const descendantList of childListEntries ) {
+    childListEntries.forEach(descendantList => {
         dom.cl.toggle(descendantList, 'checked', on);
         qs$(descendantList, ':scope > .detailbar input').checked = on;
-    }
+    });
     updateAncestorListNodes(listEntry, ancestor => {
         updateListNode(ancestor);
     });
@@ -432,7 +432,7 @@ const updateListNode = listNode => {
     let isObsolete = false;
     let latestWriteTime = 0;
     let oldestWriteTime = Number.MAX_SAFE_INTEGER;
-    for ( const listLeaf of checkedListLeaves ) {
+    checkedListLeaves.forEach(listLeaf => {
         const listkey = listLeaf.dataset.key;
         const listDetails = listsetDetails.available[listkey];
         usedFilterCount += listDetails.off ? 0 : listDetails.entryUsedCount || 0;
@@ -442,7 +442,7 @@ const updateListNode = listNode => {
         isObsolete = isObsolete || dom.cl.has(listLeaf, 'obsolete');
         latestWriteTime = Math.max(latestWriteTime, assetCache.writeTime || 0);
         oldestWriteTime = Math.min(oldestWriteTime, assetCache.writeTime || Number.MAX_SAFE_INTEGER);
-    }
+    });
     dom.cl.toggle(listNode, 'checked', checkedListLeaves.length !== 0);
     dom.cl.toggle(qs$(listNode, ':scope > .detailbar .checkbox'),
         'partial',
@@ -516,11 +516,11 @@ const onPurgeClicked = ev => {
     if ( listkey === '' ) { return; }
 
     const assetKeys = [ listkey ];
-    for ( const listLeaf of qsa$(liEntry, '[data-role="leaf"]') ) {
+    qsa$(liEntry, '[data-role="leaf"]').forEach(listLeaf => {
         assetKeys.push(listLeaf.dataset.key);
         dom.cl.add(listLeaf, 'obsolete');
         dom.cl.remove(listLeaf, 'cached');
-    }
+    });
 
     vAPI.messaging.send('dashboard', {
         what: 'listsUpdateNow',
@@ -687,10 +687,10 @@ const searchFilterLists = ( ) => {
         }, '');
     };
     const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    for ( const listEntry of qsa$('#lists [data-role="leaf"]') ) {
+    qsa$('#lists [data-role="leaf"]').forEach(listEntry => {
         const listkey = listEntry.dataset.key;
         const listDetails = listsetDetails.available[listkey];
-        if ( listDetails === undefined ) { continue; }
+        if ( listDetails === undefined ) { return; }
         let haystack = perListHaystack.get(listDetails);
         if ( haystack === undefined ) {
             const groupkey = listDetails.group2 || listDetails.group || '';
@@ -705,7 +705,7 @@ const searchFilterLists = ( ) => {
         }
         dom.cl.toggle(listEntry, 'searchMatch', re.test(haystack));
         updateAncestorListNodes(listEntry, reflectSearchMatches);
-    }
+    });
 };
 
 const perListHaystack = new WeakMap();
