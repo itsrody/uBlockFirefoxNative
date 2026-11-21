@@ -16,6 +16,7 @@ Non-negotiable product facts:
 - Extension ID stays `uBlock0@raymondhill.net`.
 - Firefox floor stays `160.0`.
 - Runtime stays **Manifest V2** with a real background page.
+- Builds are **unsigned XPIs** distributed manually through GitHub releases.
 - The only build/publish target is `make firefox`.
 
 There are no Chromium, Edge, Opera, Safari, Thunderbird, MV3, uBO Lite, or other
@@ -29,6 +30,8 @@ Do not change:
 - `manifest.json` identity, minimum version, MV2 background page, or permissions
   unless a separate, explicit product decision asks for it.
 - The Firefox-only build scripts in `tools/make-firefox.sh`.
+- The unsigned, manually distributed artifact model. Do not add AMO signing,
+  `web-ext sign`, an update URL, or an automatic update channel.
 - The fact that request blocking is done by the MV2 static/dynamic filtering
   engines. The `SNFE: DNR` export is diagnostic only, never an MV3 runtime path.
 

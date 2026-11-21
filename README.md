@@ -13,12 +13,13 @@ uBlock Origin — Firefox edition
 </h1>
 
 > **This is a Firefox-only fork of [uBlock Origin][upstream].** It targets native
-> Firefox **160 and later** and uses Firefox's Manifest V2 extension API. There
-> are no Chromium, Edge, Opera, Thunderbird, Safari, or Manifest V3 builds.
+> Firefox **160 and later** and uses Firefox's Manifest V2 extension API. Builds
+> are unsigned XPIs distributed manually through GitHub releases. There are no
+> Chromium, Edge, Opera, Thunderbird, Safari, or Manifest V3 builds.
 
 | Browser | Install from ... | Status |
 | :-----: | ---------------- | ------ |
-| Firefox 160+ | [GitHub releases][Releases] | Prebuilt XPI for native Firefox. Requires manual installation/update. |
+| Firefox 160+ | [GitHub releases][Releases] | Unsigned XPI for native Firefox. Manual install/update; unsigned add-ons must be allowed. |
 | Firefox 160+ | [Firefox Add-ons][Mozilla] | Official uBO release (not this fork). |
 
 uBlock Origin (uBO) is a CPU and memory-efficient [wide-spectrum content blocker][Blocking] for Firefox. It blocks ads, trackers, coin miners, popups, annoying anti-blockers, malware sites, etc., by default using [EasyList][EasyList], [EasyPrivacy][EasyPrivacy], [Peter Lowe's Blocklist][Peter Lowe's Blocklist], [Online Malicious URL Blocklist][Malicious Blocklist], and uBO [filter lists][uBO Filters]. There are many other lists available to block even more. Hosts files are also supported. uBO uses the EasyList filter syntax and [extends][Extended Syntax] the syntax to work with custom rules and filters.
@@ -65,10 +66,21 @@ For support, questions, or help, visit [/r/uBlockOrigin][Reddit].
 
 ## Installation
 
-Requires **Firefox 160 or later**.
+Requires **Firefox 160 or later**. Release builds are **unsigned XPIs** and are
+distributed manually through [GitHub releases][Releases]; this fork is not listed
+on Firefox Add-ons.
 
 1. Download `uBlock0_<version>.firefox.xpi` from the [releases page][Releases].
-2. Open the file in Firefox and follow the prompts to install it.
+2. For a persistent install, use Firefox Developer Edition, Nightly, or ESR and
+   set `xpinstall.signatures.required` to `false` in `about:config`. Standard
+   Firefox Release and Beta reject unsigned add-ons by design.
+3. Open the downloaded XPI in Firefox and follow the prompts to install it.
+4. Update manually by downloading a newer XPI and installing it. There is no
+   automatic browser update channel for unsigned builds.
+
+For temporary testing, use `about:debugging#/runtime/this-firefox` and
+_Load Temporary Add-on..._ instead; temporary add-ons are removed when Firefox
+restarts.
 
 [Required Permissions][Permissions]
 
@@ -82,9 +94,11 @@ cd uBlockFox
 make firefox
 ```
 
-`make firefox` produces `dist/build/uBlock0.firefox.xpi` (and the unpacked
-extension in `dist/build/uBlock0.firefox/`). The build downloads the filter
-lists from [uAssets][uAssets]; `make cleanassets` removes that cached data.
+`make firefox` produces an **unsigned** `dist/build/uBlock0.firefox.xpi` (and the
+unpacked extension in `dist/build/uBlock0.firefox/`). There is no AMO signing
+step and no browser update channel; distribute the XPI manually. The build
+downloads the filter lists from [uAssets][uAssets]; `make cleanassets` removes
+that cached data.
 
 To temporarily load the unpacked extension, open `about:debugging#/runtime/this-firefox`
 in Firefox and choose _Load Temporary Add-on..._.
