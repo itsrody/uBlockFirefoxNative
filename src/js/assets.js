@@ -67,19 +67,18 @@ const parseExpires = s => {
 const extractMetadataFromList = (content, fields) => {
     const out = {};
     const head = content.slice(0, 1024);
-    for ( let field of fields ) {
-        field = field.replace(/\s+/g, '-');
+    fields.forEach(rawField => {
+        const field = rawField.replace(/\s+/g, '-');
         const re = new RegExp(`^(?:! *|# +)${field.replace(/-/g, '(?: +|-)')}: *(.+)$`, 'im');
         const match = re.exec(head);
         let value = match && match[1].trim() || undefined;
         if ( value !== undefined && value.startsWith('%') ) {
             value = undefined;
         }
-        field = field.toLowerCase().replace(
+        out[field.toLowerCase().replace(
             /-[a-z]/g, s => s.charAt(1).toUpperCase()
-        );
-        out[field] = value && orphanizeString(value);
-    }
+        )] = value && orphanizeString(value);
+    });
     // Pre-process known fields
     if ( out.lastModified ) {
         out.lastModified = (new Date(out.lastModified)).getTime() || 0;
@@ -198,11 +197,12 @@ const getContentURLs = (assetKey, options = {}) => {
     }
     if ( options.favorOrigin !== true && Array.isArray(entry.cdnURLs) ) {
         const cdnURLs = entry.cdnURLs.slice();
-        for ( let i = 0, n = cdnURLs.length; i < n; i++ ) {
+        const n = cdnURLs.length;
+        cdnURLs.forEach((_, i) => {
             const j = Math.floor(Math.random() * n);
-            if ( j === i ) { continue; }
+            if ( j === i ) { return; }
             [ cdnURLs[j], cdnURLs[i] ] = [ cdnURLs[i], cdnURLs[j] ];
-        }
+        });
         if ( options.favorLocal ) {
             contentURLs.push(...cdnURLs);
         } else {
@@ -228,10 +228,10 @@ assets.removeObserver = function(observer) {
 
 const fireNotification = function(topic, details) {
     let result;
-    for ( const observer of observers ) {
+    observers.forEach(observer => {
         const r = observer(topic, details);
         if ( r !== undefined ) { result = r; }
-    }
+    });
     return result;
 };
 
@@ -548,13 +548,13 @@ function getAssetSourceRegistry() {
 
 function registerAssetSource(assetKey, newDict) {
     const currentDict = assetSourceRegistry[assetKey] || {};
-    for ( const [ k, v ] of Object.entries(newDict) ) {
+    Object.entries(newDict).forEach(([ k, v ]) => {
         if ( v === undefined || v === null ) {
             delete currentDict[k];
         } else {
             currentDict[k] = newDict[k];
         }
-    }
+    });
     let contentURL = newDict.contentURL;
     if ( contentURL !== undefined ) {
         if ( typeof contentURL === 'string' ) {
@@ -619,16 +619,16 @@ function updateAssetSourceRegistry(json, silent = false) {
     fireNotification('assets.json-updated', { newDict, oldDict });
 
     // Remove obsolete entries (only those which were built-in).
-    for ( const assetKey in oldDict ) {
+    Object.keys(oldDict).forEach(assetKey => {
         if (
             newDict[assetKey] === undefined &&
             oldDict[assetKey].submitter === undefined
         ) {
             unregisterAssetSource(assetKey);
         }
-    }
+    });
     // Add/update existing entries. Notify of new asset sources.
-    for ( const assetKey in newDict ) {
+    Object.keys(newDict).forEach(assetKey => {
         if ( oldDict[assetKey] === undefined && !silent ) {
             fireNotification(
                 'builtin-asset-source-added',
@@ -636,7 +636,7 @@ function updateAssetSourceRegistry(json, silent = false) {
             );
         }
         registerAssetSource(assetKey, newDict[assetKey]);
-    }
+    });
     saveAssetSourceRegistry();
 }
 
@@ -810,19 +810,19 @@ async function assetCacheSetDetails(assetKey, details) {
     const entry = cacheDict[assetKey];
     if ( entry === undefined ) { return; }
     let modified = false;
-    for ( const [ k, v ] of Object.entries(details) ) {
+    Object.entries(details).forEach(([ k, v ]) => {
         if ( v === undefined ) {
             if ( entry[k] !== undefined ) {
                 delete entry[k];
                 modified = true;
-                continue;
+                return;
             }
         }
         if ( v !== entry[k] ) {
             entry[k] = v;
             modified = true;
         }
-    }
+    });
     if ( modified ) {
         saveAssetCacheRegistry(3);
     }
@@ -1091,7 +1091,7 @@ assets.metadata = async function() {
     const assetDict = structuredClone(assetSourceRegistry);
     const cacheDict = assetCacheRegistry;
     const now = Date.now();
-    for ( const assetKey in assetDict ) {
+    Object.keys(assetDict).forEach(assetKey => {
         const assetEntry = assetDict[assetKey];
         const cacheEntry = cacheDict[assetKey];
         if (
@@ -1119,7 +1119,7 @@ assets.metadata = async function() {
             assetEntry.writeTime = 0;
             assetEntry.obsolete = true;
         }
-    }
+    });
 
     return assetDict;
 };
@@ -1142,12 +1142,12 @@ assets.getUpdateAges = async function(conditions = {}) {
     const assetDict = await assets.metadata();
     const now = Date.now();
     const out = [];
-    for ( const [ assetKey, asset ] of Object.entries(assetDict) ) {
-        if ( asset.hasRemoteURL !== true ) { continue; }
+    Object.entries(assetDict).forEach(([ assetKey, asset ]) => {
+        if ( asset.hasRemoteURL !== true ) { return; }
         const tokens = conditions[asset.content];
-        if ( Array.isArray(tokens) === false ) { continue; }
+        if ( Array.isArray(tokens) === false ) { return; }
         if ( tokens.includes('*') === false ) {
-            if ( tokens.includes(assetKey) === false ) { continue; }
+            if ( tokens.includes(assetKey) === false ) { return; }
         }
         const age = now  - (asset.writeTime || 0);
         out.push({
@@ -1155,7 +1155,7 @@ assets.getUpdateAges = async function(conditions = {}) {
             age,
             ageNormalized: age / Math.max(1, getUpdateAfterTime(assetKey)),
         });
-    }
+    });
     return out;
 };
 
@@ -1350,10 +1350,10 @@ async function getUpdateCandidates() {
         getAssetCacheRegistry(),
     ]);
     const toUpdate = [];
-    for ( const assetKey in assetDict ) {
+    Object.keys(assetDict).forEach(assetKey => {
         const assetEntry = assetDict[assetKey];
-        if ( assetEntry.hasRemoteURL !== true ) { continue; }
-        if ( updaterFetched.has(assetKey) ) { continue; }
+        if ( assetEntry.hasRemoteURL !== true ) { return; }
+        if ( updaterFetched.has(assetKey) ) { return; }
         const cacheEntry = cacheDict[assetKey];
         if (
             fireNotification('before-asset-updated', {
@@ -1362,13 +1362,13 @@ async function getUpdateCandidates() {
             }) === true
         ) {
             toUpdate.push(assetKey);
-            continue;
+            return;
         }
         // This will remove a cached asset when it's no longer in use.
         if ( cacheEntry && cacheEntry.readTime < assetCacheRegistryStartTime ) {
             assetCacheRemove(assetKey);
         }
-    }
+    });
     // https://github.com/uBlockOrigin/uBlock-issues/issues/1165
     //   Update most obsolete asset first.
     toUpdate.sort((a, b) => {
