@@ -249,10 +249,10 @@ class LogEntry {
         this.type = '';
         this.voided = false;
         if ( details instanceof Object === false ) { return; }
-        for ( const prop in this ) {
-            if ( Object.hasOwn(details, prop) === false ) { continue; }
+        Object.keys(this).forEach(prop => {
+            if ( Object.hasOwn(details, prop) === false ) { return; }
             this[prop] = details[prop];
-        }
+        });
         if ( details.aliasURL !== undefined ) {
             this.aliased = true;
         }
@@ -310,18 +310,18 @@ const processLoggerEntries = function(response) {
     const autoDeleteVoidedRows = qs$('#pageSelector').value === '_';
     const previousCount = filteredLoggerEntries.length;
 
-    for ( const entry of entries ) {
+    entries.forEach(entry => {
         const unboxed = JSON.parse(entry);
         if ( unboxed.filter instanceof Object ){
             loggerStats.processFilter(unboxed.filter);
         }
-        if ( netInspectorPaused ) { continue; }
+        if ( netInspectorPaused ) { return; }
         const parsed = parseLogEntry(unboxed);
         if (
             parsed.tabId !== undefined &&
             allTabIds.has(parsed.tabId) === false
         ) {
-            if ( autoDeleteVoidedRows ) { continue; }
+            if ( autoDeleteVoidedRows ) { return; }
             parsed.voided = true;
         }
         if (
@@ -351,7 +351,7 @@ const processLoggerEntries = function(response) {
                 filteredLoggerEntryVoidedCount += 1;
             }
         }
-    }
+    });
 
     const addedCount = filteredLoggerEntries.length - previousCount;
     if ( addedCount === 0 ) { return; }
