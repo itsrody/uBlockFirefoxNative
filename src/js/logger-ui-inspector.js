@@ -20,6 +20,7 @@
 */
 
 import { dom, qs$, qsa$ } from './dom.js';
+import webext from './webext.js';
 
 /******************************************************************************/
 
@@ -71,11 +72,11 @@ const contentInspectorChannel = (( ) => {
             const msg = ev.data || {};
             connect(msg.tabId, msg.frameId);
         };
-        browser.webNavigation.onDOMContentLoaded.addListener(onContentLoaded);
+        webext.webNavigation.onDOMContentLoaded.addListener(onContentLoaded);
     };
 
     const shutdown = ( ) => {
-        browser.webNavigation.onDOMContentLoaded.removeListener(onContentLoaded);
+        webext.webNavigation.onDOMContentLoaded.removeListener(onContentLoaded);
         disconnect();
         bcChannel.close();
         bcChannel.onmessage = null;
@@ -85,7 +86,7 @@ const contentInspectorChannel = (( ) => {
     const connect = (tabId, frameId) => {
         disconnect();
         try {
-            toContentPort = browser.tabs.connect(tabId, { frameId });
+            toContentPort = webext.tabs.connect(tabId, { frameId });
             toContentPort.onMessage.addListener(onContentMessage);
             toContentPort.onDisconnect.addListener(onContentDisconnect);
         } catch {

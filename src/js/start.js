@@ -44,6 +44,7 @@ import { staticFilteringReverseLookup } from './reverselookup.js';
 import staticNetFilteringEngine from './static-net-filtering.js';
 import { ubolog } from './console.js';
 import webRequest from './traffic.js';
+import webext from './webext.js';
 import µb from './background.js';
 
 /******************************************************************************/
@@ -376,7 +377,7 @@ const createDefaultProps = ( ) => {
 
     // https://github.com/uBlockOrigin/uBlock-issues/issues/717
     //   Prevent the extension from being restarted mid-session.
-    browser.runtime.onUpdateAvailable.addListener(details => {
+    webext.runtime.onUpdateAvailable.addListener(details => {
         const toInt = vAPI.app.intFromVersion;
         if (
             µb.hiddenSettings.extensionUpdateForceReload === true ||

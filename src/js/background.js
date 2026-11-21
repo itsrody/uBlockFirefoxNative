@@ -33,6 +33,7 @@ import { FilteringContext } from './filtering-context.js';
 import { TrustedSiteManager } from './trusted-sites.js';
 import logger from './logger.js';
 import { ubologSet } from './console.js';
+import webext from './webext.js';
 
 /******************************************************************************/
 
@@ -161,7 +162,7 @@ const µBlock = {  // jshint ignore:line
     // rewriting capability; Android builds may differ. See CONTRIBUTING.md.
     privacySettingsSupported: vAPI.browserSettings instanceof Object,
     cloudStorageSupported: vAPI.cloud instanceof Object,
-    canFilterResponseData: typeof browser.webRequest.filterResponseData === 'function',
+    canFilterResponseData: typeof webext.webRequest.filterResponseData === 'function',
 
     // https://github.com/chrisaljoudi/uBlock/issues/180
     //   Trusted-site directives need to be loaded once the PSL is available
