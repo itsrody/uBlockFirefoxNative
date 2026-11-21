@@ -2736,11 +2736,11 @@ const loggerStats = (( ) => {
         let t0 = filteredLoggerEntries.length !== 0
             ? filteredLoggerEntries[filteredLoggerEntries.length - 1].tstamp
             : 0;
-        for ( const entry of filteredLoggerEntries ) {
+        filteredLoggerEntries.forEach(entry => {
             const text = entry.textContent;
             const fields = [];
             let beg = text.indexOf('\x1F');
-            if ( beg === 0 ) { continue; }
+            if ( beg === 0 ) { return; }
             let timeField = text.slice(0, beg);
             if ( options.time === 'anonymous' ) {
                 timeField = '+' + Math.round(entry.tstamp - t0).toString();
@@ -2754,14 +2754,11 @@ const loggerStats = (( ) => {
                 beg = end + 1;
             }
             lines.push(fields);
-        }
+        });
     };
 
     const formatAsPlainTextTable = function() {
-        const outputAll = [];
-        for ( const fields of lines ) {
-            outputAll.push(fields.join('\t'));
-        }
+        const outputAll = lines.map(fields => fields.join('\t'));
         outputAll.push('');
         return outputAll.join('\n');
     };
@@ -2769,19 +2766,18 @@ const loggerStats = (( ) => {
     const formatAsMarkdownTable = function() {
         const outputAll = [];
         let fieldCount = 0;
-        for ( const fields of lines ) {
-            if ( fields.length <= 2 ) { continue; }
+        lines.forEach(fields => {
+            if ( fields.length <= 2 ) { return; }
             if ( fields.length > fieldCount ) {
                 fieldCount = fields.length;
             }
             const outputOne = [];
-            for ( let i = 0; i < fields.length; i++ ) {
-                const field = fields[i];
+            fields.forEach((field, i) => {
                 const code = i === 1 || /\b(?:www\.|https?:\/\/)/.test(field) ? '`' : '';
                 outputOne.push(` ${code}${field.replace(/\|/g, '\\|')}${code} `);
-            }
+            });
             outputAll.push(outputOne.join('|'));
-        }
+        });
         if ( fieldCount !== 0 ) {
             outputAll.unshift(
                 `${' |'.repeat(fieldCount-1)} `,
@@ -2800,15 +2796,14 @@ const loggerStats = (( ) => {
 
     const formatAsList = function() {
         const outputAll = [];
-        for ( const fields of lines ) {
+        lines.forEach(fields => {
             const outputOne = [];
-            for ( let i = 0; i < fields.length; i++ ) {
-                let str = fields[i];
-                if ( str.length === 0 ) { continue; }
+            fields.forEach(str => {
+                if ( str.length === 0 ) { return; }
                 outputOne.push(str);
-            }
+            });
             outputAll.push(outputOne.join('\n'));
-        }
+        });
         let before, between, after;
         if ( options.encoding === 'markdown' ) {
             const code = '```';

@@ -370,20 +370,20 @@ const startDialog = (( ) => {
         unhideSelectors = [];
 
         const re = /^([^#]*)(#@?#)(.+)$/;
-        for ( let line of textarea.value.split(/\s*\n\s*/) ) {
-            line = line.trim();
-            if ( line === '' || line.charAt(0) === '!' ) { continue; }
+        textarea.value.split(/\s*\n\s*/).forEach(rawLine => {
+            const line = rawLine.trim();
+            if ( line === '' || line.charAt(0) === '!' ) { return; }
             const matches = re.exec(line);
-            if ( matches === null || matches.length !== 4 ) { continue; }
+            if ( matches === null || matches.length !== 4 ) { return; }
             if ( inspectedHostname.lastIndexOf(matches[1]) === -1 ) {
-                continue;
+                return;
             }
             if ( matches[2] === '##' ) {
                 hideSelectors.push(matches[3]);
             } else {
                 unhideSelectors.push(matches[3]);
             }
-        }
+        });
 
         showCommitted();
     };
@@ -433,22 +433,22 @@ const startDialog = (( ) => {
         dialog = logger.modalDialog.create('#cosmeticFilteringDialog', stop);
         textarea = qs$(dialog, 'textarea');
         hideSelectors = [];
-        for ( const node of qsa$(domTree, 'code.off') ) {
-            if ( dom.cl.has(node, 'filter') ) { continue; }
+        qsa$(domTree, 'code.off').forEach(node => {
+            if ( dom.cl.has(node, 'filter') ) { return; }
             hideSelectors.push(selectorFromNode(node));
-        }
+        });
         const taValue = [];
-        for ( const selector of hideSelectors ) {
+        hideSelectors.forEach(selector => {
             taValue.push(inspectedHostname + '##' + selector);
-        }
+        });
         const ids = new Set();
-        for ( const node of qsa$(domTree, 'code.filter.off') ) {
+        qsa$(domTree, 'code.filter.off').forEach(node => {
             const id = dom.attr(node, 'data-filter-id');
-            if ( ids.has(id) ) { continue; }
+            if ( ids.has(id) ) { return; }
             ids.add(id);
             unhideSelectors.push(node.textContent);
             taValue.push(inspectedHostname + '#@#' + node.textContent);
-        }
+        });
         textarea.value = taValue.join('\n');
         textarea.addEventListener('input', onInputChanged);
         dialog.addEventListener('click', onClicked, true);
@@ -489,9 +489,9 @@ const onClicked = ev => {
     ) {
         const state = dom.cl.toggle(parent, 'show');
         if ( !state ) {
-            for ( const node of qsa$(parent, '.branch') ) {
+            qsa$(parent, '.branch').forEach(node => {
                 dom.cl.remove(node, 'show');
-            }
+            });
         }
         return;
     }
