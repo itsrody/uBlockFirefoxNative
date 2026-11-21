@@ -446,11 +446,10 @@ const onPresentationChanged = (( ) => {
         );
         const ll = []; let lellipsis = false;
         const rr = []; let rellipsis = false;
-        for ( let i = 0; i < diffs.length; i++ ) {
-            const diff =  diffs[i];
+        diffs.forEach(diff => {
             if ( diff[0] === 0 ) {
                 lellipsis = rellipsis = true;
-                continue;
+                return;
             }
             if ( diff[0] < 0 ) {
                 if ( lellipsis ) {
@@ -459,7 +458,7 @@ const onPresentationChanged = (( ) => {
                     lellipsis = rellipsis = false;
                 }
                 ll.push(diff[1].trim());
-                continue;
+                return;
             }
             /* diff[0] > 0 */
             if ( rellipsis ) {
@@ -468,7 +467,7 @@ const onPresentationChanged = (( ) => {
                 lellipsis = rellipsis = false;
             }
             rr.push(diff[1].trim());
-        }
+        });
         if ( lellipsis ) { ll.push('...'); }
         if ( rellipsis ) { rr.push('...'); }
         thePanes.orig.modified = ll;

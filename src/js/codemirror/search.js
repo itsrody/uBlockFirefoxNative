@@ -149,11 +149,10 @@ import { i18n$ } from '../i18n.js';
         this.dirty = true;
         this.lines = [];
         cm.on('changes', (cm, changes) => {
-            for ( const change of changes ) {
-                if ( change.text.length !== 0 || change.removed !== 0 ) {
-                    this.dirty = true;
-                    break;
-                }
+            if ( changes.some(change =>
+                change.text.length !== 0 || change.removed !== 0
+            ) ) {
+                this.dirty = true;
             }
         });
         cm.on('cursorActivity', cm => {

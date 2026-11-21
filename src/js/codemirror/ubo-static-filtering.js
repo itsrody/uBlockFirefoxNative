@@ -334,9 +334,7 @@ CodeMirror.defineOption('uboHints', null, (cm, hints) => {
     }
     if ( Array.isArray(hints.originHints) ) {
         originHints.length = 0;
-        for ( const hint of hints.originHints ) {
-            originHints.push(hint);
-        }
+        originHints.push(...hints.originHints);
     }
     if ( hintHelperRegistered ) { return; }
     hintHelperRegistered = true;
@@ -364,13 +362,12 @@ function initHints() {
         const seed = (seedLeft + seedRight).trim();
         const out = [];
         // First, compare against whole seed
-        for ( const hint of hints ) {
+        out.push(...hints.filter(hint => {
             const text = hint instanceof Object
                 ? hint.displayText || hint.text
                 : hint;
-            if ( text.startsWith(seed) === false ) { continue; }
-            out.push(hint);
-        }
+            return text.startsWith(seed);
+        }));
         if ( out.length !== 0 ) {
             return {
                 from: { line: cursor.line, ch: cursor.ch - seedLeft.length },
@@ -388,15 +385,14 @@ function initHints() {
         //
         // In such case, [ redirect=, redirect-rule= ] should be returned
         // as valid hints.
-        for ( const hint of hints ) {
+        out.push(...hints.filter(hint => {
             const text = hint instanceof Object
                 ? hint.displayText || hint.text
                 : hint;
-            if ( seedLeft.length === 0 ) { continue; }
-            if ( text.startsWith(seedLeft) === false ) { continue; }
-            if ( hints.includes(seedRight) === false ) { continue; }
-            out.push(hint);
-        }
+            if ( seedLeft.length === 0 ) { return false; }
+            if ( text.startsWith(seedLeft) === false ) { return false; }
+            return hints.includes(seedRight);
+        }));
         if ( out.length !== 0 ) {
             return {
                 from: { line: cursor.line, ch: cursor.ch - seedLeft.length },
@@ -414,15 +410,15 @@ function initHints() {
         //
         // In such case, [ 1x1.gif, 1x1-transparent.gif ] should be returned
         // as valid hints.
-        for ( const hint of hints ) {
+        out.push(...hints.filter(hint => {
             const text = hint instanceof Object
                 ? hint.displayText || hint.text
                 : hint;
             if ( seedLeft.length === 1 ) {
-                if ( text.startsWith(seedLeft) === false ) { continue; }
-            } else if ( text.includes(seed) === false ) { continue; }
-            out.push(hint);
-        }
+                return text.startsWith(seedLeft);
+            }
+            return text.includes(seed);
+        }));
         if ( out.length !== 0 ) {
             return {
                 from: { line: cursor.line, ch: cursor.ch - seedLeft.length },
@@ -440,13 +436,12 @@ function initHints() {
         //
         // In such case, [ 1x1.gif, 1x1-transparent.gif ] should be returned
         // as valid hints.
-        for ( const hint of hints ) {
+        out.push(...hints.filter(hint => {
             const text = hint instanceof Object
                 ? hint.displayText || hint.text
                 : hint;
-            if ( text.includes(seedLeft) === false ) { continue; }
-            out.push(hint);
-        }
+            return text.includes(seedLeft);
+        }));
         if ( out.length !== 0 ) {
             return {
                 from: { line: cursor.line, ch: cursor.ch - seedLeft.length },
@@ -461,10 +456,7 @@ function initHints() {
         const matchLeft = /[^,|=~]*$/.exec(line.slice(0, beg));
         const matchRight = /^[^#,|]*/.exec(line.slice(beg));
         if ( matchLeft === null || matchRight === null ) { return; }
-        const hints = [];
-        for ( const text of originHints ) {
-            hints.push(text + suffix);
-        }
+        const hints = originHints.map(text => text + suffix);
         return pickBestHints(cursor, matchLeft[0], matchRight[0], hints);
     };
 
@@ -486,29 +478,24 @@ function initHints() {
         const assignPos = seedRight.indexOf('=');
         if ( assignPos !== -1 ) { seedRight = seedRight.slice(0, assignPos); }
         const isException = astParser.isException();
-        const hints = [];
-        for ( let [ text, desc ] of sfp.netOptionTokenDescriptors ) {
-            if ( excludedHints.has(text) ) { continue; }
-            if ( isNegated && desc.canNegate !== true ) { continue; }
-            if ( isException ) {
-                if ( desc.blockOnly ) { continue; }
-            } else {
-                if ( desc.allowOnly ) { continue; }
-                if ( (assignPos === -1) && desc.mustAssign ) {
-                    text += '=';
-                }
-            }
-            hints.push(text);
-        }
+        const hints = Array.from(sfp.netOptionTokenDescriptors)
+            .filter(([ text, desc ]) => {
+                if ( excludedHints.has(text) ) { return false; }
+                if ( isNegated && desc.canNegate !== true ) { return false; }
+                if ( isException ) { return desc.blockOnly !== true; }
+                return desc.allowOnly !== true;
+            })
+            .map(([ text, desc ]) =>
+                isException === false && assignPos === -1 && desc.mustAssign
+                    ? text + '='
+                    : text
+            );
         return pickBestHints(cursor, seedLeft, seedRight, hints);
     };
 
     const getNetRedirectHints = function(cursor, seedLeft, seedRight) {
-        const hints = [];
-        for ( const text of redirectNames.keys() ) {
-            if ( text.startsWith('abp-resource:') ) { continue; }
-            hints.push(text);
-        }
+        const hints = Array.from(redirectNames.keys())
+            .filter(text => text.startsWith('abp-resource:') === false);
         return pickBestHints(cursor, seedLeft, seedRight, hints);
     };
 
@@ -566,11 +553,9 @@ function initHints() {
         const matchRight = /^([a-z-]*)\(?/.exec(line.slice(beg));
         if ( matchLeft === null || matchRight === null ) { return; }
         const isStaticDOM = matchLeft[0].indexOf('^') !== -1;
-        const hints = [];
-        for ( let [ text, bits ] of proceduralOperatorNames ) {
-            if ( isStaticDOM && (bits & 0b10) !== 0 ) { continue; }
-            hints.push(text);
-        }
+        const hints = Array.from(proceduralOperatorNames)
+            .filter(([ , bits ]) => (isStaticDOM && (bits & 0b10) !== 0) === false)
+            .map(([ text ]) => text);
         return pickBestHints(cursor, matchLeft[1], matchRight[1], hints);
     };
 
@@ -579,10 +564,7 @@ function initHints() {
         const matchLeft = /#\^responseheader\((.*)$/.exec(line.slice(0, beg));
         const matchRight = /^([^)]*)/.exec(line.slice(beg));
         if ( matchLeft === null || matchRight === null ) { return; }
-        const hints = [];
-        for ( const hint of sfp.removableHTTPHeaders ) {
-            hints.push(hint);
-        }
+        const hints = Array.from(sfp.removableHTTPHeaders);
         return pickBestHints(cursor, matchLeft[1], matchRight[1], hints);
     };
 
@@ -591,14 +573,13 @@ function initHints() {
         const matchLeft = /#\+js\(([^,]*)$/.exec(line.slice(0, beg));
         const matchRight = /^([^,)]*)/.exec(line.slice(beg));
         if ( matchLeft === null || matchRight === null ) { return; }
-        const hints = [];
-        for ( const [ text, displayText ] of scriptletNames ) {
+        const hints = Array.from(scriptletNames, ([ text, displayText ]) => {
             const hint = { text };
             if ( displayText !== '' ) {
                 hint.displayText = displayText;
             }
-            hints.push(hint);
-        }
+            return hint;
+        });
         return pickBestHints(cursor, matchLeft[1], matchRight[1], hints);
     };
 
@@ -1040,11 +1021,11 @@ CodeMirror.registerHelper('fold', 'ubo-static-filtering', (( ) => {
     const onChanges = (cm, changes) => {
         if ( changes.length === 0 ) { return; }
         const doc = cm.getDoc();
-        for ( const change of changes ) {
+        changes.forEach(change => {
             const from = change.from.line;
             const to = from + change.text.length;
             changeset.push({ from, to });
-        }
+        });
         processChangesetAsync(doc);
     };
 
