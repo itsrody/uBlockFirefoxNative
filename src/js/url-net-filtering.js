@@ -57,22 +57,28 @@ class RuleEntry {
 function indexOfURL(entries, url) {
     // TODO: binary search -- maybe, depends on common use cases
     // URLs must be ordered by increasing length. Stop at the first entry
-    // longer than the target, then confirm the native scan actually matched.
+    // longer than the target.
     const urlLen = url.length;
-    const i = entries.findIndex(entry =>
-        entry.url.length > urlLen || entry.url === url
-    );
-    return i !== -1 && entries[i].url === url ? i : -1;
+    for ( let i = 0; i < entries.length; i++ ) {
+        const entry = entries[i];
+        if ( entry.url.length > urlLen ) { return -1; }
+        if ( entry.url === url ) { return i; }
+    }
+    return -1;
 }
 
 /******************************************************************************/
 
 function indexOfMatch(entries, url) {
-    // A longer rule can never prefix a shorter URL, so one native reverse
-    // scan can both find the length pivot and pick the best prefix match.
-    return entries.findLastIndex(entry =>
-        entry.url.length <= url.length && url.startsWith(entry.url)
-    );
+    // A longer rule can never prefix a shorter URL, so reverse iteration
+    // can both find the length pivot and pick the best prefix match.
+    for ( let i = entries.length - 1; i >= 0; i-- ) {
+        const entryUrl = entries[i].url;
+        if ( entryUrl.length <= url.length && url.startsWith(entryUrl) ) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 /******************************************************************************/
@@ -80,7 +86,10 @@ function indexOfMatch(entries, url) {
 function indexFromLength(entries, len) {
     // TODO: binary search -- maybe, depends on common use cases
     // URLs must be ordered by increasing length.
-    return entries.findIndex(entry => entry.url.length > len);
+    for ( let i = 0; i < entries.length; i++ ) {
+        if ( entries[i].url.length > len ) { return i; }
+    }
+    return -1;
 }
 
 /******************************************************************************/
@@ -165,11 +174,13 @@ class DynamicURLRuleFiltering {
     evaluateZ(context, target, type) {
         this.r = 0;
         if ( this.rules.size === 0 ) { return 0; }
+        const typeSuffix = ' ' + type;
+        const wildcardSuffix = ' *';
         decomposeHostname(context, decomposedSource);
         for ( let i = 0; i < decomposedSource.length; i++ ) {
             const srchn = decomposedSource[i];
             this.context = srchn;
-            let entries = this.rules.get(`${srchn} ${type}`);
+            let entries = this.rules.get(srchn + typeSuffix);
             if ( entries !== undefined ) {
                 const j = indexOfMatch(entries, target);
                 if ( j !== -1 ) {
@@ -180,7 +191,7 @@ class DynamicURLRuleFiltering {
                     break;
                 }
             }
-            entries = this.rules.get(`${srchn} *`);
+            entries = this.rules.get(srchn + wildcardSuffix);
             if ( entries !== undefined ) {
                 const j = indexOfMatch(entries, target);
                 if ( j !== -1 ) {
@@ -215,7 +226,8 @@ class DynamicURLRuleFiltering {
     }
 
     copyRules(other, context, urls, type) {
-        urls.toReversed().forEach(url => {
+        for ( let i = urls.length - 1; i >= 0; i-- ) {
+            const url = urls[i];
             other.evaluateZ(context, url, type);
             const otherOwn = other.r !== 0 &&
                              other.context === context &&
@@ -234,7 +246,7 @@ class DynamicURLRuleFiltering {
                 this.removeRule(context, url, type);
                 this.changed = true;
             }
-        });
+        }
         return this.changed;
     }
 

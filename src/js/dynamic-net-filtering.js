@@ -112,21 +112,25 @@ class DynamicHostRuleFiltering {
             this.changed = true;
         }
 
-        let key = `${srcHostname} *`;
-        thisBits = this.rules.get(key);
-        fromBits = from.rules.get(key);
+        const srcWildcardKey = srcHostname + ' *';
+        thisBits = this.rules.get(srcWildcardKey);
+        fromBits = from.rules.get(srcWildcardKey);
         if ( fromBits !== thisBits ) {
             if ( fromBits !== undefined ) {
-                this.rules.set(key, fromBits);
+                this.rules.set(srcWildcardKey, fromBits);
             } else {
-                this.rules.delete(key);
+                this.rules.delete(srcWildcardKey);
             }
             this.changed = true;
         }
 
         // Specific destinations
-        Object.keys(desHostnames).forEach(desHostname => {
-            key = `* ${desHostname}`;
+        const wildcardPrefix = '* ';
+        const srcPrefix = srcHostname + ' ';
+        const desHostnameList = Object.keys(desHostnames);
+        for ( let i = 0; i < desHostnameList.length; i++ ) {
+            const desHostname = desHostnameList[i];
+            let key = wildcardPrefix + desHostname;
             thisBits = this.rules.get(key);
             fromBits = from.rules.get(key);
             if ( fromBits !== thisBits ) {
@@ -137,7 +141,7 @@ class DynamicHostRuleFiltering {
                 }
                 this.changed = true;
             }
-            key = `${srcHostname} ${desHostname}` ;
+            key = srcPrefix + desHostname;
             thisBits = this.rules.get(key);
             fromBits = from.rules.get(key);
             if ( fromBits !== thisBits ) {
@@ -148,7 +152,7 @@ class DynamicHostRuleFiltering {
                 }
                 this.changed = true;
             }
-        });
+        }
 
         return this.changed;
     }
@@ -162,22 +166,29 @@ class DynamicHostRuleFiltering {
         // Specific types
         let key = '* *';
         if ( this.rules.get(key) !== other.rules.get(key) ) { return false; }
-        key = `${srcHostname} *`;
+        key = srcHostname + ' *';
         if ( this.rules.get(key) !== other.rules.get(key) ) { return false; }
         // Specific destinations
-        return Object.keys(desHostnames).every(desHostname => {
-            key = `* ${desHostname}`;
+        const wildcardPrefix = '* ';
+        const srcPrefix = srcHostname + ' ';
+        const desHostnameList = Object.keys(desHostnames);
+        for ( let i = 0; i < desHostnameList.length; i++ ) {
+            const desHostname = desHostnameList[i];
+            key = wildcardPrefix + desHostname;
             if ( this.rules.get(key) !== other.rules.get(key) ) {
                 return false;
             }
-            key = `${srcHostname} ${desHostname}`;
-            return this.rules.get(key) === other.rules.get(key);
-        });
+            key = srcPrefix + desHostname;
+            if ( this.rules.get(key) !== other.rules.get(key) ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     setCell(srcHostname, desHostname, type, state) {
         const bitOffset = typeBitOffsets[type];
-        const k = `${srcHostname} ${desHostname}`;
+        const k = srcHostname + ' ' + desHostname;
         const oldBitmap = this.rules.get(k) || 0;
         const newBitmap = oldBitmap & ~(3 << bitOffset) | (state << bitOffset);
         if ( newBitmap === oldBitmap ) { return false; }
@@ -199,7 +210,7 @@ class DynamicHostRuleFiltering {
     }
 
     evaluateCell(srcHostname, desHostname, type) {
-        const key = `${srcHostname} ${desHostname}`;
+        const key = srcHostname + ' ' + desHostname;
         const bitmap = this.rules.get(key);
         if ( bitmap === undefined ) { return 0; }
         return bitmap >> typeBitOffsets[type] & 3;
@@ -215,11 +226,12 @@ class DynamicHostRuleFiltering {
         decomposeHostname(srcHostname, decomposedSource);
         this.type = type;
         const bitOffset = typeBitOffsets[type];
+        const desSuffix = ' ' + desHostname;
         this.r = 0;
         for ( let i = 0; i < decomposedSource.length; i++ ) {
             const srchn = decomposedSource[i];
             this.z = srchn;
-            let v = this.rules.get(`${srchn} ${desHostname}`);
+            let v = this.rules.get(srchn + desSuffix);
             if ( v === undefined ) { continue; }
             v = v >>> bitOffset & 3;
             if ( v === 0 ) { continue; }
