@@ -28,11 +28,11 @@ const valToDigit = new Uint8Array(64);
 const digitToVal = new Uint8Array(128);
 {
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@%';
-    for ( let i = 0, n = chars.length; i < n; i++ ) {
-        const c = chars.charCodeAt(i);
-        valToDigit[i] = c;
-        digitToVal[c] = i;
-    }
+    chars.split('').forEach((c, i) => {
+        const code = c.charCodeAt(0);
+        valToDigit[i] = code;
+        digitToVal[code] = i;
+    });
 }
 
 // The dense base64 codec is best for typed buffers which values are

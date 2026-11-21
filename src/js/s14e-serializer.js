@@ -100,19 +100,22 @@ const { intToChar, intToCharCode, charCodeToInt } = (( ) => {
     const intToChar = [];
     const intToCharCode = [];
     const charCodeToInt = [];
-    for ( let i = 0; i < NUMSAFECHARS; i++ ) {
-        intToChar[i] = SAFECHARS.charAt(i);
-        intToCharCode[i] = SAFECHARS.charCodeAt(i);
+    SAFECHARS.split('').forEach((c, i) => {
+        intToChar[i] = c;
+        intToCharCode[i] = c.charCodeAt(0);
         charCodeToInt[i] = 0;
-    }
-    for ( let i = NUMSAFECHARS; i < 128; i++ ) {
+    });
+    Array.from(
+        { length: 128 - NUMSAFECHARS },
+        (_, i) => NUMSAFECHARS + i
+    ).forEach(i => {
         intToChar[i] = '';
         intToCharCode[i] = 0;
         charCodeToInt[i] = 0;
-    }
-    for ( let i = 0; i < SAFECHARS.length; i++ ) {
-        charCodeToInt[SAFECHARS.charCodeAt(i)] = i;
-    }
+    });
+    SAFECHARS.split('').forEach((c, i) => {
+        charCodeToInt[c.charCodeAt(0)] = i;
+    });
     return { intToChar, intToCharCode, charCodeToInt };
 })();
 
