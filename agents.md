@@ -14,8 +14,8 @@ Firefox 160+**.
 Non-negotiable product facts:
 
 - Project name stays `uBlock Firefox Native`; short name stays `uBlock FF`.
-- Product name stays `uBlock Origin`.
-- Extension ID stays `uBlock0@raymondhill.net`.
+- Product name stays `uBlock Firefox Native`.
+- Extension ID stays `uBlockFirefoxNative@itsrody.github.io`.
 - Firefox floor stays `160.0`.
 - Runtime stays **Manifest V2** with a real background page.
 - Builds are **unsigned XPIs** distributed manually through GitHub releases.
@@ -73,7 +73,80 @@ not reduce work / improve Firefox-native shape, do not include it.
 
 ---
 
-## 3. What "Firefox-native" means here
+## 3. Upstream uBO updates
+
+uBlock Firefox Native follows upstream uBlock Origin, but upstream changes are
+never copied in blindly. Every upstream update is handled as a reviewed sync
+batch. In this guide, "upstream" means the `gorhill/uBlock` origin history and
+its `CHANGELOG.md`.
+
+### 3.1 Sources and scope
+
+- The upstream `CHANGELOG.md` and the commit range since the last reviewed
+  upstream tag/commit are the intake for user-visible changes.
+- This repository's `CHANGELOG.md` is a rewritten history, not a verbatim mirror.
+  Preserve useful upstream commit links, but describe changes in terms of this
+  Firefox-only product.
+- uAssets/filter-list changes are asset updates, not engine changes. Review them
+  separately from extension code.
+- Do not import upstream MV3, uBO Lite, Chromium, Edge, Opera, Thunderbird,
+  Safari, DNR-runtime, or cross-browser abstraction work into the shipped
+  extension.
+
+### 3.2 Review procedure
+
+1. Record the upstream tag/commit and the local commit/tag currently being
+   synced from.
+2. Read the upstream changelog entries for that range, then open the referenced
+   commits before deciding anything.
+3. Classify every entry:
+   - **Apply directly** — Firefox-compatible and already in the right shape.
+   - **Rewrite Firefox-native** — keep the decision and output, but implement it
+     with direct loops, stable object shapes, fewer allocations, dynamic
+     `vAPI.webextFlavor`, and Firefox MV2 APIs.
+   - **Defer** — behavior-affecting work that needs a differential smoke or a
+     generated-byte proof before it can ship.
+   - **Skip** — non-Firefox, MV3/uBO Lite, cross-browser, or product-identity
+     conflict. Record the reason in the review notes.
+4. When rewriting an upstream patch, translate the implementation, not just the
+   changelog wording. The goal is the same engine decision with a Firefox-native
+   shape, as defined by the golden rule.
+5. Upstream changes that restore the `uBlock Origin` product name, the old
+   extension ID, or an AMO/auto-update path must be rewritten to this project's
+   identity. Upstream authorship and license headers remain intact.
+
+### 3.3 Rewrite the changelog
+
+Do not paste upstream changelog text into this repository unchanged.
+
+- Use `uBlock Firefox Native` where a product name is displayed.
+- Describe the Firefox/MV2 consequence of the change, not a generic browser
+  story.
+- Keep upstream commit links where they provide provenance.
+- Remove or rewrite MV3, Chromium, Edge, Opera, Thunderbird, Safari, uBO Lite,
+  and DNR-runtime claims.
+- If a skipped upstream change is user-visible, note that it was intentionally
+  not taken and why.
+- Record the sync point in release notes as
+  `Upstream sync: <upstream-tag-or-commit> -> <local-commit>` when a batch lands.
+
+### 3.4 Validation for upstream sync batches
+
+Apply the normal validation checklist, plus:
+
+- run a differential Firefox 160+ smoke for any behavior-affecting upstream
+  change;
+- compare generated scriptlet bytes, `/* n */` counts, wrapper text, secret
+  substitution, and registration order when upstream touches scriptlets;
+- keep `vAPI.webextFlavor` dynamic even if upstream introduces a new flavor
+  constant;
+- confirm no hidden compatibility setting, parser token, Firefox Android guard,
+  DNS/CNAME path, request-suspension path, or `filterResponseData` behavior was
+  dropped by the merge.
+
+---
+
+## 4. What "Firefox-native" means here
 
 This is a WebExtension. SpiderMonkey, WarpJIT, Gecko networking, GeckoView, and
 browser C++ patches cannot be shipped in the XPI from `make firefox`.
@@ -96,17 +169,18 @@ behavior unchanged.
 
 ---
 
-## 4. Invariants that must stay byte-for-byte or behavior-for-behavior
+## 5. Invariants that must stay byte-for-byte or behavior-for-behavior
 
-### 4.1 Identity and runtime
+### 5.1 Identity and runtime
 
-- Product name `uBlock Origin`.
-- ID `uBlock0@raymondhill.net`.
+- Product name `uBlock Firefox Native`.
+- Short name `uBlock FF`.
+- ID `uBlockFirefoxNative@itsrody.github.io`.
 - Manifest version `2` with background page ending in `/background.html`.
 - `strict_min_version` `160.0`.
 - No MV3 runtime, DNR enforcement, or uBO Lite behavior.
 
-### 4.2 Flavor and compatibility surfaces
+### 5.2 Flavor and compatibility surfaces
 
 - `vAPI.webextFlavor` must stay dynamic. Never hoist flavor checks into immutable
   module-load constants.
@@ -120,7 +194,7 @@ behavior unchanged.
 - Preserve DNR diagnostic export context and output. It is not a runtime path.
 - Preserve logger and inspector output, including log data order and realm.
 
-### 4.3 Network filtering
+### 5.3 Network filtering
 
 - Preserve `filterQuery(fctxt, 'removeparam')` semantics and the public
   `matchAndFetchModifiers(fctxt, modifierName)` API.
@@ -131,7 +205,7 @@ behavior unchanged.
 - Preserve `try { await native(...) } catch {}` behavior. Do not replace it with
   `.catch()` where a synchronous throw must stay swallowed.
 
-### 4.4 Scriptlets and generated source
+### 5.4 Scriptlets and generated source
 
 These outputs are observable and must remain byte-identical unless a change is
 proven to produce identical bytes:
@@ -156,14 +230,14 @@ Specific rules:
 - Keep the `userCSS` port path in the content script unchanged. Only the
   background-side CSS API handling was made Firefox-native.
 
-### 4.5 Cosmetic filtering
+### 5.5 Cosmetic filtering
 
 - Preserve selector cache insertion/eviction order.
 - Preserve procedural/declarative selector output order.
 - Preserve specific vs generic cosmetic filtering flags and exceptions.
 - Preserve `getContentScripts()` plain and rich option shapes.
 
-### 4.6 Events and ordering
+### 5.6 Events and ordering
 
 - Preserve the order of `frameManager` listener dispatch.
 - Preserve `before-tab-created`, `tab-created`, `before-frame-committed`,
@@ -173,7 +247,7 @@ Specific rules:
 
 ---
 
-## 5. Architecture map
+## 6. Architecture map
 
 Use this map to choose related files for a batch.
 
@@ -189,7 +263,7 @@ Use this map to choose related files for a batch.
 
 ---
 
-## 6. Batch workflow
+## 7. Batch workflow
 
 The user will usually issue one of these commands:
 
@@ -197,6 +271,8 @@ The user will usually issue one of these commands:
 - `next` — implement the next function-preserving Firefox-native batch.
 - `commit then next` — commit the current batch, then implement and validate the
   next batch.
+- `upstream` — review the next upstream uBO changelog range and propose a
+  rewritten Firefox-native sync batch.
 
 Rules:
 
@@ -209,10 +285,12 @@ Rules:
 5. Do not reintroduce deleted harness files, Selenium/check gates, or npm test
    gates. Temporary validation harnesses are allowed but must be removed before
    reporting completion.
+6. For an `upstream` batch, report the upstream sync point and every
+   apply/rewrite/defer/skip decision. Never merge silently.
 
 ---
 
-## 7. Validation checklist
+## 8. Validation checklist
 
 Run all applicable checks for every batch:
 
@@ -248,7 +326,7 @@ make a batch pass.
 
 ---
 
-## 8. Review checklist before reporting a batch
+## 9. Review checklist before reporting a batch
 
 Ask these questions before saying a batch is done:
 
@@ -262,7 +340,9 @@ Ask these questions before saying a batch is done:
    diagnostic export disappear?
 7. Is the batch limited to 2-4 related files with one smoke covering them?
 8. Are all temporary validation files deleted?
-9. Is the working tree state exactly what the report says?
+9. For an upstream sync, was every changelog entry rewritten for Firefox rather
+   than copied, with skipped non-Firefox work explained?
+10. Is the working tree state exactly what the report says?
 
 If any answer is uncertain, rebuild the differential harness and prove
 equivalence before reporting completion.

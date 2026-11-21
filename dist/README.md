@@ -34,7 +34,7 @@ Temporary add-ons are removed when Firefox restarts.
 On Linux, the settings are saved in a JSON file located at:
 
 ```
-~/.mozilla/firefox/[profile name]/browser-extension-data/uBlock0@raymondhill.net/storage.js
+~/.mozilla/firefox/[profile name]/browser-extension-data/uBlockFirefoxNative@itsrody.github.io/storage.js
 ```
 
 When you uninstall the extension, Firefox deletes this file, and all your settings will be lost.

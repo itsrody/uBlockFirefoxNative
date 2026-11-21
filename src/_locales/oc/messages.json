@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Origin",
+    "message": "uBlock Firefox Native",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "Las directivas dels sites fisables indican sus qualas paginas web uBlock Origin deu èsser desactivat. Una entrada per linha.",
+    "message": "Las directivas dels sites fisables indican sus qualas paginas web uBlock Firefox Native deu èsser desactivat. Una entrada per linha.",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "Wiki uBlock Origin: Lo registre",
+    "message": "Wiki uBlock Firefox Native: Lo registre",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Legir la documentacion sus <code>uBlock/wiki</code> per aprene totas las foncionalitats d'uBlock Origin.",
+    "message": "Legir la documentacion sus <code>uBlock/wiki</code> per aprene totas las foncionalitats d'uBlock Firefox Native.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Important:</b> Evitar d'utilizar d'autres blocaires amb de finalitats similaras amb uBlock Origin, que aquò pòt causar de problèmas de filtres sus de sites web especifics.",
+    "message": "<b>Important:</b> Evitar d'utilizar d'autres blocaires amb de finalitats similaras amb uBlock Firefox Native, que aquò pòt causar de problèmas de filtres sus de sites web especifics.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Senhalar los problèmas amb uBlock Origin meteis al seguidor de problèmas <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code></span>. <u>Require un compte GitHub.</u>",
+    "message": "Senhalar los problèmas amb uBlock Firefox Native meteis al seguidor de problèmas <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code></span>. <u>Require un compte GitHub.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Detecta uBlock Origin",
+    "message": "Detecta uBlock Firefox Native",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Malaise quand uBlock Origin es activat",
+    "message": "Malaise quand uBlock Firefox Native es activat",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Origin a empachat lo cargament de la pagina seguenta :",
+    "message": "uBlock Firefox Native a empachat lo cargament de la pagina seguenta :",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

@@ -1,7 +1,7 @@
 {
   "name": "ublock-firefox-native",
   "version": "1.0.0",
-  "description": "uBlock Origin for native Firefox 160+ (unsigned, manually distributed)",
+  "description": "uBlock Firefox Native — uBlock Origin for native Firefox 160+ (unsigned, manually distributed)",
   "type": "module",
   "scripts": {
     "lint": "eslint --no-warn-ignored --ignore-pattern \"**/lib/\" --ignore-pattern \"**/npm/\" -- \"./src/js/*.js\" \"./src/js/**/*.js\" \"./**/*.json\" \"./platform/**/*.js\"",

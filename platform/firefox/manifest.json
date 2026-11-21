@@ -11,12 +11,12 @@
       "32": "img/icon_32.png",
       "64": "img/icon_64.png"
     },
-    "default_title": "uBlock Origin",
+    "default_title": "uBlock Firefox Native",
     "default_popup": "popup-fenix.html"
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "uBlock0@raymondhill.net",
+      "id": "uBlockFirefoxNative@itsrody.github.io",
       "strict_min_version": "160.0",
       "data_collection_permissions": {
         "required": [ "none" ]
@@ -106,7 +106,7 @@
     "128": "img/ublock.svg"
   },
   "manifest_version": 2,
-  "name": "uBlock Origin",
+  "name": "uBlock Firefox Native",
   "options_ui": {
     "page": "dashboard.html",
     "open_in_tab": true
@@ -125,7 +125,7 @@
     "webRequestBlocking",
     "<all_urls>"
   ],
-  "short_name": "uBlock₀",
+  "short_name": "uBlock FF",
   "sidebar_action": {
     "default_title": "__MSG_statsPageName__",
     "default_panel": "logger-ui.html",

@@ -9,7 +9,7 @@
 <sub>
 <img src="https://github.com/gorhill/uBlock/blob/master/src/img/ublock.svg" height="38" width="38">
 </sub>
-uBlock Origin — Firefox Native Edition
+uBlock Firefox Native
 </h1>
 
 > **uBlock Firefox Native (`uBlock FF`) is a Firefox-only fork of [uBlock Origin][upstream].**

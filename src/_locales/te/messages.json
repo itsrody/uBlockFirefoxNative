@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Origin",
+    "message": "uBlock Firefox Native",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "uBlock Origin అచేతనబడించిన హోస్టూల జాబితా, ఇది మీరు కూర్చినది,. ఒక్కో పంక్తికి ఒక్కో నమోదు. చెల్లని నమోదులు మౌనంగా విస్మరించబడుతాయి.",
+    "message": "uBlock Firefox Native అచేతనబడించిన హోస్టూల జాబితా, ఇది మీరు కూర్చినది,. ఒక్కో పంక్తికి ఒక్కో నమోదు. చెల్లని నమోదులు మౌనంగా విస్మరించబడుతాయి.",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>ముఖ్యం:</b> uBlock Originతో పాటు ఇతర సారూప్య ప్రయోజనాల బ్లాకర్లను ఉపయోగించడం మానుకోండి, ఎందుకంటే ఇది నిర్దిష్ట వెబ్‌సైట్లలో ఫిల్టర్ సమస్యలకు కారణం కావచ్చు.",
+    "message": "<b>ముఖ్యం:</b> uBlock Firefox Nativeతో పాటు ఇతర సారూప్య ప్రయోజనాల బ్లాకర్లను ఉపయోగించడం మానుకోండి, ఎందుకంటే ఇది నిర్దిష్ట వెబ్‌సైట్లలో ఫిల్టర్ సమస్యలకు కారణం కావచ్చు.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "uBlock Originతో సంబంధించిన సమస్యలను <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> ఇష్యూ ట్రాకర్‌కు</span> నివేదించండి. <u>GitHub ఖాతా అవసరం.</u>",
+    "message": "uBlock Firefox Nativeతో సంబంధించిన సమస్యలను <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> ఇష్యూ ట్రాకర్‌కు</span> నివేదించండి. <u>GitHub ఖాతా అవసరం.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "uBlock Originను గుర్తిస్తుంది",
+    "message": "uBlock Firefox Nativeను గుర్తిస్తుంది",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "uBlock Origin ప్రారంభించబడినప్పుడు పనిచేయకపోవడం",
+    "message": "uBlock Firefox Native ప్రారంభించబడినప్పుడు పనిచేయకపోవడం",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "ఈ తరువాయి పేజిని uBlock Origin బ్రౌజరులోకి ఎక్కిన్చనివ్వలేదు:",
+    "message": "ఈ తరువాయి పేజిని uBlock Firefox Native బ్రౌజరులోకి ఎక్కిన్చనివ్వలేదు:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {
