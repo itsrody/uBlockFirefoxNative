@@ -31,7 +31,7 @@ const i18n$ = (...args) => i18n.getMessage(...args);
 
 /******************************************************************************/
 
-const isBackgroundProcess = document.title === 'uBlock Origin Background Page';
+const isBackgroundProcess = document.documentElement.dataset.uboPage === 'background';
 
 if ( isBackgroundProcess !== true ) {
 
