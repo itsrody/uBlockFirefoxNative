@@ -199,8 +199,9 @@ if ( isBackgroundProcess !== true ) {
             const parts = text.split(/(\{\{[^}]+\}\})/);
             const fragment = document.createDocumentFragment();
             let textBefore = '';
-            for ( let part of parts ) {
-                if ( part === '' ) { continue; }
+            parts.forEach(rawPart => {
+                let part = rawPart;
+                if ( part === '' ) { return; }
                 if ( part.startsWith('{{') && part.endsWith('}}') ) {
                     // TODO: remove detection of ':' once it no longer appears
                     //       in translation files.
@@ -227,11 +228,11 @@ if ( isBackgroundProcess !== true ) {
                         safeTextToDOM(textBefore, fragment);
                         fragment.appendChild(node);
                         textBefore = '';
-                        continue;
+                        return;
                     }
                 }
                 textBefore += part;
-            }
+            });
             if ( textBefore !== '' ) {
                 safeTextToDOM(textBefore, fragment);
             }
@@ -319,20 +320,19 @@ if ( isBackgroundProcess !== true ) {
     i18n.patchUnicodeFlags = function(text) {
         const fragment = document.createDocumentFragment();
         let i = 0;
-        for (;;) {
-            const match = reUnicodeFlags.exec(text);
-            if ( match === null ) { break; }
-            if ( match.index > i ) {
-                fragment.append(text.slice(i, match.index));
+        text.replace(reUnicodeFlags, (match, offset) => {
+            if ( offset > i ) {
+                fragment.append(text.slice(i, offset));
             }
             const img = document.createElement('img');
-            const countryCode = unicodeFlagToImageSrc.get(match[0]);
+            const countryCode = unicodeFlagToImageSrc.get(match);
             img.src = `/img/flags-of-the-world/${countryCode}.png`;
             img.title = countryCode;
             img.classList.add('countryFlag');
             fragment.append(img, '\u200A');
-            i = reUnicodeFlags.lastIndex;
-        }
+            i = offset + match.length;
+            return '';
+        });
         if ( i < text.length ) {
             fragment.append(text.slice(i));
         }

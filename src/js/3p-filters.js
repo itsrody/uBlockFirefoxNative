@@ -188,7 +188,7 @@ const renderFilterLists = ( ) => {
                 return as.localeCompare(bs);
             });
         }
-        for ( const [ listkey, listDetails ] of treeEntries ) {
+        treeEntries.forEach(([ listkey, listDetails ]) => {
             const listEntry = createListEntry(listDetails, depth);
             if ( dom.cl.has(dom.root, 'mobile') ) {
                 const leafStats = qs$(listEntry, '.leafstats');
@@ -209,7 +209,7 @@ const renderFilterLists = ( ) => {
                 initializeListEntry(listDetails, listEntry);
             }
             listEntries.append(listEntry);
-        }
+        });
         return listEntries;
     };
 
@@ -234,13 +234,13 @@ const renderFilterLists = ( ) => {
             'unknown',
             'custom'
         ];
-        for ( const key of groupKeys ) {
+        groupKeys.forEach(key => {
             listTree[key] = {
                 title: i18nGroupName(key),
                 lists: {},
             };
-        }
-        for ( const [ listkey, listDetails ] of Object.entries(response.available) ) {
+        });
+        Object.entries(response.available).forEach(([ listkey, listDetails ]) => {
             let groupkey = listDetails.group2 || listDetails.group;
             if ( Object.hasOwn(listTree, groupkey) === false ) {
                 groupkey = 'unknown';
@@ -248,7 +248,7 @@ const renderFilterLists = ( ) => {
             const groupDetails = listTree[groupkey];
             if ( listDetails.parent !== undefined ) {
                 let lists = groupDetails.lists;
-                for ( const parent of listDetails.parent.split('|') ) {
+                listDetails.parent.split('|').forEach(parent => {
                     if ( lists[parent] === undefined ) {
                         lists[parent] = { title: parent, lists: {} };
                     }
@@ -256,21 +256,21 @@ const renderFilterLists = ( ) => {
                         lists[parent].preferred = true;
                     }
                     lists = lists[parent].lists;
-                }
+                });
                 lists[listkey] = listDetails;
             } else {
                 listDetails.title = listNameFromListKey(listkey);
                 groupDetails.lists[listkey] = listDetails;
             }
-        }
+        });
         // https://github.com/uBlockOrigin/uBlock-issues/issues/3154#issuecomment-1975413427
         //   Remove empty sections
-        for ( const groupkey of groupKeys ) {
+        groupKeys.forEach(groupkey => {
             const groupDetails = listTree[groupkey];
-            if ( groupDetails === undefined ) { continue; }
-            if ( Object.keys(groupDetails.lists).length !== 0 ) { continue; }
+            if ( groupDetails === undefined ) { return; }
+            if ( Object.keys(groupDetails.lists).length !== 0 ) { return; }
             delete listTree[groupkey];
-        }
+        });
 
         const listEntries = createListEntries('root', listTree);
         qs$('#lists .listEntries').replaceWith(listEntries);
@@ -594,16 +594,16 @@ const selectFilterLists = async ( ) => {
     // Filter lists to remove/select
     const toSelect = [];
     const toRemove = [];
-    for ( const liEntry of qsa$('#lists .listEntry[data-role="leaf"]') ) {
+    qsa$('#lists .listEntry[data-role="leaf"]').forEach(liEntry => {
         const listkey = liEntry.dataset.key;
         if ( Object.hasOwn(listsetDetails.available, listkey) === false ) {
-            continue;
+            return;
         }
         const listDetails = listsetDetails.available[listkey];
         if ( dom.cl.has(liEntry, 'toRemove') ) {
             toRemove.push(listkey);
             listDetails.off = true;
-            continue;
+            return;
         }
         if ( dom.cl.has(liEntry, 'checked') ) {
             toSelect.push(listkey);
@@ -611,7 +611,7 @@ const selectFilterLists = async ( ) => {
         } else {
             listDetails.off = true;
         }
-    }
+    });
 
     hashFromListsetDetails();
 
@@ -746,12 +746,12 @@ const toggleListExpansion = which => {
             expandedListSet.clear();
             expandedListSet.add('*');
             dom.cl.add('#lists .rootstats', 'expanded');
-            for ( const expandable of qsa$('#lists > .listEntries .expandable') ) {
+            qsa$('#lists > .listEntries .expandable').forEach(expandable => {
                 const listkey = expandable.dataset.key || '';
-                if ( listkey === '' ) { continue; }
+                if ( listkey === '' ) { return; }
                 expandedListSet.add(listkey);
                 dom.cl.add(expandable, 'expanded');
-            }
+            });
         }
     } else {
         if ( isExpanded ) {
@@ -828,13 +828,11 @@ self.cloud.onPush = function toCloudData() {
     const bin = {
         parseCosmeticFilters: qs$('#parseCosmeticFilters').checked,
         ignoreGenericCosmeticFilters: qs$('#ignoreGenericCosmeticFilters').checked,
-        selectedLists: []
+        selectedLists: Array.from(
+            qsa$('#lists .listEntry.checked[data-role="leaf"]'),
+            liEntry => liEntry.dataset.key
+        ),
     };
-
-    const liEntries = qsa$('#lists .listEntry.checked[data-role="leaf"]');
-    for ( const liEntry of liEntries ) {
-        bin.selectedLists.push(liEntry.dataset.key);
-    }
 
     return bin;
 };
@@ -851,19 +849,19 @@ self.cloud.onPull = function fromCloudData(data, append) {
     elem.checked = listsetDetails.ignoreGenericCosmeticFilters = checked;
 
     const selectedSet = new Set(data.selectedLists);
-    for ( const listEntry of qsa$('#lists .listEntry[data-role="leaf"]') ) {
+    qsa$('#lists .listEntry[data-role="leaf"]').forEach(listEntry => {
         const listkey = listEntry.dataset.key;
         const mustEnable = selectedSet.has(listkey);
         selectedSet.delete(listkey);
-        if ( mustEnable === false && append ) { continue; }
+        if ( mustEnable === false && append ) { return; }
         toggleFilterList(listEntry, mustEnable);
-    }
+    });
 
     // If there are URL-like list keys left in the selected set, import them.
-    for ( const listkey of selectedSet ) {
-        if ( reValidExternalList.test(listkey) ) { continue; }
+    selectedSet.forEach(listkey => {
+        if ( reValidExternalList.test(listkey) ) { return; }
         selectedSet.delete(listkey);
-    }
+    });
     if ( selectedSet.size !== 0 ) {
         const textarea = qs$('#lists .listEntry[data-role="import"] textarea');
         const lines = append
