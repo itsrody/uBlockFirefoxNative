@@ -171,7 +171,7 @@ vAPI.webextFlavor = {
     flavor.major = match && parseInt(match[1], 10) || 160;
 
     // Whether this is a dev build.
-    const manifest = browser.runtime.getManifest();
+    const manifest = vAPI.webext.runtime.getManifest();
     const version = manifest.version_name || manifest.version;
     if ( /^\d+\.\d+\.\d+\D/.test(version) ) {
         soup.add('devbuild');
@@ -200,7 +200,7 @@ vAPI.download = function(details) {
 
 /******************************************************************************/
 
-vAPI.getURL = browser.runtime.getURL;
+vAPI.getURL = vAPI.webext.runtime.getURL;
 
 /******************************************************************************/
 

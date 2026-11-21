@@ -56,6 +56,12 @@ if (
     vAPI = self.vAPI = { uBO: true };
 }
 
+// Classic-script counterpart to webext.js: one Firefox API namespace for
+// background, auxiliary, and content-script contexts.
+if ( vAPI instanceof Object ) {
+    vAPI.webext = browser;
+}
+
 
 
 

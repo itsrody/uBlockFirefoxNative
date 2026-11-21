@@ -97,7 +97,7 @@ vAPI.messaging = {
     //   as world-ending, i.e. stay around. Except for embedded frames.
 
     disconnectListener: function() {
-        void browser.runtime.lastError;
+        void vAPI.webext.runtime.lastError;
         this.port = null;
         if ( window !== window.top ) {
             vAPI.shutdown.exec();
@@ -167,7 +167,7 @@ vAPI.messaging = {
             this.portPollerBound = this.portPoller.bind(this);
         }
         try {
-            this.port = browser.runtime.connect({name: vAPI.sessionId}) || null;
+            this.port = vAPI.webext.runtime.connect({name: vAPI.sessionId}) || null;
         } catch {
             this.port = null;
         }
