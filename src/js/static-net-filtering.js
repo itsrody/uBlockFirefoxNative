@@ -5892,8 +5892,12 @@ StaticNetFilteringEngine.prototype.matchHeaders = function(fctxt, ...headers) {
 
 /******************************************************************************/
 
-StaticNetFilteringEngine.prototype.redirectRequest = function(redirectEngine, fctxt) {
-    return redirectRequest(this, redirectEngine, fctxt);
+StaticNetFilteringEngine.prototype.redirectRequest = function(
+    redirectEngine,
+    fctxt,
+    directives
+) {
+    return redirectRequest(this, redirectEngine, fctxt, directives);
 };
 
 /******************************************************************************/

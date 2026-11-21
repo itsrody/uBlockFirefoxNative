@@ -62,6 +62,8 @@ const urlTransformQuerySkipModifierNames = [
     'removeparam',
     'urlskip',
 ];
+const blockedRedirectModifierNames = [ 'redirect-rule' ];
+const blockedRedirectSkipModifierNames = [ 'redirect-rule', 'urlskip' ];
 
 /*******************************************************************************
 
@@ -733,9 +735,27 @@ const PageStore = class {
     }
 
     redirectBlockedRequest(fctxt) {
-        const directives = staticNetFilteringEngine.redirectRequest(redirectEngine, fctxt) || [];
-        if ( this.urlSkippableResources.has(fctxt.itype) ) {
-            staticNetFilteringEngine.urlSkip(fctxt, true, directives);
+        const canUrlSkip = this.urlSkippableResources.has(fctxt.itype);
+        const modifierNames = canUrlSkip
+            ? blockedRedirectSkipModifierNames
+            : blockedRedirectModifierNames;
+        const modifierSets =
+            staticNetFilteringEngine.matchAndFetchModifierSets(
+                fctxt,
+                modifierNames
+            );
+        const directives = staticNetFilteringEngine.redirectRequest(
+            redirectEngine,
+            fctxt,
+            modifierSets['redirect-rule']
+        ) || [];
+        if ( canUrlSkip ) {
+            staticNetFilteringEngine.urlSkip(
+                fctxt,
+                true,
+                directives,
+                modifierSets.urlskip
+            );
         }
         if ( directives.length === 0 ) { return; }
         if ( logger.enabled !== true ) { return; }

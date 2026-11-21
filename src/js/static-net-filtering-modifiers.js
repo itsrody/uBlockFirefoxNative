@@ -28,8 +28,10 @@ import { urlSkip as urlSkipDirective } from './urlskip.js';
 
 /******************************************************************************/
 
-export function redirectRequest(engine, redirectEngine, fctxt) {
-    const directives = engine.matchAndFetchModifiers(fctxt, 'redirect-rule');
+export function redirectRequest(engine, redirectEngine, fctxt, directives) {
+    if ( directives === undefined ) {
+        directives = engine.matchAndFetchModifiers(fctxt, 'redirect-rule');
+    }
     // No directive is the most common occurrence.
     if ( directives === undefined ) { return; }
     const highest = directives.length - 1;
