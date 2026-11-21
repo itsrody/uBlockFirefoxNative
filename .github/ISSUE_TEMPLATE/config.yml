@@ -9,6 +9,6 @@ contact_links:
   - name: Filter List Issues
     url: https://github.com/uBlockOrigin/uAssets/issues
     about: Report issues with filter lists or broken website functionality in the uAssets issue tracker.
-  - name: uBlockFox (Firefox 160+) Issues
-    url: https://github.com/itsrody/uBlockFox/issues
-    about: Report issues with Firefox-only builds from this fork here.
+  - name: uBlock Firefox Native (Firefox 160+) Issues
+    url: https://github.com/itsrody/uBlockFirefoxNative/issues
+    about: Report issues with uBlock Firefox Native builds from this fork here.

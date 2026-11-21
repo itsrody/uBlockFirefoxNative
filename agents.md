@@ -1,4 +1,4 @@
-# Agent guide: uBlockFox
+# Agent guide: uBlock Firefox Native
 
 This file is the working contract for agents changing this repository. Read it
 before editing code. It describes the product boundary, the refactor goal, the
@@ -8,10 +8,12 @@ invariants that define behavioral equivalence, and the validation workflow.
 
 ## 1. Product boundary
 
-uBlockFox is **uBlock Origin for native Firefox 160+**.
+uBlock Firefox Native (short name: `uBlock FF`) is **uBlock Origin for native
+Firefox 160+**.
 
 Non-negotiable product facts:
 
+- Project name stays `uBlock Firefox Native`; short name stays `uBlock FF`.
 - Product name stays `uBlock Origin`.
 - Extension ID stays `uBlock0@raymondhill.net`.
 - Firefox floor stays `160.0`.

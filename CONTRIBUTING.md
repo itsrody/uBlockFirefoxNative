@@ -20,9 +20,9 @@ publish targets.
 ### Developer tools
 
 The `SNFE: DNR` button in `devtools.html` exports a DNR-shaped ruleset for
-filter-compatibility diagnostics. It is not an MV3 runtime path: uBlockFox
-blocks requests with the MV2 static filtering engines and does not apply DNR
-rules.
+filter-compatibility diagnostics. It is not an MV3 runtime path: uBlock Firefox
+Native blocks requests with the MV2 static filtering engines and does not apply
+DNR rules.
 
 ### Native and upstream-only performance work
 
@@ -34,7 +34,7 @@ APIs and JavaScript engine behavior.
 Ideas that require browser internals belong upstream in Mozilla, not in this
 extension:
 
-| Idea | Destination | Why it is not a uBlockFox patch |
+| Idea | Destination | Why it is not a uBlock Firefox Native patch |
 | :--- | :---------- | :------------------------------ |
 | JIT/Warp heuristics for filter match loops | SpiderMonkey | No WebExtension control over JIT compilation or inline caches. |
 | Native URL, header, or response parsing | Gecko network stack | `webRequest` exposes detail objects, not parser or pipeline hooks. |
@@ -90,7 +90,7 @@ You can help translate uBO via [Crowdin](https://crowdin.com/project/ublock).
 ### Reporting Issues
 
 This fork targets native Firefox 160 and later only. Issues with builds from
-this repository can be reported in the [issue tracker](https://github.com/itsrody/uBlockFox/issues).
+this repository can be reported in the [issue tracker](https://github.com/itsrody/uBlockFirefoxNative/issues).
 
 #### Support Forum
 

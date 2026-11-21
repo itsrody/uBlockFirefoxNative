@@ -9,13 +9,14 @@
 <sub>
 <img src="https://github.com/gorhill/uBlock/blob/master/src/img/ublock.svg" height="38" width="38">
 </sub>
-uBlock Origin — Firefox edition
+uBlock Origin — Firefox Native Edition
 </h1>
 
-> **This is a Firefox-only fork of [uBlock Origin][upstream].** It targets native
-> Firefox **160 and later** and uses Firefox's Manifest V2 extension API. Builds
-> are unsigned XPIs distributed manually through GitHub releases. There are no
-> Chromium, Edge, Opera, Thunderbird, Safari, or Manifest V3 builds.
+> **uBlock Firefox Native (`uBlock FF`) is a Firefox-only fork of [uBlock Origin][upstream].**
+> It targets native Firefox **160 and later** and uses Firefox's Manifest V2
+> extension API. Builds are unsigned XPIs distributed manually through GitHub
+> releases. There are no Chromium, Edge, Opera, Thunderbird, Safari, or Manifest
+> V3 builds.
 
 | Browser | Install from ... | Status |
 | :-----: | ---------------- | ------ |
@@ -89,8 +90,8 @@ Do **NOT** use uBO with any other content blocker. uBO [performs][Performance] a
 ## Build from source
 
 ```bash
-git clone https://github.com/itsrody/uBlockFox.git
-cd uBlockFox
+git clone https://github.com/itsrody/uBlockFirefoxNative.git uBlockFirefoxNative
+cd uBlockFirefoxNative
 make firefox
 ```
 
@@ -177,17 +178,17 @@ If you ever want to contribute something, think about the people working hard to
 [uBO Filters]: https://github.com/uBlockOrigin/uAssets/tree/master/filters
 [uAssets]: https://github.com/uBlockOrigin/uAssets
 [Permissions]: https://github.com/gorhill/uBlock/wiki/Permissions
-[Commit Rate]: https://github.com/itsrody/uBlockFox/commits/master
+[Commit Rate]: https://github.com/itsrody/uBlockFirefoxNative/commits/master
 [Works Best]: https://github.com/gorhill/uBlock/wiki/uBlock-Origin-works-best-on-Firefox
 [Blocking]: https://github.com/gorhill/uBlock/wiki/Blocking-mode
-[Releases]: https://github.com/itsrody/uBlockFox/releases
-[Issues]: https://github.com/itsrody/uBlockFox/issues
+[Releases]: https://github.com/itsrody/uBlockFirefoxNative/releases
+[Issues]: https://github.com/itsrody/uBlockFirefoxNative/issues
 [Wiki]: https://github.com/gorhill/uBlock/wiki
 
 <!----------------------------------[ Badges ]--------------------------------->
 
 [Badge Localization]: https://d322cqt584bo4o.cloudfront.net/ublock/localized.svg
-[Badge Commits]: https://img.shields.io/github/commit-activity/m/itsrody/uBlockFox?label=Commits
+[Badge Commits]: https://img.shields.io/github/commit-activity/m/itsrody/uBlockFirefoxNative?label=Commits
 [Badge Mozilla]: https://img.shields.io/amo/rating/ublock-origin?label=Firefox
 [Badge License]: https://img.shields.io/badge/License-GPLv3-blue.svg
-[Badge Issues]: https://img.shields.io/github/issues/itsrody/uBlockFox
+[Badge Issues]: https://img.shields.io/github/issues/itsrody/uBlockFirefoxNative

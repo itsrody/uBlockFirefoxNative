@@ -1,8 +1,8 @@
 # Install
 
-This fork targets **native Firefox 160 or later** only. Release builds are
-**unsigned XPIs** and are distributed manually from
-[GitHub releases](https://github.com/itsrody/uBlockFox/releases). This fork is
+uBlock Firefox Native targets **native Firefox 160 or later** only. Release
+builds are **unsigned XPIs** and are distributed manually from
+[GitHub releases](https://github.com/itsrody/uBlockFirefoxNative/releases). This fork is
 not listed on Firefox Add-ons.
 
 ## Firefox 160+
@@ -10,7 +10,7 @@ not listed on Firefox Add-ons.
 ### From a release build
 
 1. Download `uBlock0_<version>.firefox.xpi` from
-   [the releases page](https://github.com/itsrody/uBlockFox/releases).
+   [the releases page](https://github.com/itsrody/uBlockFirefoxNative/releases).
 2. For a persistent install, use Firefox Developer Edition, Nightly, or ESR and
    set `xpinstall.signatures.required` to `false` in `about:config`. Standard
    Firefox Release and Beta reject unsigned add-ons by design.
@@ -43,8 +43,8 @@ When you uninstall the extension, Firefox deletes this file, and all your settin
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/itsrody/uBlockFox.git
-   cd uBlockFox
+   git clone https://github.com/itsrody/uBlockFirefoxNative.git uBlockFirefoxNative
+   cd uBlockFirefoxNative
    ```
 2. Build the extension:
    ```bash

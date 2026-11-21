@@ -1,4 +1,4 @@
-name: uBO Firefox release
+name: uBlock Firefox Native release
 
 on:
   create:

@@ -1,4 +1,4 @@
-> **uBlockFox** targets native Firefox 160+ only. Non-Firefox builds, MV3/uBO Lite
+> **uBlock Firefox Native** targets native Firefox 160+ only. Non-Firefox builds, MV3/uBO Lite
 > tooling, and Node.js/npm packaging have been removed from this fork.
 
 - [[scriptlets] Add (back) support for path-based targets](https://github.com/gorhill/uBlock/commit/a23b117141)
