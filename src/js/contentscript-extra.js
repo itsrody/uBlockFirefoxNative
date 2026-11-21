@@ -35,13 +35,17 @@ const nonVisualElements = {
     style: true,
 };
 
+const reWrappedRegex = /^\/(.+)\/([imu]*)$/;
+const reEscapeForRegex = /[.*+?^${}()|[\]\\]/g;
+const unorderedSnapshotType = XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE;
+
 const regexFromString = (s, exact = false) => {
     if ( s === '' ) { return /^/; }
-    const match = /^\/(.+)\/([imu]*)$/.exec(s);
+    const match = reWrappedRegex.exec(s);
     if ( match !== null ) {
         return new RegExp(match[1], match[2] || undefined);
     }
-    const reStr = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reStr = s.replace(reEscapeForRegex, '\\$&');
     return new RegExp(exact ? `^${reStr}$` : reStr);
 };
 
@@ -180,13 +184,17 @@ class PSelectorMatchesPathTask extends PSelectorTask {
         this.needle = regexFromString(
             task[1].replace(/\P{ASCII}/gu, s => encodeURIComponent(s))
         );
+        this.path = self.location.pathname + self.location.search;
         if ( PSelectorMatchesPathTask.#listener ) { return; }
         PSelectorMatchesPathTask.#listener = true;
         if ( Boolean(self.navigation) === false ) { return; }
         self.navigation.addEventListener('navigate', triggerDOMChange);
     }
+    begin() {
+        this.path = self.location.pathname + self.location.search;
+    }
     transpose(node, output) {
-        if ( this.needle.test(self.location.pathname + self.location.search) ) {
+        if ( this.needle.test(this.path) ) {
             output.push(node);
         }
     }
@@ -233,13 +241,20 @@ class PSelectorOthersTask extends PSelectorTask {
     constructor() {
         super();
         this.targets = new Set();
+        this.toKeep = new Set();
+        this.toDiscard = new Set();
     }
     begin() {
         this.targets.clear();
+        this.toKeep.clear();
+        this.toDiscard.clear();
     }
     end(output) {
-        const toKeep = new Set(this.targets);
-        const toDiscard = new Set();
+        const toKeep = this.toKeep;
+        const toDiscard = this.toDiscard;
+        for ( const target of this.targets ) {
+            toKeep.add(target);
+        }
         const body = document.body;
         const head = document.head;
         let discard = null;
@@ -272,6 +287,8 @@ class PSelectorOthersTask extends PSelectorTask {
             output.push(discard);
         }
         this.targets.clear();
+        toKeep.clear();
+        toDiscard.clear();
     }
     transpose(candidate) {
         for ( const target of this.targets ) {
@@ -406,7 +423,7 @@ class PSelectorXpathTask extends PSelectorTask {
     transpose(node, output) {
         this.xpr = this.xpe.evaluate(
             node,
-            XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE,
+            unorderedSnapshotType,
             this.xpr
         );
         let j = this.xpr.snapshotLength;
@@ -527,6 +544,7 @@ class ProceduralFilterer {
         this.masterToken = vAPI.randomToken();
         this.styleTokenMap = new Map();
         this.styledNodes = new Set();
+        this.unstyledNodes = new Set();
         if ( vAPI.domWatcher instanceof Object ) {
             vAPI.domWatcher.addListener(this);
         }
@@ -573,7 +591,10 @@ class ProceduralFilterer {
         //   Be ready to unhide nodes which no longer matches any of
         //   the procedural selectors.
         const toUnstyle = this.styledNodes;
-        this.styledNodes = new Set();
+        const nextStyled = this.unstyledNodes;
+        nextStyled.clear();
+        this.styledNodes = nextStyled;
+        this.unstyledNodes = toUnstyle;
 
         let t0 = performance.now();
 
@@ -599,6 +620,7 @@ class ProceduralFilterer {
         }
 
         this.unprocessNodes(toUnstyle);
+        toUnstyle.clear();
     }
 
     styleTokenFromStyle(style) {

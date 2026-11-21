@@ -36,6 +36,10 @@ let acceptedCount = 0;
 let discardedCount = 0;
 let docRegister;
 
+const reWrappedRegex = /^\/(.+)\/([i]?)$/;
+const reEscapeForRegex = /[.*+?^${}()|[\]\\]/g;
+const unorderedSnapshotType = XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE;
+
 const htmlFilteringEngine = {
     get acceptedCount() {
         return acceptedCount;
@@ -50,11 +54,11 @@ const htmlFilteringEngine = {
 
 const regexFromString = (s, exact = false) => {
     if ( s === '' ) { return /^/; }
-    const match = /^\/(.+)\/([i]?)$/.exec(s);
+    const match = reWrappedRegex.exec(s);
     if ( match !== null ) {
         return new RegExp(match[1], match[2] || undefined);
     }
-    const reStr = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reStr = s.replace(reEscapeForRegex, '\\$&');
     return new RegExp(exact ? `^${reStr}$` : reStr, 'i');
 };
 
@@ -188,7 +192,7 @@ class PSelectorXpathTask {
             this.xpe,
             node,
             null,
-            XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE,
+            unorderedSnapshotType,
             null
         );
         let j = xpr.snapshotLength;
@@ -279,6 +283,15 @@ function logOne(details, exception, selector) {
         .toLogger();
 }
 
+function removeNodes(nodes) {
+    let modified = false;
+    for ( const node of nodes ) {
+        node.remove();
+        modified = true;
+    }
+    return modified;
+}
+
 function applyProceduralSelector(details, selector) {
     let pselector = pselectors.get(selector);
     if ( pselector === undefined ) {
@@ -286,11 +299,7 @@ function applyProceduralSelector(details, selector) {
         pselectors.set(selector, pselector);
     }
     const nodes = pselector.exec();
-    let modified = false;
-    for ( const node of nodes ) {
-        node.remove();
-        modified = true;
-    }
+    const modified = removeNodes(nodes);
     if ( modified && logger.enabled ) {
         logOne(details, 0, pselector.raw);
     }
@@ -299,11 +308,7 @@ function applyProceduralSelector(details, selector) {
 
 function applyCSSSelector(details, selector) {
     const nodes = docRegister.querySelectorAll(selector);
-    let modified = false;
-    for ( const node of nodes ) {
-        node.remove();
-        modified = true;
-    }
+    const modified = removeNodes(nodes);
     if ( modified && logger.enabled ) {
         logOne(details, 0, selector);
     }
@@ -404,8 +409,8 @@ htmlFilteringEngine.retrieve = function(fctxt) {
     }
 
     // Split filters in different groups
-    const plains = new Set();
-    const procedurals = new Set();
+    const plains = [];
+    const procedurals = [];
     for ( const s of all ) {
         if ( s.charCodeAt(0) === 0x2D /* - */ ) { continue; }
         const selector = s.slice(1);
@@ -413,13 +418,13 @@ htmlFilteringEngine.retrieve = function(fctxt) {
         if ( all.has(`-${selector}`) ) {
             logOne(fctxt, 1, isProcedural ? JSON.parse(selector).raw : selector);
         } else if ( isProcedural ) {
-            procedurals.add(selector);
+            procedurals.push(selector);
         } else {
-            plains.add(selector);
+            plains.push(selector);
         }
     }
 
-    if ( plains.size === 0 && procedurals.size === 0 ) { return; }
+    if ( plains.length === 0 && procedurals.length === 0 ) { return; }
 
     return { plains, procedurals };
 };
