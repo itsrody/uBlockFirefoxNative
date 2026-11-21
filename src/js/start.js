@@ -21,17 +21,7 @@
 
 /******************************************************************************/
 
-import './vapi-common.js';
-import './vapi-background.js';
-import './vapi-background-ext.js';
-
-// The following modules are loaded here until their content is better organized
-import './commands.js';
-import './messaging.js';
-import './storage.js';
-import './tab.js';
-import './ublock.js';
-import './utils.js';
+import './background-bootstrap.js';
 
 import * as frameManager from './vapi-contexts.js';
 
