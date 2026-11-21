@@ -56,9 +56,9 @@ const SelectorCacheEntry = class {
         if ( selectors.length !== 0 ) {
             this.cosmetic.add(selectors);
         }
-        for ( const hash of details.hashes ) {
+        details.hashes.forEach(hash => {
             this.cosmeticHashes.add(hash);
-        }
+        });
     }
 
     addNet(selectors) {
@@ -75,9 +75,9 @@ const SelectorCacheEntry = class {
             .sort((a, b) => b[1] - a[1])
             .slice(SelectorCacheEntry.netLowWaterMark)
             .map(a => a[0]);
-        for ( const key of keys ) {
+        keys.forEach(key => {
             this.net.delete(key);
-        }
+        });
     }
 
     addNetOne(selector, token) {
