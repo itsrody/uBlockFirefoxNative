@@ -96,13 +96,13 @@ function redactKeys(data, prop) {
     const obj = data[prop];
     if ( obj instanceof Object === false ) { return; }
     let count = 1;
-    for ( const key in obj ) {
-        if ( key.startsWith('file://') === false ) { continue; }
+    Object.keys(obj).forEach(key => {
+        if ( key.startsWith('file://') === false ) { return; }
         const newkey = `[list name ${count} redacted]`;
         obj[newkey] = obj[key];
         obj[key] = undefined; 
         count += 1;
-    }
+    });
 }
 
 function patchEmptiness(data, prop) {
@@ -116,9 +116,9 @@ function patchEmptiness(data, prop) {
         data[prop] = '[none]';
         return;
     }
-    for ( const key in entry ) {
+    Object.keys(entry).forEach(key => {
         patchEmptiness(entry, key);
-    }
+    });
 }
 
 function configToMarkdown(collapse = false) {
