@@ -479,11 +479,9 @@ const launchReporter = async function(request) {
     const entries = await io.getUpdateAges({
         filters: µb.selectedFilterLists.slice()
     });
-    const shouldUpdateLists = [];
-    for ( const entry of entries ) {
-        if ( entry.age < (2 * 60 * 60 * 1000) ) { continue; }
-        shouldUpdateLists.push(entry.assetKey);
-    }
+    const shouldUpdateLists = entries
+        .filter(entry => entry.age >= (2 * 60 * 60 * 1000))
+        .map(entry => entry.assetKey);
 
     // https://github.com/gorhill/uBlock/commit/6efd8eb#commitcomment-107523558
     //   Important: for whatever reason, not using `document_start` causes the
@@ -1210,18 +1208,18 @@ const getLists = async function(callback) {
 // TODO: also return origin of embedded frames?
 const getOriginHints = function() {
     const out = new Set();
-    for ( const tabId of µb.pageStores.keys() ) {
-        if ( tabId === -1 ) { continue; }
+    Array.from(µb.pageStores.keys()).forEach(tabId => {
+        if ( tabId === -1 ) { return; }
         const topURL = frameManager.getTopURL(tabId);
-        if ( Boolean(topURL) === false ) { continue; }
+        if ( Boolean(topURL) === false ) { return; }
         const rootHostname = hostnameFromURI(topURL);
         const rootDomain = domainFromHostname(rootHostname);
-        if ( rootDomain.endsWith('-scheme') ) { continue; }
+        if ( rootDomain.endsWith('-scheme') ) { return; }
         const isPunycode = rootHostname.includes('xn--');
         out.add(isPunycode ? punycode.toUnicode(rootDomain) : rootDomain);
-        if ( rootHostname === rootDomain ) { continue; }
+        if ( rootHostname === rootDomain ) { return; }
         out.add(isPunycode ? punycode.toUnicode(rootHostname) : rootHostname);
-    }
+    });
     return Array.from(out);
 };
 
@@ -1294,16 +1292,8 @@ const getSupportData = async function() {
     const diffArrays = function(modified, original) {
         const modifiedSet = new Set(modified);
         const originalSet = new Set(original);
-        let added = [];
-        let removed = [];
-        for ( const item of modifiedSet ) {
-            if ( originalSet.has(item) ) { continue; }
-            added.push(item);
-        }
-        for ( const item of originalSet ) {
-            if ( modifiedSet.has(item) ) { continue; }
-            removed.push(item);
-        }
+        let added = Array.from(modifiedSet).filter(item => !originalSet.has(item));
+        let removed = Array.from(originalSet).filter(item => !modifiedSet.has(item));
         if ( added.length === 0 ) {
             added = undefined;
         }
@@ -1325,12 +1315,9 @@ const getSupportData = async function() {
         µb.hiddenSettingsDefault
     );
 
-    let filterset = [];
     const userFilters = await µb.loadUserFilters();
-    for ( const line of userFilters.content.split(/\s*\n+\s*/) ) {
-        if ( /^($|![^#])/.test(line) ) { continue; }
-        filterset.push(line);
-    }
+    const filterset = userFilters.content.split(/\s*\n+\s*/)
+        .filter(line => /^($|![^#])/.test(line) === false);
 
     const now = Date.now();
 
@@ -1356,10 +1343,9 @@ const getSupportData = async function() {
     let defaultListset = {};
     let addedListset = {};
     let removedListset = {};
-    for ( const listKey in lists ) {
-        if ( Object.hasOwn(lists, listKey) === false ) { continue; }
-        const list = lists[listKey];
-        if ( list.content !== 'filters' ) { continue; }
+    Object.entries(lists).forEach(([ listKey, list ]) => {
+        if ( Object.hasOwn(lists, listKey) === false ) { return; }
+        if ( list.content !== 'filters' ) { return; }
         const used = µb.selectedFilterLists.includes(listKey);
         const listDetails = [];
         if ( used ) {
@@ -1377,7 +1363,7 @@ const getSupportData = async function() {
         } else if ( used ) {
             addedListset[listKey] = listDetails.join(', ');
         }
-    }
+    });
     if ( Object.keys(defaultListset).length === 0 ) {
         defaultListset = undefined;
     }
@@ -1386,9 +1372,9 @@ const getSupportData = async function() {
     } else {
         const added = Object.keys(addedListset);
         const truncated = added.slice(12);
-        for ( const key of truncated ) {
+        truncated.forEach(key => {
             delete addedListset[key];
-        }
+        });
         if ( truncated.length !== 0 ) {
             addedListset[`[${truncated.length} lists not shown]`] = '[too many]';
         }
@@ -1528,9 +1514,9 @@ const onMessage = function(request, sender, callback) {
     case 'supportUpdateNow': {
         const { assetKeys } = request;
         if ( assetKeys.length === 0 ) { return; }
-        for ( const assetKey of assetKeys ) {
+        assetKeys.forEach(assetKey => {
             io.purge(assetKey);
-        }
+        });
         µb.scheduleAssetUpdater({ now: true, fetchDelay: 100 });
         break;
     }
@@ -1538,9 +1524,9 @@ const onMessage = function(request, sender, callback) {
     case 'listsUpdateNow': {
         const { assetKeys, preferOrigin = false } = request;
         if ( assetKeys.length === 0 ) { return; }
-        for ( const assetKey of assetKeys ) {
+        assetKeys.forEach(assetKey => {
             io.purge(assetKey);
-        }
+        });
         µb.scheduleAssetUpdater({ now: true, fetchDelay: 100, auto: preferOrigin !== true });
         break;
     }
@@ -1607,14 +1593,13 @@ const getLoggerData = async function(details, activeTabId, callback) {
         tooltips: µb.userSettings.tooltipsDisabled === false
     };
     if ( µb.pageStoresToken !== details.tabIdsToken ) {
-        response.tabIds = [];
-        for ( const [ tabId, pageStore ] of µb.pageStores ) {
+        response.tabIds = Array.from(µb.pageStores, ([ tabId, pageStore ]) => {
             const { rawURL, title } = pageStore;
             if ( rawURL.startsWith(extensionOriginURL) ) {
-                if ( rawURL.startsWith(documentBlockedURL) === false ) { continue; }
+                if ( rawURL.startsWith(documentBlockedURL) === false ) { return undefined; }
             }
-            response.tabIds.push([ tabId, title ]);
-        }
+            return [ tabId, title ];
+        }).filter(Boolean);
     }
     if ( activeTabId ) {
         const pageStore = µb.pageStoreFromTabId(activeTabId);
@@ -1656,7 +1641,7 @@ const getURLFilteringData = function(details) {
     const urls = details.urls;
     const context = details.context;
     const type = details.type;
-    for ( const url of urls ) {
+    urls.forEach(url => {
         const colorEntry = colors[url] = { r: 0, own: false };
         if ( suf.evaluateZ(context, url, type).r !== 0 ) {
             colorEntry.r = suf.r;
@@ -1665,7 +1650,7 @@ const getURLFilteringData = function(details) {
                              suf.url === url &&
                              suf.type === type;
         }
-        if ( response.dirty ) { continue; }
+        if ( response.dirty ) { return; }
         puf.evaluateZ(context, url, type);
         const pown = (
             puf.r !== 0 &&
@@ -1674,7 +1659,7 @@ const getURLFilteringData = function(details) {
             puf.type === type
         );
         response.dirty = colorEntry.own !== pown || colorEntry.r !== puf.r;
-    }
+    });
     return response;
 };
 
@@ -1900,22 +1885,19 @@ const onMessage = function(request, sender, callback) {
     case 'snfeToDNR': {
         // Diagnostic export only: build a DNR ruleset for inspection. The MV2
         // static filtering engines remain the runtime path.
-        const listPromises = [];
         const listNames = [];
-        for ( const assetKey of µb.selectedFilterLists ) {
-            listPromises.push(
-                io.get(assetKey, { dontCache: true }).then(details => {
-                    listNames.push(assetKey);
-                    return {
-                        name: assetKey,
-                        text: details.content,
-                        trustedSource: assetKey.startsWith('ublock-') ||
-                            assetKey === µb.userFiltersPath &&
-                                µb.userSettings.userFiltersTrusted,
-                    };
-                })
-            );
-        }
+        const listPromises = µb.selectedFilterLists.map(assetKey =>
+            io.get(assetKey, { dontCache: true }).then(details => {
+                listNames.push(assetKey);
+                return {
+                    name: assetKey,
+                    text: details.content,
+                    trustedSource: assetKey.startsWith('ublock-') ||
+                        assetKey === µb.userFiltersPath &&
+                            µb.userSettings.userFiltersTrusted,
+                };
+            })
+        );
         const options = {
             extensionPaths: redirectEngine.getResourceDetails().filter(e =>
                 typeof e[1].extensionPath === 'string' && e[1].extensionPath !== ''
@@ -1995,10 +1977,10 @@ const logCosmeticFilters = function(tabId, details) {
          .setURL(details.frameURL)
          .setDocOriginFromURL(details.frameURL)
          .setFilter(filter);
-    for ( const selector of details.matchedSelectors.sort() ) {
+    details.matchedSelectors.sort().forEach(selector => {
         filter.raw = selector;
         fctxt.toLogger();
-    }
+    });
 };
 
 const logCSPViolations = function(pageStore, request) {
@@ -2022,10 +2004,10 @@ const logCSPViolations = function(pageStore, request) {
         const staticDirectives =
             staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'csp');
         if ( staticDirectives !== undefined ) {
-            for ( const directive of staticDirectives ) {
-                if ( directive.result !== 1 ) { continue; }
-                cspData.set(directive.value, directive.logData());
-            }
+            staticDirectives.filter(directive => directive.result === 1)
+                .forEach(directive => {
+                    cspData.set(directive.value, directive.logData());
+                });
         }
 
         fctxt.type = 'inline-script';
@@ -2052,12 +2034,12 @@ const logCSPViolations = function(pageStore, request) {
     }
 
     const typeMap = logCSPViolations.policyDirectiveToTypeMap;
-    for ( const json of request.violations ) {
+    request.violations.forEach(json => {
         const violation = JSON.parse(json);
         let type = typeMap.get(violation.directive);
-        if ( type === undefined ) { continue; }
+        if ( type === undefined ) { return; }
         const logData = cspData.get(violation.policy);
-        if ( logData === undefined ) { continue; }
+        if ( logData === undefined ) { return; }
         if ( /^[\w.+-]+:\/\//.test(violation.url) === false ) {
             violation.url = request.docURL;
             if ( type === 'script' ) { type = 'inline-script'; }
@@ -2070,7 +2052,7 @@ const logCSPViolations = function(pageStore, request) {
              .setType(type)
              .setFilter(logData)
              .toLogger();
-    }
+    });
 
     return true;
 };
@@ -2151,9 +2133,9 @@ const onMessage = function(request, sender, callback) {
         if ( listkeys.includes('all') ) {
             io.purge(/./, 'public_suffix_list.dat');
         } else {
-            for ( const listkey of listkeys ) {
+            listkeys.forEach(listkey => {
                 io.purge(listkey);
-            }
+            });
         }
         µb.openNewTab({
             url: 'dashboard.html#3p-filters.html',

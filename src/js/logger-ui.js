@@ -610,14 +610,14 @@ const viewPort = (( ) => {
             '}',
             '',
         ];
-        for ( let i = 0; i < cellWidths.length; i++ ) {
-            if ( cellWidths[i] !== 0 ) { continue; }
+        cellWidths.forEach((width, i) => {
+            if ( width !== 0 ) { return; }
             cssRules.push(
                 `#vwContent .logEntry > div > span:nth-of-type(${i + 1}) {`,
                 '  display: none;',
                 '}'
             );
-        }
+        });
         style.textContent = cssRules.join('\n');
 
         lineHeight = newLineHeight;
@@ -911,11 +911,9 @@ const synchronizeTabIds = function(newTabIds) {
     const oldTabIds = allTabIds;
 
     // Collate removed tab ids.
-    const toVoid = new Set();
-    for ( const tabId of oldTabIds.keys() ) {
-        if ( newTabIds.has(tabId) ) { continue; }
-        toVoid.add(tabId);
-    }
+    const toVoid = new Set(
+        Array.from(oldTabIds.keys()).filter(tabId => !newTabIds.has(tabId))
+    );
     allTabIds = newTabIds;
 
     // Mark as "void" all logger entries which are linked to now invalid
@@ -927,16 +925,15 @@ const synchronizeTabIds = function(newTabIds) {
     if ( toVoid.size !== 0 ) {
         const autoDeleteVoidedRows = selectedTabValue === '_';
         let rowVoided = false;
-        for ( let i = 0, n = loggerEntries.length; i < n; i++ ) {
-            const entry = loggerEntries[i];
-            if ( toVoid.has(entry.tabId) === false ) { continue; }
-            if ( entry.voided ) { continue; }
+        loggerEntries.forEach((entry, i) => {
+            if ( toVoid.has(entry.tabId) === false ) { return; }
+            if ( entry.voided ) { return; }
             rowVoided = entry.voided = true;
             if ( autoDeleteVoidedRows ) {
                 entry.dead = true;
             }
             loggerEntries[i] = new LogEntry(entry);
-        }
+        });
         if ( rowVoided ) {
             rowFilterer.filterAll();
         }
@@ -1220,16 +1217,14 @@ dom.on(document, 'keydown', ev => {
 
     const onColorsReady = function(response) {
         dom.cl.toggle(dom.body, 'dirty', response.dirty);
-        for ( const url in response.colors ) {
-            if ( Object.hasOwn(response.colors, url) === false ) { continue; }
-            const colorEntry = response.colors[url];
+        Object.entries(response.colors).forEach(([ url, colorEntry ]) => {
             const node = qs$(dialog, `.dynamic .entry .action[data-url="${url}"]`);
-            if ( node === null ) { continue; }
+            if ( node === null ) { return; }
             dom.cl.toggle(node, 'allow', colorEntry.r === 2);
             dom.cl.toggle(node, 'noop', colorEntry.r === 3);
             dom.cl.toggle(node, 'block', colorEntry.r === 1);
             dom.cl.toggle(node, 'own', colorEntry.own);
-        }
+        });
     };
 
     const colorize = async function() {
@@ -1536,13 +1531,11 @@ dom.on(document, 'keydown', ev => {
 
     const aliasURLFromID = function(id) {
         if ( id === '' ) { return ''; }
-        for ( const entry of loggerEntries ) {
-            if ( `${entry.id}` !== id ) { continue; }
-            const match = /\baliasURL=([^\x1F]+)/.exec(entry.textContent);
-            if ( match === null ) { return ''; }
-            return match[1];
-        }
-        return '';
+        const entry = loggerEntries.find(entry => `${entry.id}` === id);
+        if ( entry === undefined ) { return ''; }
+        const match = /\baliasURL=([^\x1F]+)/.exec(entry.textContent);
+        if ( match === null ) { return ''; }
+        return match[1];
     };
 
     const toSummaryPaneFilterNode = async function(receiver, filter) {
@@ -1590,11 +1583,10 @@ dom.on(document, 'keydown', ev => {
             if ( response instanceof Object === false ) {
                 response = {};
             }
-            let bestMatchFilter = '';
-            for ( const filter in response ) {
-                if ( filter.length <= bestMatchFilter.length ) { continue; }
-                bestMatchFilter = filter;
-            }
+            const bestMatchFilter = Object.keys(response).reduce(
+                (best, filter) => filter.length > best.length ? filter : best,
+                ''
+            );
             if (
                 bestMatchFilter !== '' &&
                 Array.isArray(response[bestMatchFilter])
@@ -1873,9 +1865,9 @@ dom.on(document, 'keydown', ev => {
             nodes.push(document.createTextNode(template.slice(pos)));
         }
         const parent = qs$(dialog, 'div.panes > .static > div:first-of-type');
-        for ( let i = 0; i < nodes.length; i++ ) {
-            parent.appendChild(nodes[i]);
-        }
+        nodes.forEach(node => {
+            parent.appendChild(node);
+        });
         parseStaticInputs();
     };
 
@@ -2212,22 +2204,15 @@ const rowFilterer = (( ) => {
         // of logger.
         if ( logEntry.type === 'tabLoad' ) { return true; }
 
-        for ( const f of filters ) {
-            if ( f.re.test(logEntry.textContent) !== f.r ) { return false; }
-        }
-        return true;
+        return filters.every(f => f.re.test(logEntry.textContent) === f.r);
     };
 
     const filterAll = function() {
-        filteredLoggerEntries = [];
-        filteredLoggerEntryVoidedCount = 0;
-        for ( const entry of loggerEntries ) {
-            if ( filterOne(entry) === false ) { continue; }
-            filteredLoggerEntries.push(entry);
-            if ( entry.voided ) {
-                filteredLoggerEntryVoidedCount += 1;
-            }
-        }
+        filteredLoggerEntries = loggerEntries.filter(filterOne);
+        filteredLoggerEntryVoidedCount = filteredLoggerEntries.reduce(
+            (count, entry) => count + (entry.voided ? 1 : 0),
+            0
+        );
         viewPort.updateContent(0);
         dom.cl.toggle('#filterButton', 'active', filters.length !== 0);
         dom.cl.toggle('#clean', 'disabled', filteredLoggerEntryVoidedCount === 0);
@@ -2481,12 +2466,9 @@ const rowJanitor = (( ) => {
 
         let clearUnrelated = true;
         if ( selectedTabId !== 0 ) {
-            for ( const entry of filteredLoggerEntries ) {
-                if ( entry.tabId === selectedTabId ) {
-                    clearUnrelated = false;
-                    break;
-                }
-            }
+            clearUnrelated = filteredLoggerEntries.every(
+                entry => entry.tabId !== selectedTabId
+            );
         }
 
         let j = 0;
@@ -2831,13 +2813,13 @@ const loggerStats = (( ) => {
         if ( Object.hasOwn(options, group) === false ) { return; }
         const groupEl = qs$(dialog, `[data-radio="${group}"]`);
         const buttonEls = qsa$(groupEl, '[data-radio-item]');
-        for ( const buttonEl of buttonEls ) {
+        buttonEls.forEach(buttonEl => {
             dom.cl.toggle(
                 buttonEl,
                 'on',
                 dom.attr(buttonEl, 'data-radio-item') === value
             );
-        }
+        });
         options[group] = value;
     };
 
@@ -2975,11 +2957,11 @@ const loggerSettings = (( ) => {
             viewPort.updateLayout();
         };
         inputs = qsa$(dialog, 'input[type="checkbox"][data-column]');
-        for ( const input of inputs ) {
+        inputs.forEach(input => {
             const i = parseInt(dom.attr(input, 'data-column'), 10);
             input.checked = settings.columns[i] === false;
             dom.on(input, 'change', onColumnChanged);
-        }
+        });
 
         modalDialog.show();
     };
@@ -2994,10 +2976,10 @@ const loggerSettings = (( ) => {
 
         // Column checkboxs
         inputs = qsa$(dialog, 'input[type="checkbox"][data-column]');
-        for ( const input of inputs ) {
+        inputs.forEach(input => {
             const i = parseInt(dom.attr(input, 'data-column'), 10);
             settings.columns[i] = input.checked !== true;
-        }
+        });
 
         vAPI.localStorage.setItem(
             'loggerSettings',
