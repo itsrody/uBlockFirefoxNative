@@ -216,15 +216,16 @@ class DynamicHostRuleFiltering {
         this.type = type;
         const bitOffset = typeBitOffsets[type];
         this.r = 0;
-        decomposedSource.some(srchn => {
+        for ( let i = 0; i < decomposedSource.length; i++ ) {
+            const srchn = decomposedSource[i];
             this.z = srchn;
             let v = this.rules.get(`${srchn} ${desHostname}`);
-            if ( v === undefined ) { return false; }
+            if ( v === undefined ) { continue; }
             v = v >>> bitOffset & 3;
-            if ( v === 0 ) { return false; }
+            if ( v === 0 ) { continue; }
             this.r = v;
-            return true;
-        });
+            break;
+        }
         // srcHostname is '*' at this point
         return this.r;
     }
@@ -241,15 +242,15 @@ class DynamicHostRuleFiltering {
         // Specific-destination, any party, any type
         decomposeHostname(desHostname, decomposedDestination);
         let found = false;
-        decomposedDestination.some(deshn => {
-            if ( deshn === '*' ) { return true; }
+        for ( let i = 0; i < decomposedDestination.length; i++ ) {
+            const deshn = decomposedDestination[i];
+            if ( deshn === '*' ) { break; }
             this.y = deshn;
             if ( this.evaluateCellZ(srcHostname, deshn, '*') !== 0 ) {
                 found = true;
-                return true;
+                break;
             }
-            return false;
-        });
+        }
         if ( found ) { return this.r; }
 
         const thirdParty = is3rdParty(srcHostname, desHostname);

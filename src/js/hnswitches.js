@@ -175,15 +175,17 @@ class DynamicSwitchRuleFiltering {
         }
         this.n = switchName;
         this.r = 0;
-        decomposeHostname(hostname, decomposedSource).some(shn => {
+        const decomposed = decomposeHostname(hostname, decomposedSource);
+        for ( let i = 0; i < decomposed.length; i++ ) {
+            const shn = decomposed[i];
             let bits = this.switches.get(shn);
-            if ( bits === undefined ) { return false; }
+            if ( bits === undefined ) { continue; }
             bits = bits >>> bitOffset & 3;
-            if ( bits === 0 ) { return false; }
+            if ( bits === 0 ) { continue; }
             this.z = shn;
             this.r = bits;
-            return true;
-        });
+            break;
+        }
         return this.r === 1;
     }
 

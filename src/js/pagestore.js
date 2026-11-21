@@ -24,6 +24,14 @@
 import * as frameManager from './vapi-contexts.js';
 
 import {
+    IMAGE,
+    MAIN_FRAME,
+    MEDIA,
+    OBJECT,
+    OTHER,
+    SUB_FRAME,
+} from './filtering-context.js';
+import {
     hostnameFromURI,
     isNetworkURI,
 } from './uri-utils.js';
@@ -64,6 +72,24 @@ const urlTransformQuerySkipModifierNames = [
 ];
 const blockedRedirectModifierNames = [ 'redirect-rule' ];
 const blockedRedirectSkipModifierNames = [ 'redirect-rule', 'urlskip' ];
+
+// Read-only per-module sets shared by every page store: each navigation only
+// needs membership tests, never a fresh set.
+const cacheableResults = new Set([ SUB_FRAME ]);
+const collapsibleResources = new Set([
+    IMAGE,
+    MEDIA,
+    OBJECT,
+    SUB_FRAME,
+]);
+const urlSkippableResources = new Set([
+    IMAGE,
+    MAIN_FRAME,
+    MEDIA,
+    OBJECT,
+    OTHER,
+    SUB_FRAME,
+]);
 
 /*******************************************************************************
 
@@ -591,7 +617,7 @@ const PageStore = class {
         }
 
         const cacheableResult =
-            this.cacheableResults.has(fctxt.itype) &&
+            cacheableResults.has(fctxt.itype) &&
             fctxt.aliasURL === undefined;
 
         if ( cacheableResult ) {
@@ -680,7 +706,7 @@ const PageStore = class {
 
         if ( cacheableResult ) {
             this.netFilteringCache.rememberResult(fctxt, result);
-        } else if ( result === 1 && this.collapsibleResources.has(fctxt.itype) ) {
+        } else if ( result === 1 && collapsibleResources.has(fctxt.itype) ) {
             this.netFilteringCache.rememberBlock(fctxt);
         }
 
@@ -735,7 +761,7 @@ const PageStore = class {
     }
 
     redirectBlockedRequest(fctxt) {
-        const canUrlSkip = this.urlSkippableResources.has(fctxt.itype);
+        const canUrlSkip = urlSkippableResources.has(fctxt.itype);
         const modifierNames = canUrlSkip
             ? blockedRedirectSkipModifierNames
             : blockedRedirectModifierNames;
@@ -769,7 +795,7 @@ const PageStore = class {
 
     redirectNonBlockedRequest(fctxt) {
         const hasQuery = hasQueryString(fctxt.url);
-        const canUrlSkip = this.urlSkippableResources.has(fctxt.itype);
+        const canUrlSkip = urlSkippableResources.has(fctxt.itype);
         let modifierNames = urlTransformModifierNames;
         if ( hasQuery && canUrlSkip ) {
             modifierNames = urlTransformQuerySkipModifierNames;
@@ -963,25 +989,6 @@ const PageStore = class {
             this.netFilteringCache.lookupAllBlocked(fctxt.getDocHostname());
     }
 
-    cacheableResults = new Set([
-        µb.FilteringContext.SUB_FRAME
-    ]);
-
-    collapsibleResources = new Set([
-        µb.FilteringContext.IMAGE,
-        µb.FilteringContext.MEDIA,
-        µb.FilteringContext.OBJECT,
-        µb.FilteringContext.SUB_FRAME,
-    ]);
-
-    urlSkippableResources = new Set([
-        µb.FilteringContext.IMAGE,
-        µb.FilteringContext.MAIN_FRAME,
-        µb.FilteringContext.MEDIA,
-        µb.FilteringContext.OBJECT,
-        µb.FilteringContext.OTHER,
-        µb.FilteringContext.SUB_FRAME,
-    ]);
 };
 
 /******************************************************************************/

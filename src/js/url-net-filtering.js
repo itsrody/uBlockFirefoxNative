@@ -166,32 +166,32 @@ class DynamicURLRuleFiltering {
         this.r = 0;
         if ( this.rules.size === 0 ) { return 0; }
         decomposeHostname(context, decomposedSource);
-        decomposedSource.some(srchn => {
+        for ( let i = 0; i < decomposedSource.length; i++ ) {
+            const srchn = decomposedSource[i];
             this.context = srchn;
             let entries = this.rules.get(`${srchn} ${type}`);
             if ( entries !== undefined ) {
-                const i = indexOfMatch(entries, target);
-                if ( i !== -1 ) {
-                    const entry = entries[i];
+                const j = indexOfMatch(entries, target);
+                if ( j !== -1 ) {
+                    const entry = entries[j];
                     this.url = entry.url;
                     this.type = type;
                     this.r = entry.action;
-                    return true;
+                    break;
                 }
             }
             entries = this.rules.get(`${srchn} *`);
             if ( entries !== undefined ) {
-                const i = indexOfMatch(entries, target);
-                if ( i !== -1 ) {
-                    const entry = entries[i];
+                const j = indexOfMatch(entries, target);
+                if ( j !== -1 ) {
+                    const entry = entries[j];
                     this.url = entry.url;
                     this.type = '*';
                     this.r = entry.action;
-                    return true;
+                    break;
                 }
             }
-            return false;
-        });
+        }
         return this.r;
     }
 
