@@ -5393,6 +5393,95 @@ StaticNetFilteringEngine.prototype.fromCompiled = function(reader) {
     }
 };
 
+// Reconcile raw modifier matches into the ordered directive list consumed by
+// the redirect engines. The same reconciliation must be used by single and
+// batched lookups so exception handling stays identical.
+const reconcileModifierResults = (scratch, results) => {
+    if ( results.length === 0 ) { return; }
+
+    // One single result is expected to be a common occurrence, and in such
+    // case there is no need to process exception vs. block, block important
+    // occurrences.
+    if ( results.length === 1 ) {
+        const result = results[0];
+        if ( (result.bits & ALLOW_REALM) !== 0 ) { return; }
+        return [ result ];
+    }
+
+    const toAddImportant = scratch.toAddImportant;
+    const toAdd = scratch.toAdd;
+    const toRemove = scratch.toRemove;
+    toAddImportant.clear();
+    toAdd.clear();
+    toRemove.clear();
+
+    for ( const result of results ) {
+        const actionBits = result.bits & BLOCKALLOW_REALM;
+        const modifyValue = result.value;
+        if ( actionBits === BLOCKIMPORTANT_REALM ) {
+            toAddImportant.set(modifyValue, result);
+        } else if ( actionBits === BLOCK_REALM ) {
+            toAdd.set(modifyValue, result);
+        } else {
+            toRemove.set(modifyValue, result);
+        }
+    }
+    if ( toAddImportant.size === 0 && toAdd.size === 0 ) { return; }
+
+    // Remove entries overridden by important block filters.
+    if ( toAddImportant.size !== 0 ) {
+        for ( const key of toAddImportant.keys() ) {
+            toAdd.delete(key);
+            toRemove.delete(key);
+        }
+    }
+
+    // Exception filters
+    //
+    // Remove excepted block filters and unused exception filters.
+    //
+    // Special case, except-all:
+    // - Except-all applies only if there is at least one normal block filters.
+    // - Except-all does not apply to important block filters.
+    if ( toRemove.size !== 0 ) {
+        if ( toRemove.has('') === false ) {
+            for ( const key of toRemove.keys() ) {
+                if ( toAdd.has(key) ) {
+                    toAdd.delete(key);
+                } else {
+                    toRemove.delete(key);
+                }
+            }
+        } else if ( toAdd.size !== 0 ) {
+            toAdd.clear();
+            if ( toRemove.size !== 1 ) {
+                const entry = toRemove.get('');
+                toRemove.clear();
+                toRemove.set('', entry);
+            }
+        } else {
+            toRemove.clear();
+        }
+    }
+
+    if (
+        toAdd.size === 0 &&
+        toAddImportant.size === 0 &&
+        toRemove.size === 0
+    ) {
+        return;
+    }
+
+    const out = Array.from(toAdd.values());
+    if ( toAddImportant.size !== 0 ) {
+        out.push(...toAddImportant.values());
+    }
+    if ( toRemove.size !== 0 ) {
+        out.push(...toRemove.values());
+    }
+    return out;
+};
+
 /******************************************************************************/
 
 StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
@@ -5479,87 +5568,122 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
         i += 2;
     }
 
-    if ( results.length === 0 ) { return; }
+    return reconcileModifierResults(scratch, results);
+};
 
-    // One single result is expected to be a common occurrence, and in such
-    // case there is no need to process exception vs. block, block important
-    // occurrences.
-    if ( results.length === 1 ) {
-        const result = results[0];
-        if ( (result.bits & ALLOW_REALM) !== 0 ) { return; }
-        return [ result ];
-    }
+// Batched lookup for the non-blocked redirect pipeline. Firefox delivers
+// requests through onBeforeRequest synchronously, so all modifier sets needed
+// by one decision are matched with a single register setup and token walk.
+StaticNetFilteringEngine.prototype.matchAndFetchModifierSets = function(
+    fctxt,
+    modifierNames
+) {
+    const out = {};
+    for ( const name of modifierNames ) { out[name] = undefined; }
+    if ( this.notReady ) { return out; }
 
-    const toAddImportant = scratch.toAddImportant;
-    const toAdd = scratch.toAdd;
-    const toRemove = scratch.toRemove;
-    toAddImportant.clear();
-    toAdd.clear();
-    toRemove.clear();
-
-    for ( const result of results ) {
-        const actionBits = result.bits & BLOCKALLOW_REALM;
-        const modifyValue = result.value;
-        if ( actionBits === BLOCKIMPORTANT_REALM ) {
-            toAddImportant.set(modifyValue, result);
-        } else if ( actionBits === BLOCK_REALM ) {
-            toAdd.set(modifyValue, result);
-        } else {
-            toRemove.set(modifyValue, result);
+    const candidates = [];
+    for ( const name of modifierNames ) {
+        if ( this.hasModifierFilters(name) ) {
+            candidates.push(name);
         }
     }
-    if ( toAddImportant.size === 0 && toAdd.size === 0 ) { return; }
+    if ( candidates.length === 0 ) { return out; }
 
-    // Remove entries overridden by important block filters.
-    if ( toAddImportant.size !== 0 ) {
-        for ( const key of toAddImportant.keys() ) {
-            toAdd.delete(key);
-            toRemove.delete(key);
+    const typeBits = getTypeBits(fctxt) || otherTypeBitValue;
+    const partyBits = getPartyBits(fctxt);
+    const active = [];
+
+    for ( const name of candidates ) {
+        const modifierType = modifierTypeFromName.get(name);
+        const modifierBits = modifierBitsFromType.get(modifierType);
+        const buckets = getRealmBuckets(
+            this,
+            modifierBits,
+            typeBits,
+            partyBits
+        );
+        const bucket00 = buckets[0];
+        const bucket01 = buckets[1];
+        const bucket10 = buckets[2];
+        const bucket11 = buckets[3];
+        if (
+            bucket00 === undefined && bucket01 === undefined &&
+            bucket10 === undefined && bucket11 === undefined
+        ) {
+            continue;
         }
+        active.push({
+            name,
+            modifierType,
+            results: [],
+            catBits00: modifierBits,
+            catBits01: modifierBits | typeBits,
+            catBits10: modifierBits | partyBits,
+            catBits11: modifierBits | typeBits | partyBits,
+            bucket00,
+            bucket01,
+            bucket10,
+            bucket11,
+        });
     }
+    if ( active.length === 0 ) { return out; }
 
-    // Exception filters
-    //
-    // Remove excepted block filters and unused exception filters.
-    //
-    // Special case, except-all:
-    // - Except-all applies only if there is at least one normal block filters.
-    // - Except-all does not apply to important block filters.
-    if ( toRemove.size !== 0 ) {
-        if ( toRemove.has('') === false ) {
-            for ( const key of toRemove.keys() ) {
-                if ( toAdd.has(key) ) {
-                    toAdd.delete(key);
-                } else {
-                    toRemove.delete(key);
-                }
+    resetRegisters(fctxt, typeBits);
+
+    const env = {
+        type: 0,
+        bits: 0,
+        th: 0,
+        iunit: 0,
+        results: undefined,
+    };
+    const tokenHashes = urlTokenizer.getTokens();
+    let i = 0;
+    let iunit = 0;
+    for (;;) {
+        const th = tokenHashes[i];
+        if ( th === INVALID_TOKEN_HASH ) { break; }
+        env.th = th;
+        $tokenBeg = tokenHashes[i+1];
+        for ( const job of active ) {
+            env.type = job.modifierType;
+            env.results = job.results;
+            if (
+                (job.bucket00 !== undefined) &&
+                (iunit = job.bucket00.get(th) || 0) !== 0
+            ) {
+                env.bits = job.catBits00; env.iunit = iunit;
+                filterMatchAndFetchModifiers(iunit, env);
             }
-        } else if ( toAdd.size !== 0 ) {
-            toAdd.clear();
-            if ( toRemove.size !== 1 ) {
-                const entry = toRemove.get('');
-                toRemove.clear();
-                toRemove.set('', entry);
+            if (
+                (job.bucket01 !== undefined) &&
+                (iunit = job.bucket01.get(th) || 0) !== 0
+            ) {
+                env.bits = job.catBits01; env.iunit = iunit;
+                filterMatchAndFetchModifiers(iunit, env);
             }
-        } else {
-            toRemove.clear();
+            if (
+                (job.bucket10 !== undefined) &&
+                (iunit = job.bucket10.get(th) || 0) !== 0
+            ) {
+                env.bits = job.catBits10; env.iunit = iunit;
+                filterMatchAndFetchModifiers(iunit, env);
+            }
+            if (
+                (job.bucket11 !== undefined) &&
+                (iunit = job.bucket11.get(th) || 0) !== 0
+            ) {
+                env.bits = job.catBits11; env.iunit = iunit;
+                filterMatchAndFetchModifiers(iunit, env);
+            }
         }
+        i += 2;
     }
 
-    if (
-        toAdd.size === 0 &&
-        toAddImportant.size === 0 &&
-        toRemove.size === 0
-    ) {
-        return;
-    }
-
-    const out = Array.from(toAdd.values());
-    if ( toAddImportant.size !== 0 ) {
-        out.push(...toAddImportant.values());
-    }
-    if ( toRemove.size !== 0 ) {
-        out.push(...toRemove.values());
+    const scratch = this.modifierScratch;
+    for ( const job of active ) {
+        out[job.name] = reconcileModifierResults(scratch, job.results);
     }
     return out;
 };

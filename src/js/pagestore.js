@@ -52,6 +52,17 @@ const hasQueryString = url => {
     return hpos === -1 || qpos < hpos;
 };
 
+// Reused by the synchronous onBeforeRequest path: keep one batched lookup per
+// applicable modifier combination rather than allocating names per request.
+const urlTransformModifierNames = [ 'uritransform' ];
+const urlTransformQueryModifierNames = [ 'uritransform', 'removeparam' ];
+const urlTransformSkipModifierNames = [ 'uritransform', 'urlskip' ];
+const urlTransformQuerySkipModifierNames = [
+    'uritransform',
+    'removeparam',
+    'urlskip',
+];
+
 /*******************************************************************************
 
 A PageRequestStore object is used to store net requests in two ways:
@@ -737,13 +748,42 @@ const PageStore = class {
     }
 
     redirectNonBlockedRequest(fctxt) {
-        const directives = [];
-        staticNetFilteringEngine.transformURL(fctxt, directives);
-        if ( hasQueryString(fctxt.url) ) {
-            staticNetFilteringEngine.filterQuery(fctxt, directives);
+        const hasQuery = hasQueryString(fctxt.url);
+        const canUrlSkip = this.urlSkippableResources.has(fctxt.itype);
+        let modifierNames = urlTransformModifierNames;
+        if ( hasQuery && canUrlSkip ) {
+            modifierNames = urlTransformQuerySkipModifierNames;
+        } else if ( hasQuery ) {
+            modifierNames = urlTransformQueryModifierNames;
+        } else if ( canUrlSkip ) {
+            modifierNames = urlTransformSkipModifierNames;
         }
-        if ( this.urlSkippableResources.has(fctxt.itype) ) {
-            staticNetFilteringEngine.urlSkip(fctxt, false, directives);
+        const modifierSets =
+            staticNetFilteringEngine.matchAndFetchModifierSets(
+                fctxt,
+                modifierNames
+            );
+
+        const directives = [];
+        staticNetFilteringEngine.transformURL(
+            fctxt,
+            directives,
+            modifierSets.uritransform
+        );
+        if ( hasQuery ) {
+            staticNetFilteringEngine.filterQuery(
+                fctxt,
+                directives,
+                modifierSets.removeparam
+            );
+        }
+        if ( canUrlSkip ) {
+            staticNetFilteringEngine.urlSkip(
+                fctxt,
+                false,
+                directives,
+                modifierSets.urlskip
+            );
         }
         if ( directives.length === 0 ) { return; }
         if ( logger.enabled !== true ) { return; }

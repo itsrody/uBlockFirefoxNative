@@ -71,8 +71,10 @@ function compareRedirectRequests(redirectEngine, a, b) {
 
 /******************************************************************************/
 
-export function transformURL(engine, fctxt, out = []) {
-    const directives = engine.matchAndFetchModifiers(fctxt, 'uritransform');
+export function transformURL(engine, fctxt, out = [], directives) {
+    if ( directives === undefined ) {
+        directives = engine.matchAndFetchModifiers(fctxt, 'uritransform');
+    }
     if ( directives === undefined ) { return; }
     const redirectURL = new URL(fctxt.url);
     for ( const directive of directives ) {
@@ -108,9 +110,11 @@ export function transformURL(engine, fctxt, out = []) {
     return out;
 }
 
-export function urlSkip(engine, fctxt, blocked, out = []) {
+export function urlSkip(engine, fctxt, blocked, out = [], directives) {
     if ( fctxt.redirectURL !== undefined ) { return; }
-    const directives = engine.matchAndFetchModifiers(fctxt, 'urlskip');
+    if ( directives === undefined ) {
+        directives = engine.matchAndFetchModifiers(fctxt, 'urlskip');
+    }
     if ( directives === undefined ) { return; }
     for ( const directive of directives ) {
         if ( (directive.bits & ALLOW_REALM) !== 0 ) {
@@ -136,9 +140,11 @@ export function urlSkip(engine, fctxt, blocked, out = []) {
 // https://github.com/uBlockOrigin/uBlock-issues/issues/1626
 //   Do not redirect when the number of query parameters does not change.
 
-export function filterQuery(engine, fctxt, out = []) {
+export function filterQuery(engine, fctxt, out = [], directives) {
     if ( fctxt.redirectURL !== undefined ) { return; }
-    const directives = engine.matchAndFetchModifiers(fctxt, 'removeparam');
+    if ( directives === undefined ) {
+        directives = engine.matchAndFetchModifiers(fctxt, 'removeparam');
+    }
     if ( directives === undefined ) { return; }
     const url = fctxt.url;
     const qpos = url.indexOf('?');

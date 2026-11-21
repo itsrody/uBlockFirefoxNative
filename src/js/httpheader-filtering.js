@@ -94,11 +94,11 @@ httpheaderFilteringEngine.compile = function(parser, writer) {
     //   Ignore instances of exception filter with negated hostnames,
     //   because there is no way to create an exception to an exception.
 
-    parser.getExtFilterDomainIterator().forEach(({ hn, not, bad }) => {
-        if ( bad ) { return; }
+    for ( const { hn, not, bad } of parser.getExtFilterDomainIterator() ) {
+        if ( bad ) { continue; }
         const prefix = ((isException ? 1 : 0) ^ (not ? 1 : 0)) ? '-' : '+';
         writer.push([ 64, hn, `${prefix}${headerName}` ]);
-    });
+    }
 };
 
 // 01234567890123456789
