@@ -83,8 +83,8 @@ const cachePopupData = function(data) {
     if ( typeof hostnameDict !== 'object' ) {
         return popupData;
     }
-    for ( const hostname in hostnameDict ) {
-        if ( Object.hasOwn(hostnameDict, hostname) === false ) { continue; }
+    Object.keys(hostnameDict).forEach(hostname => {
+        if ( Object.hasOwn(hostnameDict, hostname) === false ) { return; }
         let domain = hostnameDict[hostname].domain;
         let prefix = hostname.slice(0, 0 - domain.length - 1);
         // Prefix with space char for 1st-party hostnames: this ensure these
@@ -96,7 +96,7 @@ const cachePopupData = function(data) {
             hostname,
             domain + ' ' + prefix.split('.').reverse().join('.')
         );
-    }
+    });
     return popupData;
 };
 
@@ -111,11 +111,11 @@ const hashFromPopupData = function(reset = false) {
 
     const hasher = [];
     const rules = popupData.firewallRules;
-    for ( const key in rules ) {
+    Object.keys(rules).forEach(key => {
         const rule = rules[key];
-        if ( rule === undefined ) { continue; }
+        if ( rule === undefined ) { return; }
         hasher.push(rule);
-    }
+    });
     hasher.sort();
     hasher.push(
         dom.cl.has('body', 'off'),
