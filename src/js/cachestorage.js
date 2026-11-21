@@ -272,16 +272,16 @@ const cacheAPI = (( ) => {
         if ( cache === null ) { return; }
         return cache.keys().then(requests => {
             const promises = [];
-            for ( const request of requests ) {
+            requests.forEach(request => {
                 promises.push(getOne(urlToKey(request.url)));
-            }
+            });
             return Promise.all(promises);
         }).then(responses => {
             const bin = {};
-            for ( const response of responses ) {
-                if ( response === undefined ) { continue; }
+            responses.forEach(response => {
+                if ( response === undefined ) { return; }
                 bin[response.key] = response.text;
-            }
+            });
             return bin;
         }).catch(reason => {
             ubolog(reason);
@@ -319,21 +319,20 @@ const cacheAPI = (( ) => {
             const bin = {};
             const toFetch = keys.slice();
             const hasDefault = typeof arg === 'object' && Array.isArray(arg) === false;
-            for ( let i = 0; i < toFetch.length; i++ ) {
-                const key = toFetch[i];
+            toFetch.forEach((key, i) => {
                 if ( hasDefault && arg[key] !== undefined ) {
                     bin[key] = arg[key];
                 }
                 toFetch[i] = getOne(key);
-            }
+            });
             const responses = await Promise.all(toFetch);
-            for ( const response of responses ) {
-                if ( response === undefined ) { continue; }
+            responses.forEach(response => {
+                if ( response === undefined ) { return; }
                 const { key, text } = response;
-                if ( typeof key !== 'string' ) { continue; }
-                if ( typeof text !== 'string' ) { continue; }
+                if ( typeof key !== 'string' ) { return; }
+                if ( typeof text !== 'string' ) { return; }
                 bin[key] = text;
-            }
+            });
             if ( Object.keys(bin).length === 0 ) { return; }
             return bin;
         },
@@ -352,9 +351,9 @@ const cacheAPI = (( ) => {
             if ( bin === undefined ) { return; }
             const keys = Object.keys(bin);
             const promises = [];
-            for ( const key of keys ) {
+            keys.forEach(key => {
                 promises.push(setOne(key, bin[key]));
-            }
+            });
             return Promise.all(promises);
         },
 
@@ -363,9 +362,9 @@ const cacheAPI = (( ) => {
             if ( typeof keys === 'string' ) {
                 toRemove.push(removeOne(keys));
             } else if ( Array.isArray(keys) ) {
-                for ( const key of keys ) {
+                keys.forEach(key => {
                     toRemove.push(removeOne(key));
-                }
+                });
             }
             return Promise.all(toRemove);
         },
@@ -420,10 +419,10 @@ const memoryStorage = (( ) => {
         async keys(regex) {
             const bin = await this.get(null);
             const keys = [];
-            for ( const key of Object.keys(bin || {}) ) {
-                if ( regex && regex.test(key) === false ) { continue; }
+            Object.keys(bin || {}).forEach(key => {
+                if ( regex && regex.test(key) === false ) { return; }
                 keys.push(key);
-            }
+            });
             return keys;
         },
 
@@ -581,11 +580,11 @@ const idbStorage = (( ) => {
                 resolve(Promise.all(entries));
             };
             const table = transaction.objectStore(STORAGE_NAME);
-            for ( const key of keys ) {
+            keys.forEach(key => {
                 const req = table.get(key);
                 req.onsuccess = gotOne;
                 req.onerror = ( ) => { };
-            }
+            });
         }).catch(reason => {
             ubolog(`idbStorage() / getEntries() failed: ${reason}`);
             return [];
@@ -595,9 +594,9 @@ const idbStorage = (( ) => {
     const getAll = async ( ) => {
         const entries = await getAllEntries();
         const outbin = {};
-        for ( const { key, value } of entries ) {
+        entries.forEach(({ key, value }) => {
             outbin[key] = value;
-        }
+        });
         return outbin;
     };
 
@@ -608,9 +607,9 @@ const idbStorage = (( ) => {
         if ( db === null ) { return; }
         return new Promise(resolve => {
             const entries = [];
-            for ( const key of keys ) {
+            keys.forEach(key => {
                 entries.push({ key, value: inbin[key] });
-            }
+            });
             const transaction = db.transaction(STORAGE_NAME, 'readwrite');
             transaction.oncomplete =
             transaction.onerror =
@@ -618,9 +617,9 @@ const idbStorage = (( ) => {
                 resolve();
             };
             const table = transaction.objectStore(STORAGE_NAME);
-            for ( const entry of entries ) {
+            entries.forEach(entry => {
                 table.put(entry);
-            }
+            });
         }).catch(reason => {
             ubolog(`idbStorage() / setEntries() failed: ${reason}`);
         });
@@ -639,9 +638,9 @@ const idbStorage = (( ) => {
                 resolve();
             };
             const table = transaction.objectStore(STORAGE_NAME);
-            for ( const key of keys ) {
+            keys.forEach(key => {
                 table.delete(key);
-            }
+            });
         }).catch(reason => {
             ubolog(`idbStorage() / deleteEntries() failed: ${reason}`);
         });
@@ -656,18 +655,18 @@ const idbStorage = (( ) => {
             const entries = await getEntries(keys);
             const outbin = {};
             const toRemove = [];
-            for ( const { key, value } of entries ) {
+            entries.forEach(({ key, value }) => {
                 if ( shouldCache(key) === false ) {
                     toRemove.push(key);
-                    continue;
+                    return;
                 }
                 outbin[key] = value;
-            }
+            });
             if ( argbin instanceof Object && Array.isArray(argbin) === false ) {
-                for ( const key of keys ) {
-                    if ( Object.hasOwn(outbin, key) ) { continue; }
+                keys.forEach(key => {
+                    if ( Object.hasOwn(outbin, key) ) { return; }
                     outbin[key] = argbin[key];
-                }
+                });
             }
             if ( toRemove.length !== 0 ) {
                 deleteEntries(toRemove);
@@ -677,10 +676,10 @@ const idbStorage = (( ) => {
 
         async set(rawbin) {
             const bin = {};
-            for ( const key of Object.keys(rawbin) ) {
-                if ( shouldCache(key) === false ) { continue; }
+            Object.keys(rawbin).forEach(key => {
+                if ( shouldCache(key) === false ) { return; }
                 bin[key] = rawbin[key];
-            }
+            });
             return setEntries(bin);
         },
 
