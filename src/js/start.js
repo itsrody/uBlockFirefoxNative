@@ -123,10 +123,10 @@ const onNetWhitelistReady = (netWhitelistRaw, adminExtra) => {
     // Append admin-controlled trusted-site directives
     if ( adminExtra instanceof Object ) {
         if ( Array.isArray(adminExtra.trustedSiteDirectives) ) {
-            for ( const directive of adminExtra.trustedSiteDirectives ) {
+            adminExtra.trustedSiteDirectives.forEach(directive => {
                 µb.defaultTrustedSiteDirectives.push(directive);
                 netWhitelistRaw.push(directive);
-            }
+            });
         }
     }
 
@@ -214,7 +214,7 @@ const onHiddenSettingsReady = async ( ) => {
     // Retained for admins/advanced users: changes filter-list preparser tokens.
     if ( µb.hiddenSettings.modifyWebextFlavor !== 'unset' ) {
         const tokens = µb.hiddenSettings.modifyWebextFlavor.split(/\s+/);
-        for ( const token of tokens ) {
+        tokens.forEach(token => {
             switch ( token[0] ) {
             case '+':
                 vAPI.webextFlavor.soup.add(token.slice(1));
@@ -226,7 +226,7 @@ const onHiddenSettingsReady = async ( ) => {
                 vAPI.webextFlavor.soup.add(token);
                 break;
             }
-        }
+        });
         ubolog(`Override default webext flavor with ${tokens}`);
     }
 
@@ -273,18 +273,16 @@ const onFirstFetchReady = (fetched, adminExtra) => {
 /******************************************************************************/
 
 const toFetch = (from, fetched) => {
-    for ( const k in from ) {
-        if ( Object.hasOwn(from, k) === false ) { continue; }
+    Object.keys(from).forEach(k => {
         fetched[k] = from[k];
-    }
+    });
 };
 
 const fromFetch = (to, fetched) => {
-    for ( const k in to ) {
-        if ( Object.hasOwn(to, k) === false ) { continue; }
-        if ( Object.hasOwn(fetched, k) === false ) { continue; }
+    Object.keys(to).forEach(k => {
+        if ( Object.hasOwn(fetched, k) === false ) { return; }
         to[k] = fetched[k];
-    }
+    });
 };
 
 const createDefaultProps = ( ) => {
