@@ -643,9 +643,9 @@ const _serialize = data => {
         } else {
             writeBuffer.push(C_SET_LARGE + strFromLargeUint(size));
         }
-        for ( const v of data ) {
+        data.forEach(v => {
             _serialize(v);
-        }
+        });
         return;
     }
     case I_MAP: {
@@ -655,10 +655,10 @@ const _serialize = data => {
         } else {
             writeBuffer.push(C_MAP_LARGE + strFromLargeUint(size));
         }
-        for ( const [ k, v ] of data ) {
+        data.forEach((v, k) => {
             _serialize(k);
             _serialize(v);
-        }
+        });
         return;
     }
     case I_ARRAYBUFFER: {
@@ -702,10 +702,10 @@ const _serialize = data => {
         } else {
             writeBuffer.push(C_OBJECT_LARGE + strFromLargeUint(size));
         }
-        for ( const key of keys ) {
+        keys.forEach(key => {
             _serialize(key);
             _serialize(data[key]);
-        }
+        });
         break;
     }
     }
