@@ -419,22 +419,22 @@ assets.fetchFilterList = async function(mainlistURL) {
     const processIncludeDirectives = function(results) {
         const out = [];
         const reInclude = /^!#include +(\S+)[^\n\r]*(?:[\n\r]+|$)/gm;
-        for ( const result of results ) {
+        results.forEach(result => {
             if ( typeof result === 'string' ) {
                 out.push(result);
-                continue;
+                return;
             }
-            if ( result instanceof Object === false ) { continue; }
+            if ( result instanceof Object === false ) { return; }
             const content = result.content.trimEnd() + '\n';
             const slices = sfp.utils.preparser.splitter(
                 content,
                 vAPI.webextFlavor.env
             );
-            for ( let i = 0, n = slices.length - 1; i < n; i++ ) {
+            slices.slice(0, -1).forEach((_, i) => {
                 const slice = content.slice(slices[i+0], slices[i+1]);
                 if ( (i & 1) !== 0 ) {
                     out.push(slice);
-                    continue;
+                    return;
                 }
                 let lastIndex = 0;
                 for (;;) {
@@ -458,8 +458,8 @@ assets.fetchFilterList = async function(mainlistURL) {
                     lastIndex = reInclude.lastIndex;
                 }
                 out.push(lastIndex === 0 ? slice : slice.slice(lastIndex));
-            }
-        }
+            });
+        });
         return out;
     };
 

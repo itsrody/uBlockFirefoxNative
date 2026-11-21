@@ -243,16 +243,16 @@ import µb from './background.js';
             disabledPopupPanelParts
         } = results[0];
         if ( Array.isArray(advancedSettings) ) {
-            for ( const entry of advancedSettings ) {
-                if ( entry.length < 1 ) { continue; }
+            advancedSettings.forEach(entry => {
+                if ( entry.length < 1 ) { return; }
                 const name = entry[0];
-                if ( Object.hasOwn(hsDefault, name) === false ) { continue; }
+                if ( Object.hasOwn(hsDefault, name) === false ) { return; }
                 const value = entry.length < 2
                     ? hsDefault[name]
                     : this.hiddenSettingValueFromString(name, entry[1]);
-                if ( value === undefined ) { continue; }
+                if ( value === undefined ) { return; }
                 hsDefault[name] = hsAdmin[name] = hsUser[name] = value;
-            }
+            });
         }
         µb.noDashboard = disableDashboard === true;
         if ( Array.isArray(disabledPopupPanelParts) ) {
@@ -263,11 +263,11 @@ import µb from './background.js';
                 [ 'overviewPane', 0b10000 ],
             ]);
             let bits = hsDefault.popupPanelDisabledSections;
-            for ( const part of disabledPopupPanelParts ) {
+            disabledPopupPanelParts.forEach(part => {
                 const bit = partNameToBit.get(part);
-                if ( bit === undefined ) { continue; }
+                if ( bit === undefined ) { return; }
                 bits |= bit;
-            }
+            });
             hsDefault.popupPanelDisabledSections =
             hsAdmin.popupPanelDisabledSections =
             hsUser.popupPanelDisabledSections = bits;
@@ -1411,12 +1411,11 @@ onBroadcast(msg => {
     if ( typeof data.userSettings === 'object' ) {
         const µbus = this.userSettings;
         const adminus = data.userSettings;
-        for ( const name in µbus ) {
-            if ( Object.hasOwn(µbus, name) === false ) { continue; }
-            if ( Object.hasOwn(adminus, name) === false ) { continue; }
+        Object.keys(µbus).forEach(name => {
+            if ( Object.hasOwn(adminus, name) === false ) { return; }
             bin[name] = adminus[name];
             binNotEmpty = true;
-        }
+        });
     }
 
     // 'selectedFilterLists' is an array of filter list tokens. Each token
@@ -1426,11 +1425,9 @@ onBroadcast(msg => {
         Array.isArray(toOverwrite.filterLists) &&
         toOverwrite.filterLists.length !== 0
     ) {
-        const importedLists = [];
-        for ( const list of toOverwrite.filterLists ) {
-            if ( /^[a-z-]+:\/\//.test(list) === false ) { continue; }
-            importedLists.push(list);
-        }
+        const importedLists = toOverwrite.filterLists.filter(list =>
+            /^[a-z-]+:\/\//.test(list)
+        );
         if ( importedLists.length !== 0 ) {
             bin.importedLists = importedLists;
             bin.externalLists = importedLists.join('\n');
