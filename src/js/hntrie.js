@@ -173,10 +173,9 @@ class HNTrieContainer {
             let i = needle.length;
             if ( i > 255 ) { i = 255; }
             buf[255] = i;
-            buf.set(
-                Uint8Array.from({ length: i }, (_, j) => needle.charCodeAt(j)),
-                0
-            );
+            for ( let j = 0; j < i; j++ ) {
+                buf[j] = needle.charCodeAt(j);
+            }
             this.needle = needle;
         }
         return this;
@@ -503,10 +502,9 @@ class HNTrieContainer {
         }
         const offset = this.buf32[CHAR1_SLOT];
         this.buf32[CHAR1_SLOT] = offset + n;
-        this.buf.set(
-            Uint8Array.from({ length: n }, (_, i) => hn.charCodeAt(i)),
-            offset
-        );
+        for ( let i = 0; i < n; i++ ) {
+            this.buf[offset + i] = hn.charCodeAt(i);
+        }
         return (this.lastStoredIndex = offset - this.buf32[CHAR0_SLOT]);
     }
 
@@ -528,10 +526,9 @@ class HNTrieContainer {
         }
         const offset = this.buf32[CHAR1_SLOT];
         this.buf32[CHAR1_SLOT] = offset + n;
-        this.buf.set(
-            Uint8Array.from({ length: n }, (_, i) => s.charCodeAt(i)),
-            offset
-        );
+        for ( let i = 0; i < n; i++ ) {
+            this.buf[offset + i] = s.charCodeAt(i);
+        }
         return (this.lastStoredIndex = offset - this.buf32[CHAR0_SLOT]);
     }
 
@@ -548,9 +545,9 @@ class HNTrieContainer {
         if ( n > hr ) { return false; }
         const hl = hr - n;
         const nl = this.buf32[CHAR0_SLOT] + i;
-        const matched = buf8.subarray(nl, nl + n)
-            .every((value, j) => value === buf8[hl+j]);
-        if ( matched === false ) { return false; }
+        for ( let j = 0; j < n; j++ ) {
+            if ( buf8[nl+j] !== buf8[hl+j] ) { return false; }
+        }
         return n === hr || hn.charCodeAt(hl-1) === 0x2E /* '.' */;
     }
 

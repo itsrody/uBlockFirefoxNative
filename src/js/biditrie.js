@@ -603,10 +603,9 @@ class BidiTrieContainer {
         }
         const offset = this.buf32[CHAR1_SLOT];
         this.buf32[CHAR1_SLOT] = offset + n;
-        this.buf8.set(
-            Uint8Array.from({ length: n }, (_, i) => s.charCodeAt(i)),
-            offset
-        );
+        for ( let i = 0; i < n; i++ ) {
+            this.buf8[offset + i] = s.charCodeAt(i);
+        }
         return (this.lastStoredIndex = offset - this.buf32[CHAR0_SLOT]);
     }
 
@@ -630,8 +629,12 @@ class BidiTrieContainer {
         if ( needleLen === 0 ) {
             return charCodes[haystackLeft] === charCodes[needleLeft] ? 1 : 0;
         }
-        return charCodes.subarray(needleLeft, needleLeft + needleLen)
-            .every((value, i) => value === charCodes[haystackLeft + i]) ? 1 : 0;
+        for ( let i = 0; i < needleLen; i++ ) {
+            if ( charCodes[needleLeft+i] !== charCodes[haystackLeft+i] ) {
+                return 0;
+            }
+        }
+        return 1;
     }
 
     // Find the left-most instance of substring in main string
