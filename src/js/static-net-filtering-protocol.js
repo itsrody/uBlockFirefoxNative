@@ -55,6 +55,116 @@ export const MODIFY_REALMS        = 0b0000_0011_1000_0000_0000;
 
 /******************************************************************************/
 
+export const TYPE_REALM_OFFSET = 5;
+
+export const typeNameToTypeValue = {
+           'no_type':  0 << TYPE_REALM_OFFSET,
+        'stylesheet':  1 << TYPE_REALM_OFFSET,
+             'image':  2 << TYPE_REALM_OFFSET,
+            'object':  3 << TYPE_REALM_OFFSET,
+ 'object_subrequest':  3 << TYPE_REALM_OFFSET,
+            'script':  4 << TYPE_REALM_OFFSET,
+             'fetch':  5 << TYPE_REALM_OFFSET,
+    'xmlhttprequest':  5 << TYPE_REALM_OFFSET,
+         'sub_frame':  6 << TYPE_REALM_OFFSET,
+              'font':  7 << TYPE_REALM_OFFSET,
+             'media':  8 << TYPE_REALM_OFFSET,
+         'websocket':  9 << TYPE_REALM_OFFSET,
+            'beacon': 10 << TYPE_REALM_OFFSET,
+              'ping': 10 << TYPE_REALM_OFFSET,
+             'other': 11 << TYPE_REALM_OFFSET,
+             'popup': 12 << TYPE_REALM_OFFSET, // start of behavioral filtering
+          'popunder': 13 << TYPE_REALM_OFFSET,
+        'main_frame': 14 << TYPE_REALM_OFFSET, // start of 1p behavioral filtering
+       'generichide': 15 << TYPE_REALM_OFFSET,
+      'specifichide': 16 << TYPE_REALM_OFFSET,
+       'inline-font': 17 << TYPE_REALM_OFFSET,
+     'inline-script': 18 << TYPE_REALM_OFFSET,
+             'cname': 19 << TYPE_REALM_OFFSET,
+            'webrtc': 20 << TYPE_REALM_OFFSET,
+       'unsupported': 21 << TYPE_REALM_OFFSET,
+};
+
+export const otherTypeBitValue = typeNameToTypeValue.other;
+
+export const bitFromType = type =>
+    1 << ((typeNameToTypeValue[type] >>> TYPE_REALM_OFFSET) - 1);
+
+// All network request types to bitmap
+//   bring origin to 0 (from TYPE_REALM_OFFSET -- see typeNameToTypeValue)
+//   left-shift 1 by the above-calculated value
+//   subtract 1 to set all type bits
+export const allNetworkTypesBits =
+    (1 << (otherTypeBitValue >>> TYPE_REALM_OFFSET)) - 1;
+
+export const allTypesBits =
+    allNetworkTypesBits |
+    1 << (typeNameToTypeValue['popup'] >>> TYPE_REALM_OFFSET) - 1 |
+    1 << (typeNameToTypeValue['main_frame'] >>> TYPE_REALM_OFFSET) - 1 |
+    1 << (typeNameToTypeValue['inline-font'] >>> TYPE_REALM_OFFSET) - 1 |
+    1 << (typeNameToTypeValue['inline-script'] >>> TYPE_REALM_OFFSET) - 1;
+export const unsupportedTypeBit =
+    1 << (typeNameToTypeValue['unsupported'] >>> TYPE_REALM_OFFSET) - 1;
+
+export const typeValueToTypeName = [
+    '',
+    'stylesheet',
+    'image',
+    'object',
+    'script',
+    'xhr',
+    'frame',
+    'font',
+    'media',
+    'websocket',
+    'ping',
+    'other',
+    'popup',
+    'popunder',
+    'document',
+    'generichide',
+    'specifichide',
+    'inline-font',
+    'inline-script',
+    'cname',
+    '',
+    '',
+    'webrtc',
+    'unsupported',
+];
+
+export const typeValueToDNRTypeName = [
+    '',
+    'stylesheet',
+    'image',
+    'object',
+    'script',
+    'xmlhttprequest',
+    'sub_frame',
+    'font',
+    'media',
+    'websocket',
+    'ping',
+    'other',
+];
+
+// stylesheet: 1 => bit 0
+// image: 2 => bit 1
+// object: 3 => bit 2
+// script: 4 => bit 3
+// ...
+export const typeBitDescriptors = typeValueToTypeName.map((name, i) =>
+    i === 0 ? undefined : { bit: 1 << (i - 1), name }
+).filter(Boolean);
+
+export const dnrTypeBitDescriptors = typeValueToDNRTypeName.map((name, i) =>
+    i === 0 || name === '' ? undefined : { bit: 1 << (i - 1), name }
+).filter(Boolean);
+
+//const typeValueFromCatBits = catBits => (catBits >>> TYPE_REALM_OFFSET) & 0b11111;
+
+/******************************************************************************/
+
 // Do not change order. Compiled filter lists rely on this order being
 // consistent across sessions.
 export const MODIFIER_TYPE_REDIRECT = 1;
