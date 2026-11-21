@@ -155,6 +155,7 @@ const isolatedAssembly = {
         '} catch {}',
 };
 const contentScriptDict = new Map();
+const topOriginOptions = { topOrigin: undefined };
 let getContentScripts;
 
 function prepareContentScript(url, tabId = -1, frameId = 0) {
@@ -175,10 +176,12 @@ function prepareContentScript(url, tabId = -1, frameId = 0) {
     }
     if ( entry.manuallyInjectedCode !== undefined ) { return entry; }
     if ( hostname !== '' ) {
-        const result = getContentScripts(url, frameId !== 0
-            ? { topOrigin: frameManager.getTopOrigin(tabId) }
-            : undefined
-        );
+        let options;
+        if ( frameId !== 0 ) {
+            topOriginOptions.topOrigin = frameManager.getTopOrigin(tabId);
+            options = topOriginOptions;
+        }
+        const result = getContentScripts(url, options);
         entry.isolatedCode = uBO_assembleCode('isolated', result.isolatedCode, result);
         entry.mainCode = uBO_assembleCode('main', result.mainCode, result);
         // The isolated-world code and the main-world fallback are combined so

@@ -36,27 +36,28 @@ const reIsHTTP = /^https?:\/\//;
 
 function onCreatedNavigationTarget(details) {
     if ( details.tabId === TAB_ID_NONE ) { return; }
-    Object.assign(details, { frameId: 0, parentFrameId: -1 });
+    details.frameId = 0;
+    details.parentFrameId = -1;
     addFrame(details);
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('before-tab-created', details);
-    });
+    }
 }
 
 function onBeforeNavigate(details) {
     if ( details.tabId === TAB_ID_NONE ) { return; }
     addFrame(details);
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('before-frame-committed', details);
-    });
+    }
 }
 
 function onCommitted(details) {
     if ( details.tabId === TAB_ID_NONE ) { return; }
     addFrame(details);
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('frame-committed', details);
-    });
+    }
 }
 
 function onFrameRemoved(tabId, frameId) {
@@ -66,26 +67,26 @@ function onFrameRemoved(tabId, frameId) {
     if ( frameData === undefined ) { return; }
     tabData.frameDict.delete(frameId);
     const details = { tabId, frameId };
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('frame-removed', details);
-    });
+    }
 }
 
 function onTabCreated(tab) {
     const details = { tabId: tab.id, frameId: 0, parentFrameId: -1, url: tab.url };
     addFrame(details);
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('tab-created', details);
         listener('before-frame-committed', details);
-    });
+    }
     return tabDict.get(tab.id);
 }
 
 function onTabActivated(details) {
     if ( tabDict.has(details.tabId) === false ) { return; }
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('tab-activated', details);
-    });
+    }
 }
 
 function onWindowFocused(windowId) {
@@ -103,10 +104,13 @@ function onTabUpdated(tabId, changeInfo, tab) {
     if ( isHTTP(tab.url) === false ) {
         if ( tab.url.startsWith(uboOrigin) === false ) { return; }
     }
-    const changedProps = Object.keys(changeInfo).filter(a =>
-        onTabUpdated.filters.includes(a)
-    );
-    if ( changedProps.length === 0 ) { return; }
+    let changed = false;
+    for ( const prop of Object.keys(changeInfo) ) {
+        if ( onTabUpdated.filters.includes(prop) === false ) { continue; }
+        changed = true;
+        break;
+    }
+    if ( changed === false ) { return; }
     const tabData = tabDict.get(tabId) ?? onTabCreated(tab);
     if ( changeInfo.discarded ) {
         tabData.discarded = tab.changeInfo;
@@ -118,9 +122,9 @@ function onTabUpdated(tabId, changeInfo, tab) {
         tabData.frameDict.get(0).url = tab.url;
     }
     const details = Object.assign({ tabId, changeInfo }, tab);
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('tab-updated', details);
-    });
+    }
 }
 onTabUpdated.filters = [ 'discarded', 'status', 'title', 'url' ];
 
@@ -129,9 +133,9 @@ function onTabRemoved(tabId) {
     if ( tabData === undefined ) { return; }
     tabDict.delete(tabId);
     const details = { tabId };
-    listeners.forEach(listener => {
+    for ( const listener of listeners ) {
         listener('tab-removed', details);
-    });
+    }
 }
 
 /******************************************************************************/
@@ -146,9 +150,9 @@ export function removeListener(listener) {
 
 export function addFrame(details) {
     const { tabId } = details;
-    const tabData = tabDict.get(tabId) ?? { tabId };
-    if ( tabData.frameDict === undefined ) {
-        tabData.frameDict = new Map();
+    let tabData = tabDict.get(tabId);
+    if ( tabData === undefined ) {
+        tabData = { tabId, frameDict: new Map(), gettingFrames: undefined };
         tabDict.set(tabId, tabData);
     } else {
         tabData.gettingFrames = undefined;
@@ -173,10 +177,10 @@ export function addFrame(details) {
         if ( tabData.gettingFrames !== key ) { return; }
         if ( tabDict.has(tabId) === false ) { return; }
         const frameIds = new Set(frames.map(a => a.frameId));
-        frameDict.forEach((_, frameId) => {
-            if ( frameIds.has(frameId) ) { return; }
+        for ( const frameId of frameDict.keys() ) {
+            if ( frameIds.has(frameId) ) { continue; }
             onFrameRemoved(tabId, frameId);
-        });
+        }
     }, ( ) => { });
 }
 
@@ -244,8 +248,10 @@ export function getTopOrigin(tabId) {
 
 export async function start() {
     const tabs = await webext.tabs.query({ url: [ 'http://*/*', 'https://*/*', `${uboOrigin}/*` ] });
-    tabs.filter(tab => !tab.discarded && tab.status !== 'unloaded')
-        .forEach(onTabCreated);
+    for ( const tab of tabs ) {
+        if ( tab.discarded || tab.status === 'unloaded' ) { continue; }
+        onTabCreated(tab);
+    }
     webext.webNavigation.onCreatedNavigationTarget.addListener(onCreatedNavigationTarget);
     webext.webNavigation.onBeforeNavigate.addListener(onBeforeNavigate);
     webext.webNavigation.onCommitted.addListener(onCommitted);
