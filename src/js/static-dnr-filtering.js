@@ -351,11 +351,9 @@ function mergeRules(rulesetMap, mergeTarget) {
             return typeof v[0] === 'string' ? v.sort() : v;
         }
         if ( v instanceof Object ) {
-            const sorted = {};
-            for ( const kk of Object.keys(v).sort() ) {
-                sorted[kk] = v[kk];
-            }
-            return sorted;
+            return Object.fromEntries(
+                Object.keys(v).sort().map(kk => [ kk, v[kk] ])
+            );
         }
         return v;
     };
@@ -385,16 +383,16 @@ function mergeRules(rulesetMap, mergeTarget) {
         }
     };
     const mergeMap = new Map();
-    for ( const [ id, rule ] of rulesetMap ) {
-        if ( rule._error !== undefined ) { continue; }
+    rulesetMap.forEach((rule, id) => {
+        if ( rule._error !== undefined ) { return; }
         const hash = ruleHasher(rule, mergeTarget);
         if ( mergeMap.has(hash) === false ) {
             mergeMap.set(hash, []);
         }
         mergeMap.get(hash).push(id);
-    }
-    for ( const ids of mergeMap.values() ) {
-        if ( ids.length === 1 ) { continue; }
+    });
+    mergeMap.values().forEach(ids => {
+        if ( ids.length === 1 ) { return; }
         const leftHand = rulesetMap.get(ids[0]);
         const leftHandSet = new Set(
             extractTargetValue(leftHand, mergeTarget) || []
@@ -405,9 +403,9 @@ function mergeRules(rulesetMap, mergeTarget) {
             const rightHandArray =  extractTargetValue(rightHand, mergeTarget);
             if ( rightHandArray !== undefined ) {
                 if ( leftHandSet.size !== 0 ) {
-                    for ( const item of rightHandArray ) {
+                    rightHandArray.forEach(item => {
                         leftHandSet.add(item);
-                    }
+                    });
                 }
             } else {
                 leftHandSet.clear();
@@ -423,7 +421,7 @@ function mergeRules(rulesetMap, mergeTarget) {
                 leftHandOwner[mergeTarget] = undefined;
             }
         }
-    }
+    });
 }
 
 /******************************************************************************/

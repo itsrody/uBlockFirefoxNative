@@ -216,12 +216,15 @@ export function toHeaderPattern(reStr) {
 function _toHeaderPattern(branch, depth = 0) {
     switch ( branch.type ) {
     case 1: /* T_SEQUENCE, 'Sequence' */ {
-        let s = '';
-        for ( const node of branch.val ) {
+        const parts = [];
+        const complete = branch.val.every(node => {
             const t = _toHeaderPattern(node, depth+1);
-            if ( t === undefined ) { return; }
-            s += t;
-        }
+            if ( t === undefined ) { return false; }
+            parts.push(t);
+            return true;
+        });
+        if ( complete === false ) { return; }
+        let s = parts.join('');
         if ( depth === 0 && branch.val.length !== 0 ) {
             const first = branch.val[0];
             if ( first.type !== 128 || first.val !== '^' ) { s = `*${s}`; }
