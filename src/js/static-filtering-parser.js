@@ -638,8 +638,15 @@ const exCharCodeAt = (s, i) => {
     return pos >= 0 ? s.charCodeAt(pos) : -1;
 };
 
+const reEscapeForRegex = /[.*+?^${}()|[\]\\]/g;
+const reWrappedRegex = /^\/.+\/$/;
+const reRegexWithOptionalI = /^\/(.+)\/(i)?$/;
+const reUnescapedWildcard = /(?<!\\)[*?]/g;
+const reEscapedPipe = /\\\|/g;
+const reParseRegexLiteral = /^\/(.+)\/([imu]+)?$/;
+
 const escapeForRegex = s =>
-    s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    s.replace(reEscapeForRegex, '\\$&');
 
 /******************************************************************************/
 
@@ -1352,7 +1359,7 @@ export class AstFilterParser {
                 break;
             case NODE_TYPE_NET_OPTION_NAME_IPADDRESS: {
                 const value = this.getNetOptionValue(NODE_TYPE_NET_OPTION_NAME_IPADDRESS);
-                if ( /^\/.+\/$/.test(value) ) {
+                if ( reWrappedRegex.test(value) ) {
                     try { void new RegExp(value); }
                     catch { realBad = true; }
                 }
@@ -2274,7 +2281,7 @@ export class AstFilterParser {
         // TODO: Remove unescaping of `|` once AdGuard filters no longer unduly
         // escape. In the mean time, if a literal `|` is needed in a path-based
         // regex, the solution is to use `\x7C` instead of `\|`.
-        const source = this.normalizeRegexPattern(regex.replace(/\\\|/g, '|'));
+        const source = this.normalizeRegexPattern(regex.replace(reEscapedPipe, '|'));
         if ( source === '' ) { return ''; }
         const after = `/${source}/`;
         if ( after === before ) { return; }
@@ -2942,7 +2949,7 @@ export class AstFilterParser {
 
     normalizeRegexPattern(s) {
         try {
-            const source = /^\/.+\/$/.test(s) ? s.slice(1,-1) : s;
+            const source = reWrappedRegex.test(s) ? s.slice(1,-1) : s;
             const regex = new RegExp(source);
             return regex.source;
         } catch (ex) {
@@ -3047,7 +3054,7 @@ export function parseQueryPruneValue(arg) {
     if ( out.not ) {
         s = s.slice(1);
     }
-    const match = /^\/(.+)\/(i)?$/.exec(s);
+    const match = reRegexWithOptionalI.exec(s);
     if ( match !== null ) {
         try {
             out.re = new RegExp(match[1], match[2] || '');
@@ -3087,7 +3094,7 @@ export function parseHeaderValue(arg) {
     if ( out.not ) { s = s.slice(1); }
     out.value = s;
     if ( s === '' ) { return out; }
-    const match = /^\/(.+)\/(i)?$/.exec(s);
+    const match = reRegexWithOptionalI.exec(s);
     out.isRegex = match !== null;
     if ( out.isRegex ) {
         out.reStr = match[1];
@@ -3101,17 +3108,17 @@ export function parseHeaderValue(arg) {
         out.reStr = escapeForRegex(s);
         return out;
     }
-    const reConstruct = /(?<!\\)[*?]/g;
+    reUnescapedWildcard.lastIndex = 0;
     const reParts = [];
     let beg = 0;
     for (;;) {
-        const match = reConstruct.exec(s);
+        const match = reUnescapedWildcard.exec(s);
         if ( match === null ) { break; }
         reParts.push(
             escapeForRegex(s.slice(beg, match.index)),
             match[0] === '*' ? '.*' : '.?',
         );
-        beg = reConstruct.lastIndex;
+        beg = reUnescapedWildcard.lastIndex;
     }
     reParts.push(escapeForRegex(s.slice(beg)));
     out.reStr = reParts.join('');
@@ -3259,8 +3266,6 @@ export const netOptionTokenDescriptors = new Map([
 
 export class ExtSelectorCompiler {
     constructor(instanceOptions = {}) {
-        this.reParseRegexLiteral = /^\/(.+)\/([imu]+)?$/;
-
         // Use a regex for most common CSS selectors known to be valid in any
         // context.
         const cssIdentifier = '[A-Za-z_][\\w-]*';
@@ -4116,7 +4121,7 @@ export class ExtSelectorCompiler {
         if ( pos === -1 ) { return; }
         const name = s.slice(0, pos).trim();
         const value = s.slice(pos + 1).trim();
-        const match = this.reParseRegexLiteral.exec(value);
+        const match = reParseRegexLiteral.exec(value);
         let regexDetails;
         if ( match !== null ) {
             regexDetails = match[1];

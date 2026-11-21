@@ -310,6 +310,7 @@ const restrSeparator = '(?:[^%.0-9a-z_-]|$)';
 
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
 const reEscape = /[.*+?^${}()|[\]\\]/g;
+const reTokens = /[%0-9A-Za-z]+/g;
 
 // Convert a plain string (devoid of special characters) into a regex.
 const restrFromPlainPattern = s => s.replace(reEscape, '\\$&');
@@ -3481,7 +3482,6 @@ class FilterCompiler {
         if ( other !== undefined ) {
             return Object.assign(this, other);
         }
-        this.reTokens = /[%0-9A-Za-z]+/g;
         this.optionValues = new Map();
         this.tokenIdToNormalizedType = new Map([
             [ sfp.NODE_TYPE_NET_OPTION_NAME_CNAME, bitFromType('cname') ],
@@ -4054,11 +4054,11 @@ class FilterCompiler {
 
     // Note: a one-char token is better than a documented bad token.
     extractTokenFromPattern(pattern) {
-        this.reTokens.lastIndex = 0;
+        reTokens.lastIndex = 0;
         let bestMatch = null;
         let bestBadness = 0x7FFFFFFF;
         for (;;) {
-            const match = this.reTokens.exec(pattern);
+            const match = reTokens.exec(pattern);
             if ( match === null ) { break; }
             const token = match[0];
             const badness = token.length > 1 ? this.badTokens.get(token) || 0 : 1;
@@ -4068,7 +4068,7 @@ class FilterCompiler {
                 if ( c === 0x2A /* '*' */ ) { continue; }
             }
             if ( token.length < MAX_TOKEN_LENGTH ) {
-                const lastIndex = this.reTokens.lastIndex;
+                const lastIndex = reTokens.lastIndex;
                 if ( lastIndex < pattern.length ) {
                     const c = pattern.charCodeAt(lastIndex);
                     if ( c === 0x2A /* '*' */ ) { continue; }
@@ -4093,17 +4093,17 @@ class FilterCompiler {
     //   not `bads`.
     extractTokenFromRegex(pattern) {
         pattern = tokenizableStrFromRegex(pattern);
-        this.reTokens.lastIndex = 0;
+        reTokens.lastIndex = 0;
         let bestToken;
         let bestBadness = 0x7FFFFFFF;
         for (;;) {
-            const matches = this.reTokens.exec(pattern);
+            const matches = reTokens.exec(pattern);
             if ( matches === null ) { break; }
             const { 0: token, index } = matches;
             if ( index === 0 || pattern.charAt(index - 1) === '\x01' ) {
                 continue;
             }
-            const { lastIndex } = this.reTokens;
+            const { lastIndex } = reTokens;
             if (
                 token.length < MAX_TOKEN_LENGTH && (
                     lastIndex === pattern.length ||

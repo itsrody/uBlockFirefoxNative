@@ -39,6 +39,9 @@ const isPromise = o => o instanceof Promise;
 const isResolvedObject = o => o instanceof Object &&
     o instanceof Promise === false;
 const reIPv4 = /^\d+\.\d+\.\d+\.\d+$/
+const reWhitespaceSplit = /\s+/;
+const reEscapeForRegex = /[.*+?^${}()|[\]\\]/g;
+const reMatchAny = /^./;
 const skipDNS = proxyInfo =>
     proxyInfo && (proxyInfo.proxyDNS || proxyInfo.type?.charCodeAt(0) === 0x68 /* h */);
 
@@ -198,12 +201,12 @@ vAPI.Net = class extends vAPI.Net {
         if ( typeof list !== 'string' || list.length === 0 || list === 'unset' ) {
             return null;
         }
-        if ( list === '*' ) { return /^./; }
+        if ( list === '*' ) { return reMatchAny; }
         return new RegExp(
             '(?:^|\\.)(?:' +
             list.trim()
-                .split(/\s+/)
-                .map(a => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                .split(reWhitespaceSplit)
+                .map(a => a.replace(reEscapeForRegex, '\\$&'))
                 .join('|') +
             ')$'
         );

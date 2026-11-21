@@ -21,12 +21,15 @@
 
 /******************************************************************************/
 
-// Depends on:
-// https://github.com/foo123/RegexAnalyzer
-const RegexAnalyzer = globalThis.Regex && globalThis.Regex.Analyzer || null;
+import Regex from '../lib/regexanalyzer/regex.js';
+
+/******************************************************************************/
+
+// Firefox 160+ builds bundle the analyzer, so this is a direct dependency
+// rather than an optional platform capability.
+const RegexAnalyzer = Regex.Analyzer;
 
 export function isRE2(reStr) {
-    if ( RegexAnalyzer === null ) { return true; }
     try {
         return _isRE2(RegexAnalyzer(reStr, false).tree());
     } catch {
@@ -71,7 +74,6 @@ function _isRE2(node) {
 /******************************************************************************/
 
 function _literalStrFromRegex(reStr) {
-    if ( RegexAnalyzer === null ) { return ''; }
     let s = '';
     try {
         s = tokenizableStrFromNode(
@@ -206,7 +208,6 @@ function tokenizableStrFromNode(node) {
 /******************************************************************************/
 
 export function toHeaderPattern(reStr) {
-    if ( RegexAnalyzer === null ) { return; }
     try {
         return _toHeaderPattern(RegexAnalyzer(reStr, false).tree());
     } catch {
