@@ -24,11 +24,12 @@
 
 // The vAPI wrappers below are Firefox capability shims for the shared uBO
 // core. Guards cover Firefox desktop/Android API differences, not other
-// browser families.
+// browser families. User-origin stylesheet injection lives in vapi-css.js.
 
 /******************************************************************************/
 
 import * as frameManager from './vapi-contexts.js';
+import { insertCSS, removeCSS } from './vapi-css.js';
 import { ubolog } from './console.js';
 import webext from './webext.js';
 
@@ -289,12 +290,6 @@ vAPI.Tabs = class {
         return tabs.length !== 0 ? tabs[0] : null;
     }
 
-    async insertCSS(tabId, details) {
-        details.cssOrigin = 'user';
-        try { await webext.tabs.insertCSS(...arguments); }
-        catch { }
-    }
-
     async query(queryInfo) {
         let tabs;
         try {
@@ -303,12 +298,6 @@ vAPI.Tabs = class {
         catch {
         }
         return Array.isArray(tabs) ? tabs : [];
-    }
-
-    async removeCSS(tabId, details) {
-        details.cssOrigin = 'user';
-        try { await webext.tabs.removeCSS(...arguments); }
-        catch { }
     }
 
     // Properties of the details object:
@@ -822,7 +811,7 @@ vAPI.messaging = {
                 };
                 msg.add.forEach(cssText => {
                     details.code = cssText;
-                    promises.push(vAPI.tabs.insertCSS(tabId, details));
+                    promises.push(insertCSS(tabId, details));
                 });
             }
             if ( msg.remove ) {
@@ -833,7 +822,7 @@ vAPI.messaging = {
                 };
                 msg.remove.forEach(cssText => {
                     details.code = cssText;
-                    promises.push(vAPI.tabs.removeCSS(tabId, details));
+                    promises.push(removeCSS(tabId, details));
                 });
             }
             Promise.all(promises).then(( ) => {

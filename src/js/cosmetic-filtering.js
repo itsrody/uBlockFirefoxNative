@@ -24,6 +24,7 @@
 import { MRUCache } from './mrucache.js';
 import { StaticExtFilteringHostnameDB } from './static-ext-filtering-db.js';
 import { entityFromHostname } from './uri-utils.js';
+import { insertCSS } from './vapi-css.js';
 import logger from './logger.js';
 import µb from './background.js';
 
@@ -754,7 +755,7 @@ CosmeticFilteringEngine.prototype.retrieveGenericSelectors = function(request) {
     if ( selectors.length === 0 ) { return out; }
 
     out.injectedCSS = `${selectors.join(',\n')}\n{display:none!important;}`;
-    vAPI.tabs.insertCSS(request.tabId, {
+    insertCSS(request.tabId, {
         code: out.injectedCSS,
         frameId: request.frameId,
         matchAboutBlank: true,
@@ -931,7 +932,7 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
         out.injectedCSS = injectedCSS.join('\n\n');
         details.code = out.injectedCSS;
         if ( request.tabId !== undefined && options.dontInject !== true ) {
-            vAPI.tabs.insertCSS(request.tabId, details);
+            insertCSS(request.tabId, details);
         }
     }
 
@@ -940,7 +941,7 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
         if ( cacheEntry.retrieveNet(networkFilters) ) {
             details.code = `${networkFilters.join('\n')}\n{display:none!important;}`;
             if ( request.tabId !== undefined && options.dontInject !== true ) {
-                vAPI.tabs.insertCSS(request.tabId, details);
+                insertCSS(request.tabId, details);
             }
         }
     }
