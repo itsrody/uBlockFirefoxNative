@@ -603,10 +603,10 @@ class BidiTrieContainer {
         }
         const offset = this.buf32[CHAR1_SLOT];
         this.buf32[CHAR1_SLOT] = offset + n;
-        const buf8 = this.buf8;
-        for ( let i = 0; i < n; i++ ) {
-            buf8[offset+i] = s.charCodeAt(i);
-        }
+        this.buf8.set(
+            Uint8Array.from({ length: n }, (_, i) => s.charCodeAt(i)),
+            offset
+        );
         return (this.lastStoredIndex = offset - this.buf32[CHAR0_SLOT]);
     }
 
@@ -709,9 +709,7 @@ class BidiTrieContainer {
                     const offset = v & 0x00FFFFFF;
                     let i0 = buf32[CHAR0_SLOT] + offset;
                     const len = v >>> 24;
-                    for ( let i = 0; i < len; i++ ) {
-                        this.charBuf[i] = buf8[i0+i];
-                    }
+                    this.charBuf.set(buf8.subarray(i0, i0 + len));
                     if ( len !== 0 && ialt !== 0 ) {
                         this.forks.push(ialt, this.dir, this.pattern);
                     }

@@ -173,9 +173,10 @@ class HNTrieContainer {
             let i = needle.length;
             if ( i > 255 ) { i = 255; }
             buf[255] = i;
-            while ( i-- ) {
-                buf[i] = needle.charCodeAt(i);
-            }
+            buf.set(
+                Uint8Array.from({ length: i }, (_, j) => needle.charCodeAt(j)),
+                0
+            );
             this.needle = needle;
         }
         return this;
@@ -502,10 +503,10 @@ class HNTrieContainer {
         }
         const offset = this.buf32[CHAR1_SLOT];
         this.buf32[CHAR1_SLOT] = offset + n;
-        const buf8 = this.buf;
-        for ( let i = 0; i < n; i++ ) {
-            buf8[offset+i] = hn.charCodeAt(i);
-        }
+        this.buf.set(
+            Uint8Array.from({ length: n }, (_, i) => hn.charCodeAt(i)),
+            offset
+        );
         return (this.lastStoredIndex = offset - this.buf32[CHAR0_SLOT]);
     }
 
@@ -527,10 +528,10 @@ class HNTrieContainer {
         }
         const offset = this.buf32[CHAR1_SLOT];
         this.buf32[CHAR1_SLOT] = offset + n;
-        const buf8 = this.buf;
-        for ( let i = 0; i < n; i++ ) {
-            buf8[offset+i] = s.charCodeAt(i);
-        }
+        this.buf.set(
+            Uint8Array.from({ length: n }, (_, i) => s.charCodeAt(i)),
+            offset
+        );
         return (this.lastStoredIndex = offset - this.buf32[CHAR0_SLOT]);
     }
 
