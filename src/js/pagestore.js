@@ -210,12 +210,13 @@ const NetFilteringResultCache = class {
     }
 
     lookupAllBlocked(hostname) {
-        return Array.from(this.blocked).flatMap(([ key ]) => {
+        const out = [];
+        for ( const key of this.blocked.keys() ) {
             const pos = key.indexOf(' ');
-            return key.slice(0, pos) === hostname
-                ? [ key.slice(pos + 1) ]
-                : [];
-        });
+            if ( key.slice(0, pos) !== hostname ) { continue; }
+            out.push(key.slice(pos + 1));
+        }
+        return out;
     }
 
     static factory() {
@@ -274,9 +275,9 @@ const HostnameDetailsMap = class extends Map {
         this.clear();
     }
     dispose() {
-        this.forEach(item => {
+        for ( const item of this.values() ) {
             item.dispose();
-        });
+        }
         this.reset();
     }
 };
@@ -977,11 +978,11 @@ const PageStore = class {
         // some resources it's not possible to detect whether they were blocked
         // content script-side (i.e. `iframes` -- unlike `img`).
         if ( Array.isArray(resources) && resources.length !== 0 ) {
-            resources.forEach(resource => {
+            for ( const resource of resources ) {
                 this.filterRequest(
                     fctxt.setType(resource.type).setURL(resource.url)
                 );
-            });
+            }
         }
         if ( this.netFilteringCache.hash === response.hash ) { return; }
         response.hash = this.netFilteringCache.hash;

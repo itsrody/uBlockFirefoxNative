@@ -28,6 +28,11 @@ import { urlSkip as urlSkipDirective } from './urlskip.js';
 
 /******************************************************************************/
 
+// Reused synchronously by filterQuery(): there are no calls out to arbitrary
+// code between resets, so the scratch arrays cannot be observed reentrantly.
+const queryParams = [];
+const queryParts = [];
+
 export function redirectRequest(engine, redirectEngine, fctxt, directives) {
     if ( directives === undefined ) {
         directives = engine.matchAndFetchModifiers(fctxt, 'redirect-rule');
@@ -154,13 +159,20 @@ export function filterQuery(engine, fctxt, out = [], directives) {
     let hpos = url.indexOf('#', qpos + 1);
     if ( hpos === -1 ) { hpos = url.length; }
     const query = url.slice(qpos + 1, hpos);
-    // Native splitting and flattening preserve raw keys/values, including
-    // empty parameters and empty query strings.
-    const params = query === '' ? [] : query.split('&').flatMap(kv => {
-        const pos = kv.indexOf('=');
-        if ( pos === -1 ) { return [ kv, '' ]; }
-        return [ kv.slice(0, pos), kv.slice(pos + 1) ];
-    });
+    queryParams.length = 0;
+    if ( query !== '' ) {
+        const pairs = query.split('&');
+        for ( let i = 0; i < pairs.length; i++ ) {
+            const kv = pairs[i];
+            const pos = kv.indexOf('=');
+            if ( pos === -1 ) {
+                queryParams.push(kv, '');
+            } else {
+                queryParams.push(kv.slice(0, pos), kv.slice(pos + 1));
+            }
+        }
+    }
+    const params = queryParams;
     const beforeParamCount = params.length;
     for ( const directive of directives ) {
         if ( params.length === 0 ) { break; }
@@ -205,14 +217,13 @@ export function filterQuery(engine, fctxt, out = [], directives) {
     if ( params.length !== beforeParamCount ) {
         fctxt.redirectURL = url.slice(0, qpos);
         if ( params.length !== 0 ) {
-            fctxt.redirectURL += '?' + Array.from(
-                { length: params.length / 2 },
-                (_, i) => {
-                    const key = params[i*2+0];
-                    const val = params[i*2+1];
-                    return val !== '' ? `${key}=${val}` : key;
-                }
-            ).join('&');
+            queryParts.length = 0;
+            for ( let i = 0; i < params.length; i += 2 ) {
+                const key = params[i];
+                const val = params[i+1];
+                queryParts.push(val !== '' ? key + '=' + val : key);
+            }
+            fctxt.redirectURL += '?' + queryParts.join('&');
         }
         if ( hpos !== url.length ) {
             fctxt.redirectURL += url.slice(hpos);
