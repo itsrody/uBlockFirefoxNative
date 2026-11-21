@@ -49,14 +49,20 @@ const typeToMimeMap = new Map([
 
 const validMimes = new Set(extToMimeMap.values());
 
+const reExtensionFromName = /\.([^.]+)$/;
+const reTopCommentBlock = /^\/\*[\S\s]+?\*\/\s*/g;
+const reNonEmptyLine = /\S/;
+const reIsolatedWorld = /^isolated$/i;
+const reWARName = /^\/web_accessible_resources\/([^?]+)/;
+
 const mimeFromName = name => {
-    const match = /\.([^.]+)$/.exec(name);
+    const match = reExtensionFromName.exec(name);
     if ( match === null ) { return ''; }
     return extToMimeMap.get(match[1]);
 };
 
 const removeTopCommentBlock = text => {
-    return text.replace(/^\/\*[\S\s]+?\*\/\s*/g, '');
+    return text.replace(reTopCommentBlock, '');
 };
 
 // vAPI.warSecret is optional, it could be absent in some environments,
@@ -169,18 +175,22 @@ class RedirectEngine {
     freeze() {
     }
 
+    #entryFromName(name) {
+        return this.resources.get(this.aliases.get(name) || name);
+    }
+
     tokenToURL(
         fctxt,
         token,
         asDataURI = false
     ) {
-        const entry = this.resources.get(this.aliases.get(token) || token);
+        const entry = this.#entryFromName(token);
         if ( entry === undefined ) { return; }
         return entry.toURL(fctxt, asDataURI);
     }
 
     tokenToDNR(token) {
-        const entry = this.resources.get(this.aliases.get(token) || token);
+        const entry = this.#entryFromName(token);
         if ( entry === undefined ) { return; }
         if ( entry.warURL === undefined ) { return; }
         return entry.warURL;
@@ -192,11 +202,11 @@ class RedirectEngine {
         if ( asDataURI ) {
             token = token.slice(1);
         }
-        return this.resources.get(this.aliases.get(token) || token) !== undefined;
+        return this.#entryFromName(token) !== undefined;
     }
 
     tokenRequiresTrust(token) {
-        const entry = this.resources.get(this.aliases.get(token) || token);
+        const entry = this.#entryFromName(token);
         return entry && entry.requiresTrust === true || false;
     }
 
@@ -208,7 +218,7 @@ class RedirectEngine {
     }
 
     contentFromName(name, mime = '') {
-        const entry = this.resources.get(this.aliases.get(name) || name);
+        const entry = this.#entryFromName(name);
         if ( entry === undefined ) { return; }
         if ( entry.mime.startsWith(mime) === false ) { return; }
         if ( entry.data === undefined ) { return; }
@@ -229,7 +239,6 @@ class RedirectEngine {
         const lineIter = new LineIterator(
             removeTopCommentBlock(text) + '\n\n'
         );
-        const reNonEmptyLine = /\S/;
         let fields, encoded, details;
 
         while ( lineIter.eot() === false ) {
@@ -290,7 +299,7 @@ class RedirectEngine {
                         this.aliases.set(value, name);
                         break;
                     case 'world':
-                        if ( /^isolated$/i.test(value) === false ) { break; }
+                        if ( reIsolatedWorld.test(value) === false ) { break; }
                         resource.world = 'ISOLATED';
                         break;
                     case 'dependency':
@@ -376,7 +385,7 @@ class RedirectEngine {
         };
 
         const processWAR = result => {
-            const match = /^\/web_accessible_resources\/([^?]+)/.exec(result.url);
+            const match = reWARName.exec(result.url);
             if ( match === null ) { return; }
             const name = match[1];
             return result.content instanceof Blob

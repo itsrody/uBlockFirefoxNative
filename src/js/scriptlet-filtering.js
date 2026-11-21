@@ -114,7 +114,7 @@ function assembleIsolatedWorldWrapper(isolatedCode, options) {
     const code = [ '(function uBO_isolatedWorldScriptlets() {' ];
     code.push(`const $SCRIPTLET_GLOBALS$ = ${JSON.stringify(options.scriptletGlobals ?? {})};`);
     if ( options.scriptletGlobals?.bcSecret ) {
-        code.push(initCommChannel.toString());
+        code.push(initCommChannelSource);
         code.push(`initCommChannel(${JSON.stringify(options.scriptletGlobals.bcSecret)});`);
     }
     if ( options.debug ) { code.push('debugger;'); }
@@ -131,6 +131,10 @@ function assembleMainWorldWrapper(mainCode, options) {
     code.push('})();');
     return code.join('\n');
 }
+
+const isTrustedContextSource = isTrustedContext.toString();
+const topFrameRulesMatcherSource = topFrameRulesMatcher.toString();
+const initCommChannelSource = initCommChannel.toString();
 
 /******************************************************************************/
 
@@ -240,7 +244,7 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
         }
         const trustedSiteMatcher = µb.trustedSites.getMatcher();
         const earlyBailoutCode = [
-            isTrustedContext.toString(),
+            isTrustedContextSource,
             'if ( isTrustedContext(',
             `${trustedSiteMatcher.match.toString()},`,
             'new Map(',
@@ -252,7 +256,7 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
         );
         if ( topFrameRules?.length ) {
             earlyBailoutCode.push(
-                topFrameRulesMatcher.toString(),
+                topFrameRulesMatcherSource,
                 `if ( topFrameRulesMatcher(new Map(${JSON.stringify(topFrameRules)})) ) { return; }`,
             );
         }

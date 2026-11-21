@@ -240,6 +240,7 @@ const CosmeticFilteringEngine = function() {
 
     // low generic cosmetic filters: map of hash => stringified selector list
     this.lowlyGeneric = new Map();
+    this.lowlyGenericCache = new Map();
 
     // highly generic selectors sets
     this.highlyGeneric = Object.create(null);
@@ -276,6 +277,7 @@ CosmeticFilteringEngine.prototype.reset = function() {
 
     // low generic cosmetic filters
     this.lowlyGeneric.clear();
+    this.lowlyGenericCache.clear();
 
     // highly generic selectors sets
     this.highlyGeneric.simple.dict.clear();
@@ -523,6 +525,7 @@ CosmeticFilteringEngine.prototype.fromCompiledContent = function(reader, options
             } else {
                 this.lowlyGeneric.set(args[1], args[2]);
             }
+            this.lowlyGenericCache.delete(args[1]);
             break;
         }
         // High-high generic hide/simple selectors
@@ -578,6 +581,7 @@ CosmeticFilteringEngine.prototype.fromSelfie = function(selfie) {
     this.discardedCount = selfie.discardedCount;
     this.specificFilters.fromSelfie(selfie.specificFilters);
     this.lowlyGeneric = selfie.lowlyGeneric;
+    this.lowlyGenericCache.clear();
     this.highlyGeneric.simple.dict = selfie.highSimpleGenericHideDict;
     this.highlyGeneric.simple.str = selfie.highSimpleGenericHideStr;
     this.highlyGeneric.complex.dict = selfie.highComplexGenericHideDict;
@@ -692,8 +696,16 @@ CosmeticFilteringEngine.prototype.retrieveGenericSelectors = function(request) {
     for ( const hash of request.hashes ) {
         const bucket = this.lowlyGeneric.get(hash);
         if ( bucket === undefined ) { continue; }
-        for ( const selector of bucket.split(',\n') ) {
-            if ( safeOnly && selector === keyFromSelector(selector) ) { continue; }
+        let selectors = this.lowlyGenericCache.get(hash);
+        if ( selectors === undefined ) {
+            selectors = bucket.split(',\n').map(selector => ({
+                selector,
+                isSimple: selector === keyFromSelector(selector),
+            }));
+            this.lowlyGenericCache.set(hash, selectors);
+        }
+        for ( const { selector, isSimple } of selectors ) {
+            if ( safeOnly && isSimple ) { continue; }
             selectorsSet.add(selector);
         }
         hashes.push(hash);
