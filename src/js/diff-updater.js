@@ -31,11 +31,12 @@ const EMPTYLINE = '';
 
 const suffleArray = arr => {
     const out = arr.slice();
-    for ( let i = 0, n = out.length; i < n; i++ ) {
+    const n = out.length;
+    out.forEach((_, i) => {
         const j = Math.floor(Math.random() * n);
-        if ( j === i ) { continue; }
+        if ( j === i ) { return; }
         [ out[j], out[i] ] = [ out[i], out[j] ];
-    }
+    });
     return out;
 };
 
@@ -68,12 +69,11 @@ function parsePatch(patch) {
         if ( line.startsWith('diff ') === false ) { continue; }
         const fields = line.split(/\s+/);
         const diffBlock = {};
-        for ( let j = 0; j < fields.length; j++ ) {
-            const field = fields[j];
+        fields.forEach(field => {
             const pos = field.indexOf(':');
-            if ( pos === -1 ) { continue; }
+            if ( pos === -1 ) { return; }
             const name = field.slice(0, pos);
-            if ( name === '' ) { continue; }
+            if ( name === '' ) { return; }
             const value = field.slice(pos+1);
             switch ( name ) {
             case 'name':
@@ -86,7 +86,7 @@ function parsePatch(patch) {
             default:
                 break;
             }
-        }
+        });
         if ( diffBlock.name === undefined ) { return; }
         if ( isNaN(diffBlock.lines) || diffBlock.lines <= 0 ) { return; }
         if ( diffBlock.checksum === undefined ) { return; }
