@@ -34,7 +34,7 @@ import webext from './webext.js';
 
 /******************************************************************************/
 
-const manifest = browser.runtime.getManifest();
+const manifest = webext.runtime.getManifest();
 
 // Firefox supports WASM in content scripts.
 vAPI.canWASM = true;
@@ -70,7 +70,7 @@ vAPI.app = {
     },
 
     restart: function() {
-        browser.runtime.reload();
+        webext.runtime.reload();
     },
 };
 
@@ -96,7 +96,7 @@ vAPI.generateSecret = (size = 1) => {
  * 
  * */
 
-vAPI.sessionStorage = browser.storage.session || {
+vAPI.sessionStorage = webext.storage.session || {
     get() {
         return Promise.resolve();
     },
@@ -143,7 +143,7 @@ vAPI.storage = {
             console.log(reason);
         });
     },
-    QUOTA_BYTES: browser.storage.local.QUOTA_BYTES,
+    QUOTA_BYTES: webext.storage.local.QUOTA_BYTES,
 };
 
 if ( webext.storage.local.getBytesInUse instanceof Function ) {
@@ -342,7 +342,7 @@ vAPI.Tabs = class {
                 if ( details.index !== undefined ) {
                     updateDetails.index = details.index;
                 }
-                browser.tabs.create(updateDetails, focusWindow);
+                webext.tabs.create(updateDetails, focusWindow);
                 return;
             }
 
@@ -353,9 +353,9 @@ vAPI.Tabs = class {
             );
             // if the tab doesn't exist
             if ( tab === null ) {
-                browser.tabs.create(updateDetails, focusWindow);
+                webext.tabs.create(updateDetails, focusWindow);
             } else if ( details.index !== undefined ) {
-                browser.tabs.move(tab.id, { index: details.index });
+                webext.tabs.move(tab.id, { index: details.index });
             }
         };
 
@@ -620,7 +620,7 @@ if ( webext.browserAction instanceof Object ) {
 
 {
     const browserAction = vAPI.browserAction;
-    const titleTemplate = `${browser.runtime.getManifest().browser_action.default_title} ({badge})`;
+    const titleTemplate = `${webext.runtime.getManifest().browser_action.default_title} ({badge})`;
     const icons = [
         { path: {
             '16': 'img/icon_16-off.png',
@@ -713,7 +713,7 @@ if ( webext.browserAction instanceof Object ) {
     };
 }
 
-browser.browserAction.onClicked.addListener(function(tab) {
+webext.browserAction.onClicked.addListener(function(tab) {
     vAPI.tabs.open({
         select: true,
         url: `popup-fenix.html?tabId=${tab.id}&intab=1`,
@@ -752,7 +752,7 @@ vAPI.messaging = {
 
     onPortDisconnect: function(port) {
         this.ports.delete(port.name);
-        void browser.runtime.lastError;
+        void webext.runtime.lastError;
     },
 
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/Port
@@ -791,7 +791,7 @@ vAPI.messaging = {
         }
         this.defaultHandler = defaultHandler;
 
-        browser.runtime.onConnect.addListener(
+        webext.runtime.onConnect.addListener(
             port => this.onPortConnect(port)
         );
 
@@ -960,7 +960,7 @@ vAPI.messaging = {
         shortSecrets.splice(pos, 1);
     };
 
-    browser.webRequest.onBeforeRequest.addListener(
+    webext.webRequest.onBeforeRequest.addListener(
         guard,
         {
             urls: [ root + 'web_accessible_resources/*' ]
@@ -1002,7 +1002,7 @@ vAPI.Net = class {
     constructor() {
         this.validTypes = new Set();
         {
-            const wrrt = browser.webRequest.ResourceType;
+            const wrrt = webext.webRequest.ResourceType;
             Object.values(wrrt).forEach(type => {
                 this.validTypes.add(type);
             });
@@ -1013,7 +1013,7 @@ vAPI.Net = class {
         this.suspendDepth = 0;
         this.unprocessedTabs = new Map();
 
-        browser.webRequest.onBeforeRequest.addListener(
+        webext.webRequest.onBeforeRequest.addListener(
             details => {
                 if ( details.tabId !== frameManager.TAB_ID_NONE ) {
                     const { type } = details;
@@ -1086,7 +1086,7 @@ vAPI.Net = class {
     addListener(which, clientListener, filters, options) {
         const actualFilters = this.denormalizeFilters(filters);
         const actualListener = this.makeNewListenerProxy(clientListener);
-        browser.webRequest[which].addListener(
+        webext.webRequest[which].addListener(
             actualListener,
             actualFilters,
             options
@@ -1129,7 +1129,7 @@ vAPI.Net = class {
         const actualListener = this.listenerMap.get(clientListener);
         if ( actualListener === undefined ) { return; }
         this.listenerMap.delete(clientListener);
-        browser.webRequest[which].removeListener(actualListener);
+        webext.webRequest[which].removeListener(actualListener);
     }
     makeNewListenerProxy(clientListener) {
         const actualListener = details => {
@@ -1140,7 +1140,7 @@ vAPI.Net = class {
         return actualListener;
     }
     handlerBehaviorChanged() {
-        browser.webRequest.handlerBehaviorChanged();
+        webext.webRequest.handlerBehaviorChanged();
     }
     onUnprocessedRequest(details) {
         const { tabId } = details;
@@ -1235,7 +1235,7 @@ vAPI.contextMenu = webext.menus && {
 /******************************************************************************/
 /******************************************************************************/
 
-vAPI.commands = browser.commands;
+vAPI.commands = webext.commands;
 
 /******************************************************************************/
 /******************************************************************************/

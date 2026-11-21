@@ -25,10 +25,11 @@ import {
     domainFromHostname,
     hostnameFromNetworkURL,
 } from './uri-utils.js';
+import webext from './webext.js';
 
 /******************************************************************************/
 
-const dnsAPI = browser.dns || {
+const dnsAPI = webext.dns || {
     resolve() {
         return Promise.resolve();
     }
