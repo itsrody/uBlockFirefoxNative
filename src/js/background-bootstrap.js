@@ -34,3 +34,13 @@ import './storage.js';
 import './tab.js';
 import './ublock.js';
 import './utils.js';
+
+import µb from './background.js';
+
+/******************************************************************************/
+
+vAPI.tabs = new vAPI.Tabs();
+
+vAPI.alarms.onAlarm.addListener(alarm => {
+    µb.alarmQueue.push(alarm.name);
+});

@@ -53,8 +53,6 @@ let thisVersionInt = 0;
 
 /******************************************************************************/
 
-vAPI.tabs = new vAPI.Tabs();
-
 vAPI.app.onShutdown = ( ) => {
     staticFilteringReverseLookup.shutdown();
     io.updateStop();
@@ -67,10 +65,6 @@ vAPI.app.onShutdown = ( ) => {
     sessionSwitches.reset();
     permanentSwitches.reset();
 };
-
-vAPI.alarms.onAlarm.addListener(alarm => {
-    µb.alarmQueue.push(alarm.name);
-});
 
 /******************************************************************************/
 
