@@ -177,17 +177,16 @@ import µb from './background.js';
                    Object.assign(usDefault);
 
     if ( Array.isArray(results[1]) ) {
-        const adminSettings = results[1];
-        for ( const entry of adminSettings ) {
-            if ( entry.length < 1 ) { continue; }
+        results[1].forEach(entry => {
+            if ( entry.length < 1 ) { return; }
             const name = entry[0];
-            if ( Object.hasOwn(usDefault, name) === false ) { continue; }
+            if ( Object.hasOwn(usDefault, name) === false ) { return; }
             const value = entry.length < 2
                 ? usDefault[name]
                 : this.settingValueFromString(usDefault, name, entry[1]);
-            if ( value === undefined ) { continue; }
+            if ( value === undefined ) { return; }
             usUser[name] = usDefault[name] = value;
-        }
+        });
     }
 
     return usUser;
@@ -209,11 +208,10 @@ import µb from './background.js';
     );
 
     const toRemove = [];
-    for ( const key in this.userSettings ) {
-        if ( Object.hasOwn(this.userSettings, key) === false ) { continue; }
-        if ( Object.hasOwn(toSave, key) ) { continue; }
+    Object.keys(this.userSettings).forEach(key => {
+        if ( Object.hasOwn(toSave, key) ) { return; }
         toRemove.push(key);
-    }
+    });
     if ( toRemove.length !== 0 ) {
         vAPI.storage.remove(toRemove);
     }
@@ -372,11 +370,9 @@ onBroadcast(msg => {
 };
 
 µb.stringFromHiddenSettings = function() {
-    const out = [];
-    for ( const key of Object.keys(this.hiddenSettings).sort() ) {
-        out.push(key + ' ' + this.hiddenSettings[key]);
-    }
-    return out.join('\n');
+    return Object.keys(this.hiddenSettings).sort().map(key =>
+        key + ' ' + this.hiddenSettings[key]
+    ).join('\n');
 };
 
 /******************************************************************************/
@@ -433,11 +429,10 @@ onBroadcast(msg => {
     }
     const match = /^[a-z-]+:\/\/[^/]+\//.exec(assetKey);
     const assetOrigin = match && match[0];
-    for ( const prefix of this.parsedTrustedListPrefixes ) {
-        if ( assetOrigin && prefix.length < assetOrigin.length ) { continue; }
-        if ( assetKey.startsWith(prefix) ) { return true; }
-    }
-    return false;
+    return this.parsedTrustedListPrefixes.some(prefix => {
+        if ( assetOrigin && prefix.length < assetOrigin.length ) { return false; }
+        return assetKey.startsWith(prefix);
+    });
 };
 
 onBroadcast(msg => {
@@ -467,11 +462,11 @@ onBroadcast(msg => {
     }
     const newSet = new Set(newKeys);
     // Purge unused filter lists from cache.
-    for ( const oldKey of oldKeys ) {
+    oldKeys.forEach(oldKey => {
         if ( newSet.has(oldKey) === false ) {
             this.removeFilterList(oldKey);
         }
-    }
+    });
     newKeys = Array.from(newSet);
     this.selectedFilterLists = newKeys;
     return vAPI.storage.set({ selectedFilterLists: newKeys });
@@ -486,9 +481,9 @@ onBroadcast(msg => {
     // Filter lists to select
     if ( Array.isArray(details.toSelect) ) {
         if ( details.merge ) {
-            for ( let i = 0, n = details.toSelect.length; i < n; i++ ) {
-                selectedListKeySet.add(details.toSelect[i]);
-            }
+            details.toSelect.forEach(assetKey => {
+                selectedListKeySet.add(assetKey);
+            });
         } else {
             selectedListKeySet = new Set(details.toSelect);
         }
@@ -496,15 +491,14 @@ onBroadcast(msg => {
 
     // Imported filter lists to remove
     if ( Array.isArray(details.toRemove) ) {
-        for ( let i = 0, n = details.toRemove.length; i < n; i++ ) {
-            const assetKey = details.toRemove[i];
+        details.toRemove.forEach(assetKey => {
             selectedListKeySet.delete(assetKey);
             const pos = importedLists.indexOf(assetKey);
             if ( pos !== -1 ) {
                 importedLists.splice(pos, 1);
             }
             this.removeFilterList(assetKey);
-        }
+        });
     }
 
     // Filter lists to import
@@ -515,35 +509,31 @@ onBroadcast(msg => {
         const assetKeyFromURL = url => {
             const needle = url.replace(/^https?:/, '');
             const assets = this.availableFilterLists;
-            for ( const assetKey in assets ) {
-                const asset = assets[assetKey];
-                if ( asset.content !== 'filters' ) { continue; }
+            const found = Object.entries(assets).find(([ , asset ]) => {
+                if ( asset.content !== 'filters' ) { return false; }
                 if ( typeof asset.contentURL === 'string' ) {
-                    if ( asset.contentURL.endsWith(needle) ) { return assetKey; }
-                    continue;
+                    return asset.contentURL.endsWith(needle);
                 }
-                if ( Array.isArray(asset.contentURL) === false ) { continue; }
-                for ( let i = 0, n = asset.contentURL.length; i < n; i++ ) {
-                    if ( asset.contentURL[i].endsWith(needle) ) {
-                        return assetKey;
-                    }
-                }
-            }
-            return url;
+                if ( Array.isArray(asset.contentURL) === false ) { return false; }
+                return asset.contentURL.some(contentURL =>
+                    contentURL.endsWith(needle)
+                );
+            });
+            return found === undefined ? url : found[0];
         };
         const importedSet = new Set(this.listKeysFromCustomFilterLists(importedLists));
         const toImportSet = new Set(this.listKeysFromCustomFilterLists(details.toImport));
-        for ( const urlKey of toImportSet ) {
+        toImportSet.forEach(urlKey => {
             if ( importedSet.has(urlKey) ) {
                 selectedListKeySet.add(urlKey);
-                continue;
+                return;
             }
             const assetKey = assetKeyFromURL(urlKey);
             if ( assetKey === urlKey ) {
                 importedSet.add(urlKey);
             }
             selectedListKeySet.add(assetKey);
-        }
+        });
         importedLists = Array.from(importedSet).sort();
     }
 
@@ -564,12 +554,12 @@ onBroadcast(msg => {
     const out = new Set();
     const reIgnore = /^[!#]/;
     const reValid = /^[a-z-]+:\/\/\S+/;
-    for ( const url of urls ) {
-        if ( reIgnore.test(url) || !reValid.test(url) ) { continue; }
+    urls.forEach(url => {
+        if ( reIgnore.test(url) || !reValid.test(url) ) { return; }
         // Ignore really bad lists.
-        if ( this.badLists.get(url) === true ) { continue; }
+        if ( this.badLists.get(url) === true ) { return; }
         out.add(url);
-    }
+    });
     return Array.from(out);
 };
 
@@ -682,19 +672,18 @@ onBroadcast(msg => {
 
 µb.autoSelectRegionalFilterLists = function(lists) {
     const selectedListKeys = [ this.userFiltersPath ];
-    for ( const key in lists ) {
-        if ( Object.hasOwn(lists, key) === false ) { continue; }
+    Object.keys(lists).forEach(key => {
         const list = lists[key];
-        if ( list.content !== 'filters' ) { continue; }
+        if ( list.content !== 'filters' ) { return; }
         if ( list.off !== true ) {
             selectedListKeys.push(key);
-            continue;
+            return;
         }
         if ( this.listMatchesEnvironment(list) ) {
             selectedListKeys.push(key);
             list.off = false;
         }
-    }
+    });
     return selectedListKeys;
 };
 
