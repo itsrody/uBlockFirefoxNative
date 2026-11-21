@@ -26,7 +26,7 @@ import webext from './webext.js';
 /******************************************************************************/
 
 export const tabDict = new Map();
-export const TAB_ID_NONE = browser.tabs.TAB_ID_NONE
+export const TAB_ID_NONE = webext.tabs.TAB_ID_NONE
 
 const listeners = new Set();
 const uboOrigin = vAPI.getURL('').replace(/\/$/, '');
@@ -89,7 +89,7 @@ function onTabActivated(details) {
 }
 
 function onWindowFocused(windowId) {
-    if ( windowId === browser.windows.WINDOW_ID_NONE ) { return; }
+    if ( windowId === webext.windows.WINDOW_ID_NONE ) { return; }
     if ( windowId === onWindowFocused.windowId ) { return; }
     onWindowFocused.windowId = windowId;
     webext.tabs.query({ active: true, windowId }).then(tabs => {
@@ -246,13 +246,13 @@ export async function start() {
     const tabs = await webext.tabs.query({ url: [ 'http://*/*', 'https://*/*', `${uboOrigin}/*` ] });
     tabs.filter(tab => !tab.discarded && tab.status !== 'unloaded')
         .forEach(onTabCreated);
-    browser.webNavigation.onCreatedNavigationTarget.addListener(onCreatedNavigationTarget);
-    browser.webNavigation.onBeforeNavigate.addListener(onBeforeNavigate);
-    browser.webNavigation.onCommitted.addListener(onCommitted);
-    browser.tabs.onActivated.addListener(onTabActivated);
-    if ( browser?.windows?.onFocusChanged ) {
-        browser.windows.onFocusChanged.addListener(onWindowFocused);
+    webext.webNavigation.onCreatedNavigationTarget.addListener(onCreatedNavigationTarget);
+    webext.webNavigation.onBeforeNavigate.addListener(onBeforeNavigate);
+    webext.webNavigation.onCommitted.addListener(onCommitted);
+    webext.tabs.onActivated.addListener(onTabActivated);
+    if ( webext?.windows?.onFocusChanged ) {
+        webext.windows.onFocusChanged.addListener(onWindowFocused);
     }
-    browser.tabs.onUpdated.addListener(onTabUpdated);
-    browser.tabs.onRemoved.addListener(onTabRemoved);
+    webext.tabs.onUpdated.addListener(onTabUpdated);
+    webext.tabs.onRemoved.addListener(onTabRemoved);
 }
