@@ -46,13 +46,17 @@ function trustedSiteMatcher(data, url, hn) {
                 ? -1
                 : bucket.findIndex(directive => matchDirective(directive, url, hn))
         );
-    for ( let pos = 0; ; pos += 1 ) {
-        const key = hn.slice(pos);
+    let match;
+    [
+        hn,
+        ...Array.from(hn.matchAll(/\./g), dot => hn.slice(dot.index + 1)),
+    ].some(key => {
         const i = matchBucket(data.get(key), url, hn);
-        if ( i !== -1 ) { return { key, i }; }
-        pos = hn.indexOf('.', pos);
-        if ( pos === -1 ) { break; }
-    }
+        if ( i === -1 ) { return false; }
+        match = { key, i };
+        return true;
+    });
+    if ( match !== undefined ) { return match; }
     const i = matchBucket(data.get('//'), url, hn);
     if ( i !== -1 ) { return { key: '//', i }; }
 }

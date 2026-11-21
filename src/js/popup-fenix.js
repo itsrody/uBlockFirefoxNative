@@ -197,7 +197,7 @@ const safePunycodeToUnicode = function(hn) {
 /******************************************************************************/
 
 const updateFirewallCellCount = function(cells, allowed, blocked) {
-    for ( const cell of cells ) {
+    cells.forEach(cell => {
         if ( gtz(allowed) ) {
             dom.attr(cell, 'data-acount',
                 Math.min(Math.ceil(Math.log(allowed + 1) / Math.LN10), 3)
@@ -212,7 +212,7 @@ const updateFirewallCellCount = function(cells, allowed, blocked) {
         } else {
             dom.attr(cell, 'data-bcount', '0');
         }
-    }
+    });
 };
 
 /******************************************************************************/
@@ -220,10 +220,10 @@ const updateFirewallCellCount = function(cells, allowed, blocked) {
 const updateFirewallCellRule = function(cells, scope, des, type, rule) {
     const ruleParts = rule !== undefined ? rule.split(' ') : undefined;
 
-    for ( const cell of cells ) {
+    cells.forEach(cell => {
         if ( ruleParts === undefined ) {
             dom.attr(cell, 'class', null);
-            continue;
+            return;
         }
 
         const action = updateFirewallCellRule.actionNames[ruleParts[3]];
@@ -238,7 +238,7 @@ const updateFirewallCellRule = function(cells, scope, des, type, rule) {
         ) {
             dom.cl.add(cell, 'ownRule');
         }
-    }
+    });
 };
 
 updateFirewallCellRule.actionNames = { '1': 'block', '2': 'allow', '3': 'noop' };
@@ -317,7 +317,7 @@ const updateAllFirewallCells = function(doRules = true, doCounts = true) {
 
 const expandHostnameStats = ( ) => {
     let dnDetails;
-    for ( const des of allHostnameRows ) {
+    allHostnameRows.forEach(des => {
         const hnDetails = popupData.hostnameDict[des];
         const { domain, counts } = hnDetails;
         const isDomain = des === domain;
@@ -334,7 +334,7 @@ const expandHostnameStats = ( ) => {
         dnDetails.hasScript = dnDetails.hasScript || hnDetails.hasScript;
         hnDetails.hasFrame = hnAllowed.frame !== 0 || hnBlocked.frame !== 0;
         dnDetails.hasFrame = dnDetails.hasFrame || hnDetails.hasFrame;
-    }
+    });
 };
 
 /******************************************************************************/
@@ -358,7 +358,7 @@ const buildAllFirewallRows = function() {
 
     let row = qs$(rowContainer, 'div[data-des="*"][data-type="3p-frame"] + div');
 
-    for ( const des of allHostnameRows ) {
+    allHostnameRows.forEach(des => {
         if ( row === null ) {
             row = dom.clone(rowTemplate);
             toAppend.appendChild(row);
@@ -411,7 +411,7 @@ const buildAllFirewallRows = function() {
         classList.toggle('expandException', expandExceptions.has(hnDetails.domain));
 
         row = row.nextElementSibling;
-    }
+    });
 
     // Remove unused trailing rows
     if ( row !== null ) {
@@ -460,7 +460,7 @@ function filterFirewallRows() {
     const firewallElem = qs$('#firewall');
     const elems = qsa$('#firewall .filterExpressions span[data-expr]');
     let not = false;
-    for ( const elem of elems ) {
+    elems.forEach(elem => {
         const on = dom.cl.has(elem, 'on');
         switch ( elem.dataset.expr ) {
         case 'not':
@@ -485,7 +485,7 @@ function filterFirewallRows() {
         default:
             break;
         }
-    }
+    });
 }
 
 dom.on('#firewall .filterExpressions', 'click', 'span[data-expr]', ev => {
@@ -537,9 +537,9 @@ const renderPrivacyExposure = function() {
     const { hostnameDict } = popupData;
     const desHostnameDone = new Set();
     const keys = Object.keys(hostnameDict).sort(hostnameCompare);
-    for ( const des of keys ) {
+    keys.forEach(des => {
         // Specific-type rules -- these are built-in
-        if ( des === '*' || desHostnameDone.has(des) ) { continue; }
+        if ( des === '*' || desHostnameDone.has(des) ) { return; }
         const hnDetails = hostnameDict[des];
         const { domain, counts } = hnDetails;
         if ( Object.hasOwn(allDomains, domain) === false ) {
@@ -562,7 +562,7 @@ const renderPrivacyExposure = function() {
         }
         allHostnameRows.push(des);
         desHostnameDone.add(des);
-    }
+    });
 
     const summary = domainsHitStr
         .replace('{{count}}', touchedDomainCount.toLocaleString())
@@ -705,17 +705,17 @@ dom.on('.dismiss', 'click', ( ) => {
 //   Use tooltip for ARIA purpose.
 
 const renderTooltips = function(selector) {
-    for ( const [ key, details ] of tooltipTargetSelectors ) {
-        if ( selector !== undefined && key !== selector ) { continue; }
+    tooltipTargetSelectors.forEach((details, key) => {
+        if ( selector !== undefined && key !== selector ) { return; }
         const elem = qs$(key);
-        if ( elem.hasAttribute('title') === false ) { continue; }
+        if ( elem.hasAttribute('title') === false ) { return; }
         const text = i18n$(
             details.i18n +
             (qs$(details.state) === null ? '1' : '2')
         );
         dom.attr(elem, 'aria-label', text);
         dom.attr(elem, 'title', text);
-    }
+    });
 };
 
 const tooltipTargetSelectors = new Map([
@@ -992,21 +992,17 @@ const computedSections = ( ) =>
 const sectionBitsFromAttribute = function() {
     const attr = document.body.dataset.more;
     if ( attr === '' ) { return 0; }
-    let bits = 0;
-    for ( const c of attr ) {
-        bits |= 1 << (c.charCodeAt(0) - 97);
-    }
-    return bits;
+    return Array.from(attr).reduce(
+        (bits, c) => bits | (1 << (c.charCodeAt(0) - 97)),
+        0
+    );
 };
 
 const sectionBitsToAttribute = function(bits) {
-    const attr = [];
-    for ( let i = 0; i < maxNumberOfSections; i++ ) {
-        const bit = 1 << i;
-        if ( (bits & bit) === 0 ) { continue; }
-        attr.push(String.fromCharCode(97 + i));
-    }
-    return attr.join('');
+    return Array.from({ length: maxNumberOfSections }, (_, i) => i)
+        .filter(i => (bits & (1 << i)) !== 0)
+        .map(i => String.fromCharCode(97 + i))
+        .join('');
 };
 
 const setSections = function(bits) {
