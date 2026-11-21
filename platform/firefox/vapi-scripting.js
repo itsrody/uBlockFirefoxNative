@@ -94,6 +94,13 @@ function uBO_mainWorldFallbackWrapper(details) {
 
 const mainWorldFallbackWrapperSource = uBO_mainWorldFallbackWrapper.toString();
 const reEarlyBailoutMarker = /\(function earlyBailoutCode\(\)\{\}\)\(\);/;
+const fallbackMarker = reEarlyBailoutMarker.exec(mainWorldFallbackWrapperSource);
+const fallbackWrapperPrefix =
+    mainWorldFallbackWrapperSource.slice(0, fallbackMarker.index);
+const fallbackWrapperSuffix = mainWorldFallbackWrapperSource.slice(
+    fallbackMarker.index + fallbackMarker[0].length
+);
+const ignoreRejection = ( ) => {};
 
 /******************************************************************************/
 
@@ -103,42 +110,23 @@ const reEarlyBailoutMarker = /\(function earlyBailoutCode\(\)\{\}\)\(\);/;
 function uBO_assembleFallbackCode(details) {
     const { earlyBailoutCode, mainCode } = details;
     if ( Boolean(mainCode) === false ) { return; }
-    let wrapperCode = mainWorldFallbackWrapperSource;
-    if ( earlyBailoutCode ) {
-        const match = reEarlyBailoutMarker.exec(wrapperCode);
-        wrapperCode = wrapperCode.slice(0, match.index) +
-            earlyBailoutCode +
-            wrapperCode.slice(match.index + match[0].length);
-    }
-    return `// ${details.hostname}\n(${wrapperCode})(${JSON.stringify({ sentinel: mainSentinel, mainCode })});`;
+    const wrapperCode = earlyBailoutCode
+        ? fallbackWrapperPrefix + earlyBailoutCode + fallbackWrapperSuffix
+        : mainWorldFallbackWrapperSource;
+    return `// ${details.hostname}\n(${wrapperCode})(${fallbackArgsPrefix}${JSON.stringify(mainCode)}});`;
 }
 
 /******************************************************************************/
 
 function uBO_assembleCode(world, contentScriptCode, details) {
     if ( Boolean(contentScriptCode) === false ) { return; }
-    const isMainWorld = world === 'main';
-    const sentinel = isMainWorld ? mainSentinel : isolatedSentinel;
-    const code = [
-        `// ${details.hostname}`,
-        `(function uBO_${world}WorldWrapper() {`,
-    ];
-    if ( details.earlyBailoutCode ) {
-        code.push(details.earlyBailoutCode);
-    }
-    if ( isMainWorld ) {
-        code.push(`if ( self['${sentinel}'] ) { return; }`);
-        code.push(`self['${sentinel}'] = true;`);
-    } else {
-        code.push('try {');
-        code.push('const pageGlobal = self.wrappedJSObject;');
-        code.push(`if ( pageGlobal && pageGlobal['${sentinel}'] ) { return; }`);
-        code.push(`if ( pageGlobal ) { pageGlobal['${sentinel}'] = true; }`);
-        code.push('} catch {}');
-    }
-    code.push(contentScriptCode);
-    code.push('})();');
-    return code.join('\n');
+    const { header, sentinel } = world === 'main' ? mainAssembly : isolatedAssembly;
+    const bailout = details.earlyBailoutCode;
+    return `// ${details.hostname}\n${header}\n` +
+        ( bailout ? bailout + '\n' : '' ) +
+        sentinel + '\n' +
+        contentScriptCode +
+        '\n})();';
 }
 
 /******************************************************************************/
@@ -150,13 +138,41 @@ const CONTENTSCRIPT_DICT_MAX_HIGH = CONTENTSCRIPT_DICT_MAX_LOW +
 // native registration and the current-document fallback injection apply.
 const isolatedSentinel = self.crypto.randomUUID();
 const mainSentinel = self.crypto.randomUUID();
+const fallbackArgsPrefix = `{"sentinel":${JSON.stringify(mainSentinel)},"mainCode":`;
+const mainAssembly = {
+    header: '(function uBO_mainWorldWrapper() {',
+    sentinel:
+        `if ( self['${mainSentinel}'] ) { return; }\n` +
+        `self['${mainSentinel}'] = true;`,
+};
+const isolatedAssembly = {
+    header: '(function uBO_isolatedWorldWrapper() {',
+    sentinel:
+        'try {\n' +
+        'const pageGlobal = self.wrappedJSObject;\n' +
+        `if ( pageGlobal && pageGlobal['${isolatedSentinel}'] ) { return; }\n` +
+        `if ( pageGlobal ) { pageGlobal['${isolatedSentinel}'] = true; }\n` +
+        '} catch {}',
+};
 const contentScriptDict = new Map();
 let getContentScripts;
 
 function prepareContentScript(url, tabId = -1, frameId = 0) {
     const hostname = hostnameFromURI(url);
-    const entry = contentScriptDict.get(hostname) ??
-        { t: Date.now(), hostname };
+    let entry = contentScriptDict.get(hostname);
+    if ( entry === undefined ) {
+        entry = {
+            t: Date.now(),
+            hostname,
+            isolatedCode: undefined,
+            mainCode: undefined,
+            manuallyInjectedCode: undefined,
+            registered: false,
+            firstCommitPending: false,
+            isolatedHandle: null,
+            mainHandle: null,
+        };
+    }
     if ( entry.manuallyInjectedCode !== undefined ) { return entry; }
     if ( hostname !== '' ) {
         const result = getContentScripts(url, frameId !== 0
@@ -167,10 +183,12 @@ function prepareContentScript(url, tabId = -1, frameId = 0) {
         entry.mainCode = uBO_assembleCode('main', result.mainCode, result);
         // The isolated-world code and the main-world fallback are combined so
         // that a single injection preserves their relative execution order.
-        entry.manuallyInjectedCode = [
-            entry.isolatedCode,
-            uBO_assembleFallbackCode(result),
-        ].filter(Boolean).join('\n') || null;
+        const fallbackCode = uBO_assembleFallbackCode(result);
+        let combined = entry.isolatedCode || '';
+        if ( fallbackCode ) {
+            combined += combined ? '\n' + fallbackCode : fallbackCode;
+        }
+        entry.manuallyInjectedCode = combined || null;
     } else {
         entry.manuallyInjectedCode = null;
     }
@@ -238,8 +256,7 @@ function manuallyInject(tabId, frameId, entry) {
         matchAboutBlank: true,
         runAt: 'document_start',
         code: entry.manuallyInjectedCode,
-    }).catch(( ) => {
-    });
+    }).catch(ignoreRejection);
 }
 
 function getEffectiveURL(details) {

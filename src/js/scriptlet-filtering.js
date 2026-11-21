@@ -111,30 +111,33 @@ function initCommChannel(name) {
 }
 
 function assembleIsolatedWorldWrapper(isolatedCode, options) {
-    const code = [ '(function uBO_isolatedWorldScriptlets() {' ];
-    code.push(`const $SCRIPTLET_GLOBALS$ = ${JSON.stringify(options.scriptletGlobals ?? {})};`);
-    if ( options.scriptletGlobals?.bcSecret ) {
-        code.push(initCommChannelSource);
-        code.push(`initCommChannel(${JSON.stringify(options.scriptletGlobals.bcSecret)});`);
+    const globals = options.scriptletGlobals ?? {};
+    let code = isolatedWrapperBegin + '\n' +
+        globalsDeclPrefix + JSON.stringify(globals) + ';';
+    if ( globals.bcSecret ) {
+        code += '\n' + initCommChannelSource +
+            '\ninitCommChannel(' + JSON.stringify(globals.bcSecret) + ');';
     }
-    if ( options.debug ) { code.push('debugger;'); }
-    code.push(isolatedCode ?? '');
-    code.push('})();');
-    return code.join('\n');
+    if ( options.debug ) { code += '\ndebugger;'; }
+    return code + '\n' + ( isolatedCode ?? '' ) + '\n' + wrapperEnd;
 }
 
 function assembleMainWorldWrapper(mainCode, options) {
-    const code = [ '(function uBO_mainWorldScriptlets() {' ];
-    if ( options.debug ) { code.push('debugger;'); }
-    code.push(`const $SCRIPTLET_GLOBALS$ = ${JSON.stringify(options.scriptletGlobals ?? {})};`);
-    code.push(mainCode ?? '');
-    code.push('})();');
-    return code.join('\n');
+    let code = mainWrapperBegin;
+    if ( options.debug ) { code += '\ndebugger;'; }
+    code += '\n' + globalsDeclPrefix +
+        JSON.stringify(options.scriptletGlobals ?? {}) + ';';
+    return code + '\n' + ( mainCode ?? '' ) + '\n' + wrapperEnd;
 }
 
 const isTrustedContextSource = isTrustedContext.toString();
 const topFrameRulesMatcherSource = topFrameRulesMatcher.toString();
 const initCommChannelSource = initCommChannel.toString();
+const isolatedWrapperBegin = '(function uBO_isolatedWorldScriptlets() {';
+const mainWrapperBegin = '(function uBO_mainWorldScriptlets() {';
+const globalsDeclPrefix = 'const $SCRIPTLET_GLOBALS$ = ';
+const wrapperEnd = '})();';
+const noContentScriptOptions = {};
 
 /******************************************************************************/
 
@@ -188,7 +191,7 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
         }
     }
 
-    getContentScripts(url, options = {}) {
+    getContentScripts(url, options = noContentScriptOptions) {
         const hostname = hostnameFromURI(url);
         const domain = domainFromHostname(hostname);
         const map = this.scriptletDB.retrieveOne(hostname, domain);
@@ -201,23 +204,17 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
         const secret = self.crypto.randomUUID();
         const resultCore = makeScriptlets.commit('uBlock', templateCore, secret);
         const resultFramework = makeScriptlets.commitFramework(templateBegin, templateEnd, secret);
-        const result = {};
+        const result = { MAIN: undefined, ISOLATED: undefined };
         if ( resultCore.MAIN ) {
+            const { beginCode, endCode } = resultFramework.MAIN;
             result.MAIN = {
-                code: [
-                    resultFramework.MAIN.beginCode,
-                    resultCore.MAIN.code,
-                    resultFramework.MAIN.endCode,
-                ].join('\n'),
+                code: beginCode + '\n' + resultCore.MAIN.code + '\n' + endCode,
             };
         }
         if ( resultCore.ISOLATED ) {
+            const { beginCode, endCode } = resultFramework.ISOLATED;
             result.ISOLATED = {
-                code: [
-                    resultFramework.ISOLATED.beginCode,
-                    resultCore.ISOLATED.code,
-                    resultFramework.ISOLATED.endCode,
-                ].join('\n'),
+                code: beginCode + '\n' + resultCore.ISOLATED.code + '\n' + endCode,
             };
         }
         if ( this.isDevBuild === undefined ) {
@@ -225,11 +222,18 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
                 µb.hiddenSettings.filterAuthorMode;
         }
         const scriptletGlobals = {
+            topOrigin: options.topOrigin,
+            bcSecret: undefined,
+            logLevel: undefined,
         };
-        if ( options.topOrigin ) {
-            scriptletGlobals.topOrigin = options.topOrigin;
-        }
-        const out = { hostname, scriptletGlobals };
+        const out = {
+            hostname,
+            scriptletGlobals,
+            debug: undefined,
+            isolatedCode: undefined,
+            mainCode: undefined,
+            earlyBailoutCode: undefined,
+        };
         if ( logger.enabled ) {
             scriptletGlobals.bcSecret = vAPI.generateSecret(3);
             scriptletGlobals.logLevel = this.logLevel;
@@ -243,24 +247,29 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
             out.mainCode = assembleMainWorldWrapper(result.MAIN.code, out);
         }
         const trustedSiteMatcher = µb.trustedSites.getMatcher();
-        const earlyBailoutCode = [
-            isTrustedContextSource,
-            'if ( isTrustedContext(',
-            `${trustedSiteMatcher.match.toString()},`,
-            'new Map(',
-            JSON.stringify(Array.from(trustedSiteMatcher.data).filter(a => a[0] !== '#')),
-            ')) ) { return; }',
-        ];
-        const topFrameRules = sessionFirewall.export1stPartyRules().filter(a =>
-            a[1] !== 'behind-the-scene'
-        );
-        if ( topFrameRules?.length ) {
-            earlyBailoutCode.push(
-                topFrameRulesMatcherSource,
-                `if ( topFrameRulesMatcher(new Map(${JSON.stringify(topFrameRules)})) ) { return; }`,
-            );
+        const trustedData = [];
+        for ( const entry of trustedSiteMatcher.data ) {
+            if ( entry[0] === '#' ) { continue; }
+            trustedData.push(entry);
         }
-        out.earlyBailoutCode = earlyBailoutCode.join('\n');
+        let earlyBailoutCode =
+            isTrustedContextSource + '\n' +
+            'if ( isTrustedContext(\n' +
+            `${trustedSiteMatcher.match.toString()},\n` +
+            'new Map(\n' +
+            JSON.stringify(trustedData) + '\n' +
+            ')) ) { return; }';
+        const topFrameRules = [];
+        for ( const rule of sessionFirewall.export1stPartyRules() ) {
+            if ( rule[1] === 'behind-the-scene' ) { continue; }
+            topFrameRules.push(rule);
+        }
+        if ( topFrameRules.length !== 0 ) {
+            earlyBailoutCode += '\n' + topFrameRulesMatcherSource +
+                '\nif ( topFrameRulesMatcher(new Map(' +
+                JSON.stringify(topFrameRules) + ')) ) { return; }';
+        }
+        out.earlyBailoutCode = earlyBailoutCode;
         return out;
     }
 

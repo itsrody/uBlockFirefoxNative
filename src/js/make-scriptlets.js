@@ -313,11 +313,13 @@ export function commit(rulesetId, template, secret) {
         const hostnames = Array.from(worldDetails.hostnames).toSorted((a, b) =>
             hostnameCompare(a[0], b[0])
         ).map(a => ([ a[0], Array.from(a[1]).join(',') ]));
-        const scriptletFromRegexes = Array.from(worldDetails.regexesOrPaths)
-            .map(a => [
-                compileRegexOrPathTarget(a[0]),
-                Array.from(a[1]).join(','),
-            ]).flat();
+        const scriptletFromRegexes = [];
+        for ( const [ target, refs ] of worldDetails.regexesOrPaths ) {
+            scriptletFromRegexes.push(
+                compileRegexOrPathTarget(target),
+                Array.from(refs).join(',')
+            );
+        }
         if ( hostnames.length === 0 && scriptletFromRegexes.length === 0 ) { continue; }
         let content = safeReplace(template, reScriptletSecret, JSON.stringify(secret));
         content = safeReplace(content, reHasHostnames, JSON.stringify(hostnames.length !== 0));

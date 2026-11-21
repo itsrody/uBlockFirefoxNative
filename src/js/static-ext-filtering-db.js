@@ -190,22 +190,27 @@ export class StaticExtFilteringHostnameDB {
             const s = this.#strSlots[this.#linkedLists[iList+0]];
             const exception = s.charCodeAt(0) === 0x2D /* - */;
             const selector = s.slice(1);
-            const details = out.get(selector) ?? {};
-            if ( details.initialized === undefined ) {
-                details.initialized = true;
+            let details = out.get(selector);
+            if ( details === undefined ) {
+                details = {
+                    initialized: true,
+                    matches: undefined,
+                    excludeMatches: undefined,
+                };
                 out.set(selector, details);
             }
             if ( exception ) {
-                details.excludeMatches ??= [];
-                details.excludeMatches.push(hn);
+                const excludeMatches = details.excludeMatches ??
+                    (details.excludeMatches = []);
+                excludeMatches.push(hn);
                 continue;
             }
-            details.matches ??= [];
-            if ( details.matches.includes('*') ) { continue; }
+            const matches = details.matches ?? (details.matches = []);
+            if ( matches.includes('*') ) { continue; }
             if ( hn === '*' ) {
                 details.matches = [ '*' ];
             } else {
-                details.matches.push(hn);
+                matches.push(hn);
             }
         }
     }
