@@ -56,6 +56,7 @@ import scriptletFilteringEngine from './scriptlet-filtering.js';
 import { staticFilteringReverseLookup } from './reverselookup.js';
 import staticNetFilteringEngine from './static-net-filtering.js';
 import webRequest from './traffic.js';
+import webext from './webext.js';
 import µb from './background.js';
 
 /******************************************************************************/
@@ -68,8 +69,6 @@ import µb from './background.js';
 
 /******************************************************************************/
 /******************************************************************************/
-
-const browser = globalThis.browser;
 
 // Default handler
 //      privileged
@@ -159,7 +158,7 @@ const onMessage = function(request, sender, callback) {
 
     case 'getAppData':
         response = {
-            name: self.browser.runtime.getManifest().name,
+            name: webext.runtime.getManifest().name,
             version: vAPI.app.version,
             canBenchmark: µb.hiddenSettings.benchmarkDatasetURL !== 'unset',
         };
@@ -892,7 +891,7 @@ const onMessage = function(request, sender, callback) {
         } else {
             response = { password: contextPairing.password };
             contextPairing.password = '';
-            browser.tabs.sendMessage(contextPairing.tabId,
+            webext.tabs.sendMessage(contextPairing.tabId,
                 { what: 'elementPickerPairing' },
                 { frameId: contextPairing.frameId }
             );

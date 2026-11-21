@@ -21,7 +21,11 @@
 
 /******************************************************************************/
 
-const publicSuffix = globalThis.browser?.publicSuffix;
+import webext from './webext.js';
+
+/******************************************************************************/
+
+const publicSuffix = webext.publicSuffix;
 
 export default publicSuffix ? {
     getDomain(hostname) {
