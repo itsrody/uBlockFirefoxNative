@@ -169,6 +169,9 @@ let $requestHostname = '';
 let $requestAddress = '';
 let $docHostname = '';
 let $topHostname = '';
+let $requestHaystackLen = 0;
+let $requestSchemeBeg = -1;
+let $requestURLLen = 0;
 let $tokenBeg = 0;
 let $patternMatchLeft = 0;
 let $patternMatchRight = 0;
@@ -299,6 +302,7 @@ const resetRegisters = (fctxt, typeBits) => {
         return;
     }
     $requestURL = urlTokenizer.setURL(fctxt.url);
+    $requestURLLen = $requestURL.length;
     $requestURLRaw = fctxt.url;
     $requestHostname = hostname;
     $requestMethodBit = method;
@@ -816,7 +820,7 @@ class FilterPatternPlain {
         if (
             bidiTrie.startsWith(
                 left,
-                bidiTrie.getHaystackLen(),
+                $requestHaystackLen,
                 filterData[idata+1],
                 n
             ) === 0
@@ -893,7 +897,7 @@ class FilterPatternPlain1 extends FilterPatternPlain {
         if (
             bidiTrie.startsWith(
                 left,
-                bidiTrie.getHaystackLen(),
+                $requestHaystackLen,
                 filterData[idata+1],
                 n
             ) === 0
@@ -916,7 +920,7 @@ class FilterPatternPlainX extends FilterPatternPlain {
         if (
             bidiTrie.startsWith(
                 left,
-                bidiTrie.getHaystackLen(),
+                $requestHaystackLen,
                 filterData[idata+1],
                 n
             ) === 0
@@ -1048,16 +1052,7 @@ class FilterAnchorHnLeft {
             haystackCodes[lastBeg-2] !== 0x2F /* '/' */ ||
             haystackCodes[lastBeg-1] !== 0x2F /* '/' */
         ) {
-            lastBeg = len !== 0 ? haystackCodes.indexOf(0x3A) : -1;
-            if ( lastBeg !== -1 ) {
-                if (
-                    lastBeg >= bidiTrie.getHaystackLen() ||
-                    haystackCodes[lastBeg+1] !== 0x2F ||
-                    haystackCodes[lastBeg+2] !== 0x2F
-                ) {
-                    lastBeg = -1;
-                }
-            }
+            lastBeg = len !== 0 ? $requestSchemeBeg : -1;
             if ( lastBeg !== -1 ) {
                 lastBeg += 3;
                 lastEnd = lastBeg + len;
@@ -1164,7 +1159,7 @@ registerFilterClass(FilterAnchorLeft);
 
 class FilterAnchorRight {
     static match() {
-        return $patternMatchRight === $requestURL.length;
+        return $patternMatchRight === $requestURLLen;
     }
 
     static compile() {
@@ -1194,7 +1189,7 @@ registerFilterClass(FilterAnchorRight);
 
 class FilterTrailingSeparator {
     static match() {
-        if ( $patternMatchRight === $requestURL.length ) { return true; }
+        if ( $patternMatchRight === $requestURLLen ) { return true; }
         if ( isSeparatorChar(bidiTrie.haystack[$patternMatchRight]) ) {
             $patternMatchRight += 1;
             return true;
@@ -3447,7 +3442,11 @@ const urlTokenizer = new (class {
         const tokens = this._tokens;
         const url = this._urlOut;
         const l = bidiTrie.setHaystackLen(url.length);
-        if ( l === 0 ) { return 0; }
+        $requestHaystackLen = l;
+        if ( l === 0 ) {
+            $requestSchemeBeg = -1;
+            return 0;
+        }
         let j = 0;
         let hasq = -1;
         mainLoop: {
@@ -3487,6 +3486,19 @@ const urlTokenizer = new (class {
                 }
             }
         }
+        const haystackCodes = bidiTrie.haystack;
+        let schemeBeg = -1;
+        for ( let i = 0; i < l; i++ ) {
+            if ( haystackCodes[i] !== 0x3A /* ':' */ ) { continue; }
+            if (
+                haystackCodes[i+1] === 0x2F /* '/' */ &&
+                haystackCodes[i+2] === 0x2F /* '/' */
+            ) {
+                schemeBeg = i;
+            }
+            break;
+        }
+        $requestSchemeBeg = schemeBeg;
         this._hasQuery = hasq;
         return j;
     }

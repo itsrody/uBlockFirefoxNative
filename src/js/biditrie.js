@@ -226,8 +226,20 @@ class BidiTrieContainer {
             icell = buf32[icell+CELL_AND];
             x = buf32[icell+BCELL_EXTRA];
             if ( x <= BCELL_EXTRA_MAX ) {
-                if ( x !== 0 && this.matchesExtra(ai, al, x) !== 0 ) {
-                    return 1;
+                if ( x !== 0 ) {
+                    if ( x === 1 ) {
+                        buf32[RESULT_IU_SLOT] = -1;
+                        buf32[RESULT_L_SLOT] = ai;
+                        buf32[RESULT_R_SLOT] = al;
+                        return 1;
+                    }
+                    const iu = this.extraHandler(ai, al, x);
+                    if ( iu !== 0 ) {
+                        buf32[RESULT_IU_SLOT] = iu;
+                        buf32[RESULT_L_SLOT] = ai;
+                        buf32[RESULT_R_SLOT] = al;
+                        return 1;
+                    }
                 }
                 x = buf32[icell+BCELL_ALT_AND];
                 if ( x !== 0 && this.matchesLeft(x, ai, al) !== 0 ) {
@@ -275,8 +287,20 @@ class BidiTrieContainer {
             icell = buf32[icell+CELL_AND];
             x = buf32[icell+BCELL_EXTRA];
             if ( x <= BCELL_EXTRA_MAX ) {
-                if ( x !== 0 && this.matchesExtra(ar, r, x) !== 0 ) {
-                    return 1;
+                if ( x !== 0 ) {
+                    if ( x === 1 ) {
+                        buf32[RESULT_IU_SLOT] = -1;
+                        buf32[RESULT_L_SLOT] = ar;
+                        buf32[RESULT_R_SLOT] = r;
+                        return 1;
+                    }
+                    const iu = this.extraHandler(ar, r, x);
+                    if ( iu !== 0 ) {
+                        buf32[RESULT_IU_SLOT] = iu;
+                        buf32[RESULT_L_SLOT] = ar;
+                        buf32[RESULT_R_SLOT] = r;
+                        return 1;
+                    }
                 }
                 icell = buf32[icell+BCELL_NEXT_AND];
                 if ( icell === 0 ) { return 0; }
