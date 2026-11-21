@@ -256,6 +256,15 @@ const CosmeticFilteringEngine = function() {
         str: '',
         mru: new MRUCache(16)
     };
+
+    this.retrievalScratch = {
+        exceptionSet: new Set(),
+        specificSet: new Set(),
+        allSet: new Set(),
+        proceduralSet: new Set(),
+        injectedCSS: [],
+        networkFilters: [],
+    };
     this.reset();
 };
 
@@ -286,6 +295,14 @@ CosmeticFilteringEngine.prototype.reset = function() {
     this.highlyGeneric.complex.dict.clear();
     this.highlyGeneric.complex.str = '';
     this.highlyGeneric.complex.mru.reset();
+
+    const scratch = this.retrievalScratch;
+    scratch.exceptionSet.clear();
+    scratch.specificSet.clear();
+    scratch.allSet.clear();
+    scratch.proceduralSet.clear();
+    scratch.injectedCSS.length = 0;
+    scratch.networkFilters.length = 0;
 
     this.selfieVersion = 2;
 };
@@ -753,6 +770,22 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
     request,
     options
 ) {
+    const scratch = this.retrievalScratch;
+    const {
+        exceptionSet,
+        specificSet,
+        allSet,
+        proceduralSet,
+        injectedCSS,
+        networkFilters,
+    } = scratch;
+    exceptionSet.clear();
+    specificSet.clear();
+    allSet.clear();
+    proceduralSet.clear();
+    injectedCSS.length = 0;
+    networkFilters.length = 0;
+
     const hostname = request.hostname;
     const cacheEntry = this.selectorCache.get(hostname);
 
@@ -773,12 +806,8 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
         convertedProceduralFilters: [],
         disableSurveyor: this.lowlyGeneric.size === 0,
     };
-    const injectedCSS = [];
-    const exceptionSet = new Set();
-
     if ( options.noSpecificCosmeticFiltering !== true ) {
         // Cached cosmetic filters: these are always declarative.
-        const specificSet = new Set();
         if ( cacheEntry !== undefined ) {
             cacheEntry.retrieveCosmetic(specificSet, out.genericCosmeticHashes = []);
             if ( cacheEntry.disableSurveyor ) {
@@ -786,7 +815,6 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
             }
         }
 
-        const allSet = new Set();
         // Retrieve filters with a non-empty hostname
         this.specificFilters.retrieveSpecifics(allSet, hostname);
         // Retrieve filters with a entity-based hostname value
@@ -798,7 +826,6 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
         this.specificFilters.retrieveGenerics(allSet);
 
         // Split filters in different groups
-        const proceduralSet = new Set();
         for ( const s of allSet ) {
             const selector = s.slice(1);
             if ( s.charCodeAt(0) === 0x2D /* - */ ) {
@@ -910,7 +937,6 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
 
     // CSS selectors for collapsible blocked elements
     if ( cacheEntry ) {
-        const networkFilters = [];
         if ( cacheEntry.retrieveNet(networkFilters) ) {
             details.code = `${networkFilters.join('\n')}\n{display:none!important;}`;
             if ( request.tabId !== undefined && options.dontInject !== true ) {
@@ -918,6 +944,13 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
             }
         }
     }
+
+    exceptionSet.clear();
+    specificSet.clear();
+    allSet.clear();
+    proceduralSet.clear();
+    injectedCSS.length = 0;
+    networkFilters.length = 0;
 
     return out;
 };

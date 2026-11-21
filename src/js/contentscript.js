@@ -466,6 +466,9 @@ vAPI.SafeAnimationFrame = class {
 
 vAPI.hideStyle = 'display:none!important;';
 
+const reCssBlockSeparator = /\n\n+/;
+const cssHide = `{${vAPI.hideStyle}}`;
+
 vAPI.DOMFilterer = class {
     constructor() {
         this.commitTimer = new vAPI.SafeAnimationFrame(
@@ -482,8 +485,7 @@ vAPI.DOMFilterer = class {
 
     explodeCSS(css) {
         const out = [];
-        const cssHide = `{${vAPI.hideStyle}}`;
-        const blocks = css.trim().split(/\n\n+/);
+        const blocks = css.trim().split(reCssBlockSeparator);
         for ( const block of blocks ) {
             if ( block.endsWith(cssHide) === false ) { continue; }
             out.push(block.slice(0, -cssHide.length).trim());
