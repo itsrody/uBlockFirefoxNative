@@ -215,8 +215,8 @@ export class StaticExtFilteringHostnameDB {
         }
     }
 
-    retrieveOne(hostname, domain) {
-        const out = new Map();
+    retrieveOne(hostname, domain, out = new Map()) {
+        out.clear();
         let pos = domain.indexOf('.');
         const etldLen = pos !== -1 ? domain.length - pos - 1 : 0;
         pos = 0;

@@ -138,6 +138,7 @@ const mainWrapperBegin = '(function uBO_mainWorldScriptlets() {';
 const globalsDeclPrefix = 'const $SCRIPTLET_GLOBALS$ = ';
 const wrapperEnd = '})();';
 const noContentScriptOptions = {};
+const retrieveOneScratch = new Map();
 
 /******************************************************************************/
 
@@ -194,7 +195,11 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
     getContentScripts(url, options = noContentScriptOptions) {
         const hostname = hostnameFromURI(url);
         const domain = domainFromHostname(hostname);
-        const map = this.scriptletDB.retrieveOne(hostname, domain);
+        const map = this.scriptletDB.retrieveOne(
+            hostname,
+            domain,
+            retrieveOneScratch
+        );
         makeScriptlets.reset();
         for ( const [ rawargs, details ] of map ) {
             details.args = JSON.parse(rawargs);
