@@ -232,15 +232,15 @@ export class StaticExtFilteringHostnameDB {
         if ( this.#hostnameToStringListMap.has('') ) {
             processList('*', this.#hostnameToStringListMap.get(''), out);
         }
-        for ( const [ hn, iSlot ] of this.#matcherMap ) {
+        this.#matcherMap.forEach((iSlot, hn) => {
             processList(hn, this.#matcherSlots[iSlot].iList, out);
-        }
+        });
         if ( this.#ancestorSlots === undefined ) {
             this.#ancestorSlots = [];
-            for ( const [ hn, iList ] of this.#hostnameToStringListMap ) {
-                if ( hn.endsWith('>>') === false ) { continue; }
+            this.#hostnameToStringListMap.forEach((iList, hn) => {
+                if ( hn.endsWith('>>') === false ) { return; }
                 this.#ancestorSlots.push(hn, iList);
-            }
+            });
         }
         for ( let i = 0; i < this.#ancestorSlots.length; i+=2 ) {
             processList(this.#ancestorSlots[i+0], this.#ancestorSlots[i+1], out);
