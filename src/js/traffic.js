@@ -453,16 +453,16 @@ function onBeforeBehindTheSceneRequest(fctxt) {
         ) {
             hostname = docHostname;
             pageStores.clear();
-            for ( const pageStore of µb.pageStores.values() ) {
-                if ( pageStore.tabHostname !== docHostname ) { continue; }
+            µb.pageStores.forEach(pageStore => {
+                if ( pageStore.tabHostname !== docHostname ) { return; }
                 pageStores.add(pageStore);
-            }
+            });
             pageStoresToken = µb.pageStoresToken;
             gcTimer.offon(30011);
         }
-        for ( const pageStore of pageStores ) {
+        pageStores.forEach(pageStore => {
             pageStore.journalAddRequest(fctxt, result);
-        }
+        });
     };
 }
 
@@ -639,11 +639,11 @@ const reContentTypeMime = /^[^;]+/i;
 
 function textResponseFilterer(session, directives) {
     const applied = [];
-    for ( const directive of directives ) {
-        if ( directive.refs instanceof Object === false ) { continue; }
+    directives.forEach(directive => {
+        if ( directive.refs instanceof Object === false ) { return; }
         if ( directive.result !== 1 ) {
             applied.push(directive);
-            continue;
+            return;
         }
         const { refs } = directive;
         if ( refs.$cache !== null ) {
@@ -656,7 +656,7 @@ function textResponseFilterer(session, directives) {
             refs.$cache = sfp.parseReplaceValue(refs.value);
         }
         const cache = refs.$cache;
-        if ( cache === undefined ) { continue; }
+        if ( cache === undefined ) { return; }
         switch ( cache.type ) {
         case 'json': {
             const json = session.getString();
@@ -671,20 +671,20 @@ function textResponseFilterer(session, directives) {
         case 'jsonl': {
             const linesBefore = session.getString().split(/\n+/);
             const linesAfter = [];
-            for ( const lineBefore of linesBefore ) {
+            linesBefore.forEach(lineBefore => {
                 let obj;
                 try { obj = JSON.parse(lineBefore); } catch { }
                 if ( typeof obj !== 'object' || obj === null ) {
                     linesAfter.push(lineBefore);
-                    continue;
+                    return;
                 }
                 const objAfter = cache.jsonp.apply(obj);
                 if ( objAfter === undefined ) {
                     linesAfter.push(lineBefore);
-                    continue;
+                    return;
                 }
                 linesAfter.push(cache.jsonp.toJSON(objAfter));
-            }
+            });
             session.setString(linesAfter.join('\n'));
             break;
         }
@@ -702,7 +702,7 @@ function textResponseFilterer(session, directives) {
         default:
             break;
         }
-    }
+    });
     if ( applied.length === 0 ) { return; }
     if ( logger.enabled !== true ) { return; }
     session.setRealm('network')
@@ -1251,11 +1251,11 @@ const strictBlockBypasser = {
     }),
 
     cleanup: function() {
-        for ( const [ hostname, deadline ] of this.hostnameToDeadlineMap ) {
+        this.hostnameToDeadlineMap.forEach((deadline, hostname) => {
             if ( deadline <= Date.now() ) {
                 this.hostnameToDeadlineMap.delete(hostname);
             }
-        }
+        });
     },
 
     revokeTime: function() {
