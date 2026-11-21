@@ -184,6 +184,16 @@ export function addFrame(details) {
     }, ( ) => { });
 }
 
+// Firefox webRequest is the authoritative source for request-driven frame
+// state. Keep its details-to-frame translation in one narrow adapter instead
+// of repeating the guard at each consumer.
+export function addFrameFromWebRequest(details) {
+    if ( details.tabId === TAB_ID_NONE ) { return; }
+    const { type } = details;
+    if ( type !== 'main_frame' && type !== 'sub_frame' ) { return; }
+    addFrame(details);
+}
+
 export function isHTTP(url) {
     return reIsHTTP.test(url);
 }

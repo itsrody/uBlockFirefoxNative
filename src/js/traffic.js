@@ -100,14 +100,6 @@ function onBeforeRequest(details) {
     }
 
     // Not blocked
-    if (
-        fctxt.itype === fctxt.SUB_FRAME &&
-        details.parentFrameId !== -1 &&
-        details.aliasURL === undefined
-    ) {
-        frameManager.addFrame(details);
-    }
-
     if ( result === 2 ) {
         return { cancel: false };
     }

@@ -1004,12 +1004,7 @@ vAPI.Net = class {
 
         webext.webRequest.onBeforeRequest.addListener(
             details => {
-                if ( details.tabId !== frameManager.TAB_ID_NONE ) {
-                    const { type } = details;
-                    if ( type === 'main_frame' || type === 'sub_frame' ) {
-                        frameManager.addFrame(details);
-                    }
-                }
+                frameManager.addFrameFromWebRequest(details);
                 this.normalizeDetails(details);
                 if ( this.suspendDepth !== 0 && details.tabId >= 0 ) {
                     return this.suspendOneRequest(details);
