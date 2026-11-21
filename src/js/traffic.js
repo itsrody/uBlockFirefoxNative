@@ -1291,6 +1291,7 @@ const strictBlockBypasser = {
 
 // Capture request headers only while at least one $requestheader filter is
 // compiled. The manager is re-synced whenever filtering behavior changes.
+const noRequestHeaders = [];
 const requestHeadersManager = {
     requests: new Map(),
     listening: false,
@@ -1330,7 +1331,7 @@ const requestHeadersManager = {
         this.listening = needed;
     },
     lookup(details) {
-        return this.requests.get(details.requestId) || [];
+        return this.requests.get(details.requestId) || noRequestHeaders;
     }
 };
 

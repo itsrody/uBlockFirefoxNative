@@ -231,20 +231,34 @@ class TopDetails extends HostnameDetails {
 const $topDetails = new TopDetails();
 
 const $httpHeaders = {
-    init(...headers) {
-        this.headers = headers.flat();
+    init(responseHeaders, requestHeaders) {
+        const headers = this.headers;
+        let n = 0;
+        for ( let i = 0; i < responseHeaders.length; i++ ) {
+            headers[n++] = responseHeaders[i];
+        }
+        for ( let i = 0; i < requestHeaders.length; i++ ) {
+            headers[n++] = requestHeaders[i];
+        }
+        headers.length = n;
         this.parsed.clear();
     },
     reset() {
-        this.headers = [];
+        this.headers.length = 0;
         this.parsed.clear();
     },
     lookup(name) {
         let value = this.parsed.get(name);
         if ( value === undefined ) {
             const headers = this.headers;
-            const i = headers.findIndex(a => name === a.name.toLowerCase());
-            value = i !== -1 ? headers[i].value : null;
+            for ( let i = 0; i < headers.length; i++ ) {
+                const header = headers[i];
+                if ( name === header.name.toLowerCase() ) {
+                    value = header.value;
+                    break;
+                }
+            }
+            if ( value === undefined ) { value = null; }
             this.parsed.set(name, value);
         }
         return value ?? undefined;
@@ -5887,7 +5901,11 @@ StaticNetFilteringEngine.prototype.matchRequest = function(fctxt, modifiers = 0)
 
 /******************************************************************************/
 
-StaticNetFilteringEngine.prototype.matchHeaders = function(fctxt, ...headers) {
+StaticNetFilteringEngine.prototype.matchHeaders = function(
+    fctxt,
+    responseHeaders,
+    requestHeaders
+) {
     if ( this.notReady || this.hasHeaderRealmFilters() === false ) { return 0; }
 
     const typeBits = getTypeBits(fctxt) || otherTypeBitValue;
@@ -5895,7 +5913,7 @@ StaticNetFilteringEngine.prototype.matchHeaders = function(fctxt, ...headers) {
 
     resetRegisters(fctxt, typeBits);
 
-    $httpHeaders.init(...headers);
+    $httpHeaders.init(responseHeaders, requestHeaders);
 
     this.$filterUnit = 0;
 

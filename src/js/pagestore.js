@@ -714,12 +714,16 @@ const PageStore = class {
         return result;
     }
 
-    filterOnHeaders(fctxt, isTrusted, ...headers) {
+    filterOnHeaders(fctxt, isTrusted, responseHeaders, requestHeaders) {
         fctxt.filter = undefined;
 
         if ( isTrusted ) { return 0; }
 
-        let result = staticNetFilteringEngine.matchHeaders(fctxt, ...headers);
+        let result = staticNetFilteringEngine.matchHeaders(
+            fctxt,
+            responseHeaders,
+            requestHeaders
+        );
         if ( result === 0 ) { return 0; }
 
         const loggerEnabled = logger.enabled;
