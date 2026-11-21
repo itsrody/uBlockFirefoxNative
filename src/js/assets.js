@@ -21,11 +21,15 @@
 
 import * as sfp from './static-filtering-parser.js';
 
+import {
+    extractMetadataFromList,
+    isDiffUpdatableAsset,
+    resourceTimeFromXhr,
+} from './filter-list-metadata.js';
 import { broadcast } from './broadcast.js';
 import cacheStorage from './cachestorage.js';
 import { i18n$ } from './i18n.js';
 import logger from './logger.js';
-import { orphanizeString } from './text-utils.js';
 import { ubolog } from './console.js';
 import µb from './background.js';
 
@@ -49,57 +53,7 @@ let remoteServerFriendly = false;
 
 const stringIsNotEmpty = s => typeof s === 'string' && s !== '';
 
-const parseExpires = s => {
-    const matches = s.match(/(\d+)\s*([wdhm]?)/i);
-    if ( matches === null ) { return; }
-    let updateAfter = parseInt(matches[1], 10);
-    if ( updateAfter === 0 ) { return; }
-    if ( matches[2] === 'w' ) {
-        updateAfter *= 7 * 24;
-    } else if ( matches[2] === 'h' ) {
-        updateAfter = Math.max(updateAfter, 4) / 24;
-    } else if ( matches[2] === 'm' ) {
-        updateAfter = Math.max(updateAfter, 240) / 1440;
-    }
-    return updateAfter;
-};
-
-const extractMetadataFromList = (content, fields) => {
-    const out = {};
-    const head = content.slice(0, 1024);
-    fields.forEach(rawField => {
-        const field = rawField.replace(/\s+/g, '-');
-        const re = new RegExp(`^(?:! *|# +)${field.replace(/-/g, '(?: +|-)')}: *(.+)$`, 'im');
-        const match = re.exec(head);
-        let value = match && match[1].trim() || undefined;
-        if ( value !== undefined && value.startsWith('%') ) {
-            value = undefined;
-        }
-        out[field.toLowerCase().replace(
-            /-[a-z]/g, s => s.charAt(1).toUpperCase()
-        )] = value && orphanizeString(value);
-    });
-    // Pre-process known fields
-    if ( out.lastModified ) {
-        out.lastModified = (new Date(out.lastModified)).getTime() || 0;
-    }
-    if ( out.expires ) {
-        out.expires = parseExpires(out.expires);
-    }
-    if ( out.diffExpires ) {
-        out.diffExpires = parseExpires(out.diffExpires);
-    }
-    return out;
-};
 assets.extractMetadataFromList = extractMetadataFromList;
-
-const resourceTimeFromXhr = xhr => {
-    if ( typeof xhr.response !== 'string' ) {  return 0; }
-    const metadata = extractMetadataFromList(xhr.response, [
-        'Last-Modified'
-    ]);
-    return metadata.lastModified || 0;
-};
 
 const resourceTimeFromParts = (parts, time) => {
     const goodParts = parts.filter(part => typeof part === 'object');
@@ -144,15 +98,6 @@ const getWriteTime = assetKey => {
     const entry = assetCacheRegistry[assetKey];
     if ( entry ) { return entry.writeTime || 0; }
     return 0;
-};
-
-const isDiffUpdatableAsset = content => {
-    if ( typeof content !== 'string' ) { return false; }
-    const data = extractMetadataFromList(content, [
-        'Diff-Path',
-    ]);
-    return typeof data.diffPath === 'string' &&
-        data.diffPath.startsWith('%') === false;
 };
 
 const computedPatchUpdateTime = assetKey => {

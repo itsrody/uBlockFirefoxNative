@@ -35,6 +35,7 @@ import {
 import { ubolog, ubologSet } from './console.js';
 
 import cosmeticFilteringEngine from './cosmetic-filtering.js';
+import { extractMetadataFromList } from './filter-list-metadata.js';
 import { getTrustedTokens } from './trusted-tokens.js';
 import { hostnameFromURI } from './uri-utils.js';
 import io from './assets.js';
@@ -1062,7 +1063,7 @@ onBroadcast(msg => {
     // https://github.com/gorhill/uBlock/issues/313
     // Always try to fetch the name if this is an external filter list.
     if ( listEntry.group !== 'custom' ) { return; }
-    const data = io.extractMetadataFromList(raw, [ 'Title', 'Homepage' ]);
+    const data = extractMetadataFromList(raw, [ 'Title', 'Homepage' ]);
     const props = {};
     if ( data.title && data.title !== listEntry.title ) {
         props.title = listEntry.title = orphanizeString(data.title);
