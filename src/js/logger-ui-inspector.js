@@ -189,11 +189,11 @@ const renderDOMFull = response => {
 
     let lvl = 0;
     let li;
-    for ( const entry of response.layout ) {
+    response.layout.forEach(entry => {
         if ( entry.lvl === lvl ) {
             li = nodeFromDomEntry(entry);
             appendListItem(ul, li);
-            continue;
+            return;
         }
         if ( entry.lvl > lvl ) {
             ul = document.createElement('ul');
@@ -202,7 +202,7 @@ const renderDOMFull = response => {
             li = nodeFromDomEntry(entry);
             appendListItem(ul, li);
             lvl = entry.lvl;
-            continue;
+            return;
         }
         // entry.lvl < lvl
         while ( entry.lvl < lvl ) {
@@ -213,7 +213,7 @@ const renderDOMFull = response => {
         }
         li = nodeFromDomEntry(entry);
         appendListItem(ul, li);
-    }
+    });
     while ( ul.parentNode !== null ) {
         ul = ul.parentNode;
     }
@@ -255,19 +255,19 @@ const renderDOMIncremental = response => {
     const nodes = new Map(response.nodes);
     let li = null;
     let ul = null;
-    for ( const entry of response.journal ) {
+    response.journal.forEach(entry => {
         // Remove node
         if ( entry.what === -1 ) {
             li = qs$(`#${entry.nid}`);
-            if ( li === null ) { continue; }
+            if ( li === null ) { return; }
             patchIncremental(li, -1);
             li.parentNode.removeChild(li);
-            continue;
+            return;
         }
         // Modify node
         if ( entry.what === 0 ) {
             // TODO: update selector/filter
-            continue;
+            return;
         }
         // Add node as sibling
         if ( entry.what === 1 && entry.l ) {
@@ -275,13 +275,13 @@ const renderDOMIncremental = response => {
             // This should not happen
             if ( previous === null ) {
                 // throw new Error('No left sibling!?');
-                continue;
+                return;
             }
             ul = previous.parentElement;
             li = nodeFromDomEntry(nodes.get(entry.nid));
             ul.insertBefore(li, previous.nextElementSibling);
             patchIncremental(li, 1);
-            continue;
+            return;
         }
         // Add node as child
         if ( entry.what === 1 && entry.u ) {
@@ -289,7 +289,7 @@ const renderDOMIncremental = response => {
             // This should not happen
             if ( li === null ) {
                 // throw new Error('No parent!?');
-                continue;
+                return;
             }
             ul = qs$(li, 'ul');
             if ( ul === null ) {
@@ -300,9 +300,8 @@ const renderDOMIncremental = response => {
             li = nodeFromDomEntry(nodes.get(entry.nid));
             ul.appendChild(li);
             patchIncremental(li, 1);
-            continue;
         }
-    }
+    });
 };
 
 /******************************************************************************/
@@ -609,19 +608,19 @@ const onTabIdChanged = ( ) => {
 
 const toggleVExpandView = ( ) => {
     const branches = qsa$('#domTree li.branch.show > ul > li.branch:not(.show)');
-    for ( const branch of branches ) {
+    branches.forEach(branch => {
         dom.cl.add(branch, 'show');
-    }
+    });
 };
 
 const toggleVCompactView = ( ) => {
     const branches = qsa$('#domTree li.branch.show > ul > li:not(.show)');
     const tohideSet = new Set();
-    for ( const branch of branches ) {
+    branches.forEach(branch => {
         const node = branch.closest('li.branch.show');
-        if ( node.id === 'n1' ) { continue; }
+        if ( node.id === 'n1' ) { return; }
         tohideSet.add(node);
-    }
+    });
     const tohideList = Array.from(tohideSet);
     let i = tohideList.length - 1;
     while ( i > 0 ) {
@@ -632,9 +631,9 @@ const toggleVCompactView = ( ) => {
         }
         i -= 1;
     }
-    for ( const node of tohideList ) {
+    tohideList.forEach(node => {
         dom.cl.remove(node, 'show');
-    }
+    });
 };
 
 const toggleHCompactView = ( ) => {
