@@ -314,6 +314,13 @@ export const FilteringContext = class {
         return this.setDocOrigin(originFromURI(a));
     }
 
+    setDocOriginResolved(origin, hostname) {
+        const changed = origin !== this.docOrigin;
+        this.setDocOrigin(origin);
+        if ( changed ) { this.docHostname = hostname; }
+        return this;
+    }
+
     getDocHostname() {
         if ( this.docHostname === undefined ) {
             this.docHostname = hostnameFromURI(this.getDocOrigin());
@@ -387,6 +394,13 @@ export const FilteringContext = class {
 
     setTabOriginFromURL(a) {
         return this.setTabOrigin(originFromURI(a));
+    }
+
+    setTabOriginResolved(origin, hostname) {
+        const changed = origin !== this.tabOrigin;
+        this.setTabOrigin(origin);
+        if ( changed ) { this.tabHostname = hostname; }
+        return this;
     }
 
     getTabHostname() {

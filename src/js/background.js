@@ -266,6 +266,34 @@ const µBlock = {  // jshint ignore:line
 µBlock.domainFromHostname = domainFromHostname;
 µBlock.hostnameFromURI = hostnameFromURI;
 
+// Web requests repeatedly derive the same origin and hostname from the same
+// tab/document URL. Keep a small bounded cache so those pure conversions are
+// performed once per URL rather than once per request.
+const ORIGIN_DETAILS_CACHE_LIMIT = 512;
+
+const makeOriginDetailsCache = normalizer => {
+    const cache = new Map();
+    return url => {
+        const cached = cache.get(url);
+        if ( cached !== undefined ) { return cached; }
+        const origin = originFromURI(normalizer(url));
+        const details = {
+            origin,
+            hostname: hostnameFromURI(origin),
+        };
+        if ( cache.size === ORIGIN_DETAILS_CACHE_LIMIT ) {
+            cache.delete(cache.keys().next().value);
+        }
+        cache.set(url, details);
+        return details;
+    };
+};
+
+const getNormalizedOriginDetails = makeOriginDetailsCache(
+    url => µBlock.normalizeTabURL(0, url)
+);
+const getRawOriginDetails = makeOriginDetailsCache(url => url);
+
 µBlock.FilteringContext = class extends FilteringContext {
     duplicate() {
         return (new µBlock.FilteringContext(this));
@@ -274,14 +302,16 @@ const µBlock = {  // jshint ignore:line
     fromTabId(tabId, tabUrl) {
         this.tabId = tabId;
         const url = tabUrl ?? frameManager.getTopURL(tabId) ?? 'https://behind-the-scene/';
-        this.setTabOriginFromURL(µBlock.normalizeTabURL(0, url));
+        const details = getNormalizedOriginDetails(url);
+        this.setTabOriginResolved(details.origin, details.hostname);
         return this;
     }
 
     maybeFromDocumentURL(documentUrl) {
         if ( documentUrl === undefined ) { return; }
         if ( documentUrl.startsWith(this.getTabOrigin()) ) { return; }
-        this.setTabOrigin(originFromURI(µBlock.normalizeTabURL(0, documentUrl)));
+        const details = getNormalizedOriginDetails(documentUrl);
+        this.setTabOriginResolved(details.origin, details.hostname);
     }
 
     // https://github.com/uBlockOrigin/uBlock-issues/issues/459
@@ -313,22 +343,23 @@ const µBlock = {  // jshint ignore:line
                 return this;
             }
             if ( details.documentUrl !== undefined ) {
-                this.setDocOriginFromURL(details.documentUrl);
+                const cached = getRawOriginDetails(details.documentUrl);
+                this.setDocOriginResolved(cached.origin, cached.hostname);
                 return this;
             }
             const url = frameManager.getEffectiveURL(this.tabId, this.docId);
             if ( url ) {
-                this.setDocOriginFromURL(url);
+                const cached = getRawOriginDetails(url);
+                this.setDocOriginResolved(cached.origin, cached.hostname);
             } else {
                 this.setDocOrigin(this.tabOrigin);
             }
             return this;
         }
         if ( details.documentUrl !== undefined ) {
-            const origin = originFromURI(
-                µBlock.normalizeTabURL(0, details.documentUrl)
-            );
-            this.setDocOrigin(origin).setTabOrigin(origin);
+            const cached = getNormalizedOriginDetails(details.documentUrl);
+            this.setDocOriginResolved(cached.origin, cached.hostname)
+                .setTabOriginResolved(cached.origin, cached.hostname);
             return this;
         }
         const origin = this.isDocument()
