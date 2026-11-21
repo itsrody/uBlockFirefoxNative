@@ -566,7 +566,6 @@ let   filterClassIdGenerator = 0;
 const registerFilterClass = fc => {
     const fid = filterClassIdGenerator++;
     fc.fid = fid;
-    fc.fidstr = `${fid}`;
     filterClasses[fid] = fc;
 };
 
@@ -576,11 +575,16 @@ const filterFromCompiled = args => {
     if ( keygen === undefined ) {
         return fc.fromCompiled(args);
     }
-    const key = `${fc.fidstr} ${(keygen(args) || '')}`;
-    let idata = filterArgsToUnit.get(key);
+    let units = filterArgsToUnit.get(args[0]);
+    if ( units === undefined ) {
+        units = new Map();
+        filterArgsToUnit.set(args[0], units);
+    }
+    const key = keygen(args) || '';
+    let idata = units.get(key);
     if ( idata !== undefined ) { return idata; }
     idata = fc.fromCompiled(args);
-    filterArgsToUnit.set(key, idata);
+    units.set(key, idata);
     return idata;
 };
 
@@ -4539,7 +4543,12 @@ const compiledHasRequestHeaderFilter = args => {
         fc !== undefined &&
         (args[0] === FilterCollection.fid || fc.prototype instanceof FilterCollection);
     if ( isCollection === false || Array.isArray(args[1]) === false ) { return false; }
-    return args[1].some(unit => compiledHasRequestHeaderFilter(unit));
+    const units = args[1];
+    for ( let i = 0; i < units.length; i++ ) {
+        if ( i in units === false ) { continue; }
+        if ( compiledHasRequestHeaderFilter(units[i]) ) { return true; }
+    }
+    return false;
 };
 
 /******************************************************************************/
@@ -4557,9 +4566,11 @@ const collectCompiledModifierTypes = (args, types) => {
         fc !== undefined &&
         (args[0] === FilterCollection.fid || fc.prototype instanceof FilterCollection);
     if ( isCollection === false || Array.isArray(args[1]) === false ) { return; }
-    args[1].forEach(unit => {
-        collectCompiledModifierTypes(unit, types);
-    });
+    const units = args[1];
+    for ( let i = 0; i < units.length; i++ ) {
+        if ( i in units === false ) { continue; }
+        collectCompiledModifierTypes(units[i], types);
+    }
 };
 
 /******************************************************************************/
@@ -4785,9 +4796,7 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
         reader.select('NETWORK_FILTERS:GOOD');
         while ( reader.next() ) {
             context.filterCount += 1;
-            if ( context.good.has(reader.line) === false ) {
-                context.good.add(reader.line);
-            }
+            context.good.add(reader.line);
         }
         reader.select('NETWORK_FILTERS:BAD');
         while ( reader.next() ) {
@@ -4814,10 +4823,11 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
         const tokenHash = args[1];
         const fdata = args[2];
 
-        if ( buckets.has(bits) === false ) {
-            buckets.set(bits, new Map());
+        let bucket = buckets.get(bits);
+        if ( bucket === undefined ) {
+            bucket = new Map();
+            buckets.set(bits, bucket);
         }
-        const bucket = buckets.get(bits);
 
         switch ( tokenHash ) {
         case DOT_TOKEN_HASH: {

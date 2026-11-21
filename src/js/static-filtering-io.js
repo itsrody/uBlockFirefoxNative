@@ -32,6 +32,15 @@ const unserialize = JSON.parse;
 const blockStartPrefix = '#block-start-';  // ensure no special regex characters
 const blockEndPrefix = '#block-end-';      // ensure no special regex characters
 
+const isLineTerminator = c =>
+    c === 0x0A || c === 0x0D || c === 0x2028 || c === 0x2029;
+
+const isBlockIdChar = c =>
+    (c >= 0x30 && c <= 0x39) ||
+    (c >= 0x41 && c <= 0x5A) ||
+    (c >= 0x61 && c <= 0x7A) ||
+    c === 0x5F || c === 0x3A;
+
 class CompiledListWriter {
     constructor() {
         this.blockId = undefined;
@@ -43,9 +52,10 @@ class CompiledListWriter {
         this.block.push(serialize(args));
     }
     pushMany(many) {
-        many.forEach(args => {
-            this.block.push(serialize(args));
-        });
+        for ( let i = 0; i < many.length; i++ ) {
+            if ( i in many === false ) { continue; }
+            this.block.push(serialize(many[i]));
+        }
     }
     last() {
         if ( Array.isArray(this.block) && this.block.length !== 0 ) {
@@ -63,16 +73,17 @@ class CompiledListWriter {
     }
     toString() {
         const result = [];
-        const sortedBlocks =
-            Array.from(this.blocks).sort((a, b) => a[0] - b[0]);
-        sortedBlocks.forEach(([ id, lines ]) => {
-            if ( lines.length === 0 ) { return; }
+        const sortedIds = Array.from(this.blocks.keys()).sort((a, b) => a - b);
+        for ( let i = 0; i < sortedIds.length; i++ ) {
+            const id = sortedIds[i];
+            const lines = this.blocks.get(id);
+            if ( lines.length === 0 ) { continue; }
             result.push(
                 blockStartPrefix + id,
                 lines.join('\n'),
                 blockEndPrefix + id
             );
-        });
+        }
         return result.join('\n');
     }
     static serialize(arg) {
@@ -88,15 +99,28 @@ class CompiledListReader {
         this.line = '';
         this.blocks = new Map();
         this.properties = new Map();
-        const reBlockStart = new RegExp(`^${blockStartPrefix}([\\w:]+)\\n`, 'gm');
-        let match = reBlockStart.exec(raw);
-        while ( match !== null ) {
-            const sectionId = match[1];
-            const beg = match.index + match[0].length;
+        let pos = 0;
+        for (;;) {
+            const at = raw.indexOf(blockStartPrefix, pos);
+            if ( at === -1 ) { break; }
+            if ( at !== 0 && isLineTerminator(raw.charCodeAt(at - 1)) === false ) {
+                pos = at + 1;
+                continue;
+            }
+            const idBeg = at + blockStartPrefix.length;
+            let idEnd = idBeg;
+            while ( idEnd < raw.length && isBlockIdChar(raw.charCodeAt(idEnd)) ) {
+                idEnd += 1;
+            }
+            if ( idEnd === idBeg || raw.charCodeAt(idEnd) !== 0x0A ) {
+                pos = at + 1;
+                continue;
+            }
+            const sectionId = raw.slice(idBeg, idEnd);
+            const beg = idEnd + 1;
             const end = raw.indexOf(blockEndPrefix + sectionId, beg);
             this.blocks.set(sectionId, raw.slice(beg, end));
-            reBlockStart.lastIndex = end;
-            match = reBlockStart.exec(raw);
+            pos = end;
         }
         if ( blockId !== undefined ) {
             this.select(blockId);

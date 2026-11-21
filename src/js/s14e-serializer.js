@@ -277,6 +277,8 @@ const textCodec = {
 
 const isInteger = Number.isInteger;
 
+const objectToString = Object.prototype.toString;
+
 const writeRefs = new Map();
 const writeBuffer = [];
 
@@ -299,7 +301,7 @@ const uint8InputFromAsciiStr = s => {
 
 const isInstanceOf = (o, s) => {
     return typeof o === 'object' && o !== null && (
-        s === 'Object' || Object.prototype.toString.call(o) === `[object ${s}]`
+        s === 'Object' || objectToString.call(o) === `[object ${s}]`
     );
 };
 
@@ -604,7 +606,7 @@ const _serialize = data => {
     default:
         return;
     }
-    const xtypeName = Object.prototype.toString.call(data);
+    const xtypeName = objectToString.call(data);
     const xtypeInt = xtypeToSerializedInt[xtypeName];
     if ( xtypeInt === I_REGEXP ) {
         writeBuffer.push(C_REGEXP);
@@ -771,16 +773,17 @@ const _deserialize = ( ) => {
     case I_OBJECT_LARGE: {
         const out = {};
         readRefs.set(refCounter++, out);
-        const entries = [];
+        const entries = new Map();
         const size = type === I_OBJECT_SMALL
             ? charCodeToInt[readStr.charCodeAt(readPtr++)]
             : deserializeLargeUint();
         for ( let i = 0; i < size; i++ ) {
             const k = _deserialize();
-            const v = _deserialize();
-            entries.push([ k, v ]);
+            entries.set(k, _deserialize());
         }
-        Object.assign(out, Object.fromEntries(entries));
+        for ( const [ k, v ] of entries ) {
+            out[k] = v;
+        }
         return out;
     }
     case I_ARRAY_SMALL:
@@ -1076,8 +1079,7 @@ class LZ4BlockJS {
 export const serialize = (data, options = {}) => {
     refCounter = 1;
     _serialize(data);
-    writeBuffer.unshift(MAGICPREFIX);
-    const s = writeBuffer.join('');
+    const s = MAGICPREFIX + writeBuffer.join('');
     writeRefs.clear();
     writeBuffer.length = 0;
     if ( shouldCompress(s, options) === false ) { return s; }
@@ -1090,8 +1092,7 @@ export const serialize = (data, options = {}) => {
     };
     refCounter = 1;
     _serialize(lz4);
-    writeBuffer.unshift(MAGICLZ4PREFIX);
-    const t = writeBuffer.join('');
+    const t = MAGICLZ4PREFIX + writeBuffer.join('');
     writeRefs.clear();
     writeBuffer.length = 0;
     const ratio = t.length / s.length;
@@ -1117,7 +1118,7 @@ export const deserialize = s => {
             const lz4Util = new LZ4BlockJS();
             const uint8ArrayAfter = lz4Util.decode(lz4.data, 0, lz4.size);
             if ( uint8ArrayAfter ) {
-                s = textCodec.decode(new Uint8Array(uint8ArrayAfter));
+                s = textCodec.decode(uint8ArrayAfter);
             }
         }
     }
