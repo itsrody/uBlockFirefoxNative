@@ -35,6 +35,19 @@ import './tab.js';
 import './ublock.js';
 import './utils.js';
 
+import {
+    permanentFirewall,
+    permanentSwitches,
+    permanentURLFiltering,
+    sessionFirewall,
+    sessionSwitches,
+    sessionURLFiltering,
+} from './filtering-engines.js';
+
+import io from './assets.js';
+import staticExtFilteringEngine from './static-ext-filtering.js';
+import { staticFilteringReverseLookup } from './reverselookup.js';
+import staticNetFilteringEngine from './static-net-filtering.js';
 import µb from './background.js';
 
 /******************************************************************************/
@@ -44,3 +57,16 @@ vAPI.tabs = new vAPI.Tabs();
 vAPI.alarms.onAlarm.addListener(alarm => {
     µb.alarmQueue.push(alarm.name);
 });
+
+vAPI.app.onShutdown = ( ) => {
+    staticFilteringReverseLookup.shutdown();
+    io.updateStop();
+    staticNetFilteringEngine.reset();
+    staticExtFilteringEngine.reset();
+    sessionFirewall.reset();
+    permanentFirewall.reset();
+    sessionURLFiltering.reset();
+    permanentURLFiltering.reset();
+    sessionSwitches.reset();
+    permanentSwitches.reset();
+};
