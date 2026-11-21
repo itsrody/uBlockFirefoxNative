@@ -638,6 +638,12 @@ const exCharCodeAt = (s, i) => {
     return pos >= 0 ? s.charCodeAt(pos) : -1;
 };
 
+const isFilterWhitespaceChar = c =>
+    (c >= 0x09 && c <= 0x0D) || c === 0x20 || c === 0xA0 ||
+    c === 0x1680 || (c >= 0x2000 && c <= 0x200A) ||
+    c === 0x2028 || c === 0x2029 || c === 0x202F ||
+    c === 0x205F || c === 0x3000 || c === 0xFEFF;
+
 const reEscapeForRegex = /[.*+?^${}()|[\]\\]/g;
 const reWrappedRegex = /^\/.+\/$/;
 const reRegexWithOptionalI = /^\/(.+)\/(i)?$/;
@@ -804,8 +810,6 @@ export class AstFilterParser {
         this.result = { exception: false, raw: '', compiled: '', error: undefined };
         this.selectorCompiler = new ExtSelectorCompiler(options);
         // Regexes
-        this.reWhitespaceStart = /^\s+/;
-        this.reWhitespaceEnd = /(?:^|\S)(\s+)$/;
         this.reCommentLine = /^(?:!|#\s|####|\[adblock)/i;
         this.reExtAnchor = /(#@?(?:\$\?|\$|%|\?)?#).{1,2}/;
         this.reInlineComment = /(?:\s+#).*?$/;
@@ -2839,13 +2843,16 @@ export class AstFilterParser {
     }
 
     leftWhitespaceCount(s) {
-        const match = this.reWhitespaceStart.exec(s);
-        return match === null ? 0 : match[0].length;
+        let i = 0;
+        const n = s.length;
+        while ( i < n && isFilterWhitespaceChar(s.charCodeAt(i)) ) { i += 1; }
+        return i;
     }
 
     rightWhitespaceCount(s) {
-        const match = this.reWhitespaceEnd.exec(s);
-        return match === null ? 0 : match[1].length;
+        let i = s.length;
+        while ( i > 0 && isFilterWhitespaceChar(s.charCodeAt(i - 1)) ) { i -= 1; }
+        return s.length - i;
     }
 
     nextCommaInCommaSeparatedListString(s, start) {
@@ -4241,6 +4248,13 @@ export const proceduralOperatorTokens = new Map([
 
 /******************************************************************************/
 
+const rePreparserExprTokens = /(?:(?:&&|\|\|)\s+)?\S+/g;
+const rePreparserExprSpaces = / +/;
+const rePreparserIf = /^!#(if|else|endif)\b([^\n]*)(?:[\n\r]+|$)/gm;
+const rePreparserInclude = /^!#include +(\S+)[^\n\r]*(?:[\n\r]+|$)/gm;
+
+/******************************************************************************/
+
 export const utils = (( ) => {
 
     // Filter-list compatibility tokens. Historical browser names select
@@ -4307,12 +4321,14 @@ export const utils = (( ) => {
             if ( expr.startsWith('(') && expr.endsWith(')') ) {
                 expr = expr.slice(1, -1);
             }
-            const matches = Array.from(expr.matchAll(/(?:(?:&&|\|\|)\s+)?\S+/g));
-            if ( matches.length === 0 ) { return; }
-            if ( matches[0][0].startsWith('|') || matches[0][0].startsWith('&') ) { return; }
-            let result = this.evaluateExprToken(matches[0][0], env);
-            for ( let i = 1; i < matches.length; i++ ) {
-                const parts = matches[i][0].split(/ +/);
+            const iter = expr.matchAll(rePreparserExprTokens);
+            const first = iter.next();
+            if ( first.done ) { return; }
+            const token0 = first.value[0];
+            if ( token0.startsWith('|') || token0.startsWith('&') ) { return; }
+            let result = this.evaluateExprToken(token0, env);
+            for ( const match of iter ) {
+                const parts = match[0].split(rePreparserExprSpaces);
                 if ( parts.length !== 2 ) { return; }
                 const state = this.evaluateExprToken(parts[1], env);
                 if ( state === undefined ) { return; }
@@ -4330,12 +4346,17 @@ export const utils = (( ) => {
         // This method returns an array of indices, corresponding to position in
         // the content string which should alternatively be parsed and discarded.
         static splitter(content, env = []) {
-            const reIf = /^!#(if|else|endif)\b([^\n]*)(?:[\n\r]+|$)/gm;
+            rePreparserIf.lastIndex = 0;
             const stack = [];
             const parts = [ 0 ];
             let discard = false;
 
-            const shouldDiscard = ( ) => stack.some(v => v.known && v.discard);
+            const shouldDiscard = ( ) => {
+                for ( const v of stack ) {
+                    if ( v.known && v.discard ) { return true; }
+                }
+                return false;
+            };
 
             const begif = details => {
                 if ( discard === false && details.known && details.discard ) {
@@ -4355,7 +4376,7 @@ export const utils = (( ) => {
             };
 
             for (;;) {
-                const match = reIf.exec(content);
+                const match = rePreparserIf.exec(content);
                 if ( match === null ) { break; }
 
                 switch ( match[1] ) {
@@ -4391,8 +4412,8 @@ export const utils = (( ) => {
         }
 
         static expandIncludes(parts, env = []) {
+            rePreparserInclude.lastIndex = 0;
             const out = [];
-            const reInclude = /^!#include +(\S+)[^\n\r]*(?:[\n\r]+|$)/gm;
             for ( const part of parts ) {
                 if ( typeof part === 'string' ) {
                     out.push(part);
@@ -4406,7 +4427,7 @@ export const utils = (( ) => {
                     const slice = content.slice(slices[i+0], slices[i+1]);
                     let lastIndex = 0;
                     for (;;) {
-                        const match = reInclude.exec(slice);
+                        const match = rePreparserInclude.exec(slice);
                         if ( match === null ) { break; }
                         if ( toURL(match[1]) !== undefined ) { continue; }
                         if ( match[1].indexOf('..') !== -1 ) { continue; }
@@ -4420,7 +4441,7 @@ export const utils = (( ) => {
                             { url: subURL },
                             `! <<<<<<<< ${subURL}\n`
                         );
-                        lastIndex = reInclude.lastIndex;
+                        lastIndex = rePreparserInclude.lastIndex;
                     }
                     out.push(lastIndex === 0 ? slice : slice.slice(lastIndex));
                 }

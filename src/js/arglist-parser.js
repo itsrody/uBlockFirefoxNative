@@ -22,6 +22,19 @@
 /******************************************************************************/
 
 export class ArglistParser {
+    static isWhitespace(c) {
+        return (c >= 0x09 && c <= 0x0D) || c === 0x20 || c === 0xA0 ||
+            c === 0x1680 || (c >= 0x2000 && c <= 0x200A) ||
+            c === 0x2028 || c === 0x2029 || c === 0x202F ||
+            c === 0x205F || c === 0x3000 || c === 0xFEFF;
+    }
+
+    static trailingBackslashes(s, end) {
+        let i = end;
+        while ( i > 0 && s.charCodeAt(i - 1) === 0x5C /* '\\' */ ) { i -= 1; }
+        return end - i;
+    }
+
     constructor(separatorChar = ',', mustQuote = false) {
         this.separatorChar = this.actualSeparatorChar = separatorChar;
         this.separatorCode = this.actualSeparatorCode = separatorChar.charCodeAt(0);
@@ -31,14 +44,11 @@ export class ArglistParser {
         this.separatorBeg = 0; this.separatorEnd = 0;
         this.transform = false;
         this.failed = false;
-        this.reWhitespaceStart = /^\s+/;
-        this.reWhitespaceEnd = /(?:^|\S)(\s+)$/;
-        this.reOddTrailingEscape = /(?:^|[^\\])(?:\\\\)*\\$/;
         this.reTrailingEscapeChars = /\\+$/;
     }
     nextArg(pattern, beg = 0) {
         const len = pattern.length;
-        this.quoteBeg = beg + this.leftWhitespaceCount(pattern.slice(beg));
+        this.quoteBeg = beg + this.leftWhitespaceCount(pattern, beg);
         this.failed = false;
         const qc = pattern.charCodeAt(this.quoteBeg);
         if ( qc === 0x22 /* " */ || qc === 0x27 /* ' */ || qc === 0x60 /* ` */ ) {
@@ -46,7 +56,7 @@ export class ArglistParser {
             if ( this.argEnd !== len ) {
                 this.quoteEnd = this.argEnd + 1;
                 this.separatorBeg = this.separatorEnd = this.quoteEnd;
-                this.separatorEnd += this.leftWhitespaceCount(pattern.slice(this.quoteEnd));
+                this.separatorEnd += this.leftWhitespaceCount(pattern, this.quoteEnd);
                 if ( this.separatorEnd === len ) { return this; }
                 if ( pattern.charCodeAt(this.separatorEnd) === this.separatorCode ) {
                     this.separatorEnd += 1;
@@ -59,7 +69,7 @@ export class ArglistParser {
         if ( this.separatorBeg < len ) {
             this.separatorEnd += 1;
         }
-        this.argEnd -= this.rightWhitespaceCount(pattern.slice(0, this.separatorBeg));
+        this.argEnd -= this.rightWhitespaceCount(pattern, this.separatorBeg);
         this.quoteEnd = this.argEnd;
         if ( this.mustQuote ) {
             this.failed = true;
@@ -84,13 +94,17 @@ export class ArglistParser {
         if ( out === '' ) { return s; }
         return s + out;
     }
-    leftWhitespaceCount(s) {
-        const match = this.reWhitespaceStart.exec(s);
-        return match === null ? 0 : match[0].length;
+    leftWhitespaceCount(s, beg = 0) {
+        const n = s.length;
+        let i = beg;
+        while ( i < n && ArglistParser.isWhitespace(s.charCodeAt(i)) ) { i += 1; }
+        return i - beg;
     }
-    rightWhitespaceCount(s) {
-        const match = this.reWhitespaceEnd.exec(s);
-        return match === null ? 0 : match[1].length;
+    rightWhitespaceCount(s, end = s.length) {
+        if ( end > s.length ) { end = s.length; }
+        let i = end;
+        while ( i > 0 && ArglistParser.isWhitespace(s.charCodeAt(i - 1)) ) { i -= 1; }
+        return end - i;
     }
     indexOfNextArgSeparator(pattern, separatorCode) {
         this.argBeg = this.argEnd = separatorCode !== this.separatorCode
@@ -101,12 +115,13 @@ export class ArglistParser {
             this.actualSeparatorCode = separatorCode;
             this.actualSeparatorChar = String.fromCharCode(separatorCode);
         }
-        while ( this.argEnd < pattern.length ) {
+        const n = pattern.length;
+        while ( this.argEnd < n ) {
             const pos = pattern.indexOf(this.actualSeparatorChar, this.argEnd);
             if ( pos === -1 ) {
-                return (this.argEnd = pattern.length);
+                return (this.argEnd = n);
             }
-            if ( this.reOddTrailingEscape.test(pattern.slice(0, pos)) === false ) {
+            if ( (ArglistParser.trailingBackslashes(pattern, pos) & 1) === 0 ) {
                 return (this.argEnd = pos);
             }
             this.transform = true;

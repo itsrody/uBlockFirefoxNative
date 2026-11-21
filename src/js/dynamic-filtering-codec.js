@@ -40,6 +40,8 @@ import punycode from '../lib/punycode.js';
 // For performance purpose, as simple tests as possible
 const reBadHostname = /[^0-9a-z_.[\]:%-]/;
 const reNotASCII = /[^\x20-\x7F]/;
+const reWhitespace = /\s+/;
+const reNonTypeChar = /[^a-z_-]/;
 
 /******************************************************************************/
 
@@ -47,7 +49,7 @@ export function parseRuleText(text, append, engine) {
     const lineIter = new LineIterator(text);
     if ( append !== true ) { engine.reset(); }
     while ( lineIter.eot() === false ) {
-        engine.addFromRuleParts(lineIter.next().trim().split(/\s+/));
+        engine.addFromRuleParts(lineIter.next().trim().split(reWhitespace));
     }
 }
 
@@ -104,7 +106,7 @@ export function validateHostRuleParts(parts) {
 
 export function hostRuleArray(engine) {
     const out = [];
-    engine.rules.forEach((_, key) => {
+    for ( const key of engine.rules.keys() ) {
         const srchn = srcHostnameFromRule(key);
         const deshn = desHostnameFromRule(key);
         const srchnPretty = srchn.includes('xn--') && punycode
@@ -113,15 +115,15 @@ export function hostRuleArray(engine) {
         const deshnPretty = deshn.includes('xn--') && punycode
             ? punycode.toUnicode(deshn)
             : deshn;
-        Object.entries(typeBitOffsets).forEach(([type, bitOffset]) => {
-            if ( bitOffset === undefined ) { return; }
+        for ( const [ type, bitOffset ] of Object.entries(typeBitOffsets) ) {
+            if ( bitOffset === undefined ) { continue; }
             const val = engine.evaluateCell(srchn, deshn, type);
-            if ( val === 0 ) { return; }
+            if ( val === 0 ) { continue; }
             const action = dynamicHostIntToActionMap.get(val);
-            if ( action === undefined ) { return; }
+            if ( action === undefined ) { continue; }
             out.push(`${srchnPretty} ${deshnPretty} ${type} ${action}`);
-        });
-    });
+        }
+    }
     return out;
 }
 
@@ -139,17 +141,17 @@ export function validateSwitchRuleParts(parts) {
 
 export function switchRuleArray(engine) {
     const out = [];
-    engine.switches.forEach((_, hostname) => {
+    for ( const hostname of engine.switches.keys() ) {
         const prettyHn = hostname.includes('xn--') && punycode
             ? punycode.toUnicode(hostname)
             : hostname;
-        Object.entries(switchBitOffsets).forEach(([switchName, bitOffset]) => {
-            if ( bitOffset === undefined ) { return; }
+        for ( const [ switchName, bitOffset ] of Object.entries(switchBitOffsets) ) {
+            if ( bitOffset === undefined ) { continue; }
             const val = engine.evaluate(switchName, hostname);
-            if ( val === 0 ) { return; }
+            if ( val === 0 ) { continue; }
             out.push(`${switchName}: ${prettyHn} ${switchStateToNameMap[val]}`);
-        });
-    });
+        }
+    }
     return out;
 }
 
@@ -159,7 +161,7 @@ export function validateURLRuleParts(parts) {
     if ( parts.length !== 4 ) { return; }
     if ( parts[1].indexOf('://') <= 0 ) { return; }
     if (
-        /[^a-z_-]/.test(parts[2]) && parts[2] !== '*' ||
+        reNonTypeChar.test(parts[2]) && parts[2] !== '*' ||
         dynamicURLKnownInvalidTypes.has(parts[2])
     ) {
         return;
@@ -169,13 +171,15 @@ export function validateURLRuleParts(parts) {
 }
 
 export function urlRuleArray(engine) {
-    return Array.from(engine.rules).flatMap(([ key, entries ]) => {
+    const out = [];
+    for ( const [ key, entries ] of engine.rules ) {
         const hn = key.slice(0, key.indexOf(' '));
         const type = key.slice(key.lastIndexOf(' ') + 1);
-        return entries.map(({ url, action }) =>
-            `${hn} ${url} ${type} ${dynamicURLActionToNameMap[action]}`
-        );
-    });
+        for ( const { url, action } of entries ) {
+            out.push(`${hn} ${url} ${type} ${dynamicURLActionToNameMap[action]}`);
+        }
+    }
+    return out;
 }
 
 /******************************************************************************/
