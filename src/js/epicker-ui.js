@@ -183,9 +183,9 @@ const candidateFromFilterChoice = function(filterChoice) {
     let filter = filters[slot];
 
     // https://github.com/uBlockOrigin/uBlock-issues/issues/47
-    for ( const elem of $storAll('#candidateFilters li') ) {
+    $storAll('#candidateFilters li').forEach(elem => {
         elem.classList.remove('active');
-    }
+    });
 
     computedCandidate = '';
 
@@ -234,11 +234,12 @@ const cosmeticCandidatesFromFilterChoice = function(filterChoice) {
 
     let filter = filters[slot];
 
-    for ( const specificity of specificities ) {
+    specificities.forEach(specificity => {
         // Return path: the target element, then all siblings prepended
         const paths = [];
-        for ( let i = slot; i < filters.length; i++ ) {
-            filter = filters[i].slice(2);
+        filters.slice(slot).findIndex((rawFilter, offset) => {
+            const i = slot + offset;
+            filter = rawFilter.slice(2);
             // Remove id, nth-of-type
             // https://github.com/uBlockOrigin/uBlock-issues/issues/162
             //   Mind escaped periods: they do not denote a class identifier.
@@ -273,10 +274,8 @@ const cosmeticCandidatesFromFilterChoice = function(filterChoice) {
             }
             paths.unshift(filter);
             // Stop at any element with an id: these are unique in a web page
-            if ( (specificity & 0b1000) === 0 || filter.startsWith('#') ) {
-                break;
-            }
-        }
+            return (specificity & 0b1000) === 0 || filter.startsWith('#');
+        });
 
         // Trim hierarchy: remove generic elements from path
         if ( (specificity & 0b1100) === 0b1000 ) {
@@ -304,7 +303,7 @@ const cosmeticCandidatesFromFilterChoice = function(filterChoice) {
         }
 
         candidates.push(paths);
-    }
+    });
 
     pickerContentPort.postMessage({
         what: 'optimizeCandidates',
@@ -733,11 +732,11 @@ const populateCandidates = function(candidates, selector) {
     while ( ul.firstChild !== null ) {
         ul.firstChild.remove();
     }
-    for ( let i = 0; i < candidates.length; i++ ) {
+    candidates.forEach(candidate => {
         const li = document.createElement('li');
-        li.textContent = candidates[i];
+        li.textContent = candidate;
         ul.appendChild(li);
-    }
+    });
     if ( candidates.length !== 0 ) {
         root.style.removeProperty('display');
     } else {
