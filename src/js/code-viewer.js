@@ -142,12 +142,11 @@ async function fetchResource(url) {
 function addPastURLs(url) {
     const list = qs$('#pastURLs');
     let current;
-    for ( let i = 0; i < list.children.length; i++ ) {
-        const span = list.children[i];
+    Array.from(list.children).forEach(span => {
         dom.cl.remove(span, 'selected');
-        if ( span.textContent !== url ) { continue; }
+        if ( span.textContent !== url ) { return; }
         current = span;
-    }
+    });
     if ( url === '' ) { return; }
     if ( current === undefined ) {
         current = document.createElement('span');
@@ -216,12 +215,8 @@ async function setURL(resourceURL) {
 function removeURL(url) {
     if ( url === '' ) { return; }
     const list = qs$('#pastURLs');
-    let foundAt = -1;
-    for ( let i = 0; i < list.children.length; i++ ) {
-        const span = list.children[i];
-        if ( span.textContent !== url ) { continue; }
-        foundAt = i;
-    }
+    let foundAt = Array.from(list.children)
+        .findLastIndex(span => span.textContent === url);
     if ( foundAt === -1 ) { return; }
     list.children[foundAt].remove();
     if ( foundAt >= list.children.length ) {
