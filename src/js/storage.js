@@ -36,6 +36,7 @@ import { ubolog, ubologSet } from './console.js';
 
 import cosmeticFilteringEngine from './cosmetic-filtering.js';
 import { extractMetadataFromList } from './filter-list-metadata.js';
+import { fetchWasmModule } from './wasm-module-fetcher.js';
 import { getTrustedTokens } from './trusted-tokens.js';
 import { hostnameFromURI } from './uri-utils.js';
 import io from './assets.js';
@@ -1236,18 +1237,9 @@ onBroadcast(msg => {
 
     // WASM is nice but not critical
     if ( vAPI.canWASM && this.hiddenSettings.disableWebAssembly !== true ) {
-        const wasmModuleFetcher = function(path) {
-            return fetch( `${path}.wasm`, {
-                mode: 'same-origin'
-            }).then(
-                WebAssembly.compileStreaming
-            ).catch(reason => {
-                ubolog(reason);
-            });
-        };
         let result = false;
         try {
-            result = await psl.enableWASM(wasmModuleFetcher,
+            result = await psl.enableWASM(fetchWasmModule,
                 './lib/publicsuffixlist/wasm/'
             );
         } catch(reason) {

@@ -36,6 +36,7 @@ import {
 
 import cacheStorage from './cachestorage.js';
 import contextMenu from './contextmenu.js';
+import { fetchWasmModule } from './wasm-module-fetcher.js';
 import io from './assets.js';
 import { redirectEngine } from './redirect-engine.js';
 import scriptletFilteringEngine from './scriptlet-filtering.js';
@@ -200,14 +201,7 @@ const onHiddenSettingsReady = async ( ) => {
 
     // Maybe disable WebAssembly
     if ( vAPI.canWASM && µb.hiddenSettings.disableWebAssembly !== true ) {
-        const wasmModuleFetcher = function(path) {
-            return fetch(`${path}.wasm`, { mode: 'same-origin' }).then(
-                WebAssembly.compileStreaming
-            ).catch(reason => {
-                ubolog(reason);
-            });
-        };
-        staticNetFilteringEngine.enableWASM(wasmModuleFetcher, './js/wasm/').then(result => {
+        staticNetFilteringEngine.enableWASM(fetchWasmModule, './js/wasm/').then(result => {
             if ( result !== true ) { return; }
             ubolog(`WASM modules ready ${Date.now()-vAPI.T0} ms after launch`);
         });
