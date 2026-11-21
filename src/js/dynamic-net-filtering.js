@@ -24,19 +24,21 @@ import {
     domainFromHostname,
 } from './uri-utils.js';
 import {
+    desHostnameFromRule as desFromRule,
+    hostRuleArray,
+    parseRuleText,
+    srcHostnameFromRule as srcFromRule,
+    validateHostRuleParts,
+} from './dynamic-filtering-codec.js';
+import {
     dynamicHostIntToActionMap as intToActionMap,
     dynamicHostNameToActionMap as nameToActionMap,
     supportedDynamicTypes,
     typeBitOffsets,
 } from './dynamic-filtering-protocol.js';
-import { LineIterator } from './text-utils.js';
-import punycode from '../lib/punycode.js';
 
 /******************************************************************************/
 
-// For performance purpose, as simple tests as possible
-const reBadHostname = /[^0-9a-z_.[\]:%-]/;
-const reNotASCII = /[^\x20-\x7F]/;
 const decomposedSource = [];
 const decomposedDestination = [];
 
@@ -331,34 +333,15 @@ class DynamicHostRuleFiltering {
     }
 
     srcHostnameFromRule(rule) {
-        return rule.slice(0, rule.indexOf(' '));
+        return srcFromRule(rule);
     }
 
     desHostnameFromRule(rule) {
-        return rule.slice(rule.indexOf(' ') + 1);
+        return desFromRule(rule);
     }
 
     toArray() {
-        const out = [];
-        this.rules.forEach((_, key) => {
-            const srchn = this.srcHostnameFromRule(key);
-            const deshn = this.desHostnameFromRule(key);
-            const srchnPretty = srchn.includes('xn--') && punycode
-                ? punycode.toUnicode(srchn)
-                : srchn;
-            const deshnPretty = deshn.includes('xn--') && punycode
-                ? punycode.toUnicode(deshn)
-                : deshn;
-            Object.entries(typeBitOffsets).forEach(([type, bitOffset]) => {
-                if ( bitOffset === undefined ) { return; }
-                const val = this.evaluateCell(srchn, deshn, type);
-                if ( val === 0 ) { return; }
-                const action = intToActionMap.get(val);
-                if ( action === undefined ) { return; }
-                out.push(`${srchnPretty} ${deshnPretty} ${type} ${action}`);
-            });
-        });
-        return out;
+        return hostRuleArray(this);
     }
 
     toString() {
@@ -366,50 +349,11 @@ class DynamicHostRuleFiltering {
     }
 
     fromString(text, append) {
-        const lineIter = new LineIterator(text);
-        if ( append !== true ) { this.reset(); }
-        while ( lineIter.eot() === false ) {
-            this.addFromRuleParts(lineIter.next().trim().split(/\s+/));
-        }
+        parseRuleText(text, append, this);
     }
 
     validateRuleParts(parts) {
-        if ( parts.length < 4 ) { return; }
-
-        // Ignore hostname-based switch rules
-        if ( parts[0].endsWith(':') ) { return; }
-
-        // Ignore URL-based rules
-        if ( parts[1].includes('/') ) { return; }
-
-        if ( typeBitOffsets[parts[2]] === undefined ) { return; }
-
-        if ( nameToActionMap[parts[3]] === undefined ) { return; }
-
-        // https://github.com/chrisaljoudi/uBlock/issues/840
-        //   Discard invalid rules
-        if ( parts[1] !== '*' && parts[2] !== '*' ) { return; }
-
-        // Performance: avoid punycoding when only ASCII chars
-        if ( punycode !== undefined ) {
-            if ( reNotASCII.test(parts[0]) ) {
-                parts[0] = punycode.toASCII(parts[0]);
-            }
-            if ( reNotASCII.test(parts[1]) ) {
-                parts[1] = punycode.toASCII(parts[1]);
-            }
-        }
-
-        // https://github.com/chrisaljoudi/uBlock/issues/1082
-        //   Discard rules with invalid hostnames
-        if (
-            (parts[0] !== '*' && reBadHostname.test(parts[0])) ||
-            (parts[1] !== '*' && reBadHostname.test(parts[1]))
-        ) {
-            return;
-        }
-
-        return parts;
+        return validateHostRuleParts(parts);
     }
 
     addFromRuleParts(parts) {

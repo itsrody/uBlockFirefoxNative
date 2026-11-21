@@ -22,20 +22,19 @@
 import {
     nameToSwitchStateMap,
     switchBitOffsets,
-    switchStateToNameMap,
 } from './dynamic-filtering-protocol.js';
-import { LineIterator } from './text-utils.js';
+import {
+    parseRuleText,
+    switchRuleArray,
+    validateSwitchRuleParts,
+} from './dynamic-filtering-codec.js';
 import { decomposeHostname } from './uri-utils.js';
-import punycode from '../lib/punycode.js';
 
 /******************************************************************************/
 
 const decomposedSource = [];
 
 /******************************************************************************/
-
-// For performance purpose, as simple test as possible
-const reNotASCII = /[^\x20-\x7F]/;
 
 // http://tools.ietf.org/html/rfc5952
 // 4.3: "MUST be represented in lowercase"
@@ -197,19 +196,7 @@ class DynamicSwitchRuleFiltering {
     }
 
     toArray() {
-        const out = [];
-        this.switches.forEach((_, hostname) => {
-            const prettyHn = hostname.includes('xn--') && punycode
-                ? punycode.toUnicode(hostname)
-                : hostname;
-            Object.entries(switchBitOffsets).forEach(([switchName, bitOffset]) => {
-                if ( bitOffset === undefined ) { return; }
-                const val = this.evaluate(switchName, hostname);
-                if ( val === 0 ) { return; }
-                out.push(`${switchName}: ${prettyHn} ${switchStateToNameMap[val]}`);
-            });
-        });
-        return out;
+        return switchRuleArray(this);
     }
 
     toString() {
@@ -217,21 +204,11 @@ class DynamicSwitchRuleFiltering {
     }
 
     fromString(text, append) {
-        const lineIter = new LineIterator(text);
-        if ( append !== true ) { this.reset(); }
-        while ( lineIter.eot() === false ) {
-            this.addFromRuleParts(lineIter.next().trim().split(/\s+/));
-        }
+        parseRuleText(text, append, this);
     }
 
     validateRuleParts(parts) {
-        if ( parts.length < 3 ) { return; }
-        if ( parts[0].endsWith(':') === false ) { return; }
-        if ( nameToSwitchStateMap[parts[2]] === undefined ) { return; }
-        if ( reNotASCII.test(parts[1]) && punycode !== undefined ) {
-            parts[1] = punycode.toASCII(parts[1]);
-        }
-        return parts;
+        return validateSwitchRuleParts(parts);
     }
 
     addFromRuleParts(parts) {

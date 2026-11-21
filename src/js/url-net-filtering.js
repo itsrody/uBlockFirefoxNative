@@ -20,12 +20,14 @@
 */
 
 import {
-    dynamicURLActionToNameMap as actionToNameMap,
     dynamicURLIntToActionLogMap as intToActionMap,
-    dynamicURLKnownInvalidTypes as knownInvalidTypes,
     dynamicURLNameToActionMap as nameToActionMap,
 } from './dynamic-filtering-protocol.js';
-import { LineIterator } from './text-utils.js';
+import {
+    parseRuleText,
+    urlRuleArray,
+    validateURLRuleParts,
+} from './dynamic-filtering-codec.js';
 import { decomposeHostname } from './uri-utils.js';
 
 /*******************************************************************************
@@ -237,13 +239,7 @@ class DynamicURLRuleFiltering {
     }
 
     toArray() {
-        return Array.from(this.rules).flatMap(([ key, entries ]) => {
-            const hn = key.slice(0, key.indexOf(' '));
-            const type = key.slice(key.lastIndexOf(' ') + 1);
-            return entries.map(({ url, action }) =>
-                `${hn} ${url} ${type} ${actionToNameMap[action]}`
-            );
-        });
+        return urlRuleArray(this);
     }
 
     toString() {
@@ -252,23 +248,11 @@ class DynamicURLRuleFiltering {
 
     fromString(text) {
         this.reset();
-        const lineIter = new LineIterator(text);
-        while ( lineIter.eot() === false ) {
-            this.addFromRuleParts(lineIter.next().trim().split(/\s+/));
-        }
+        parseRuleText(text, true, this);
     }
 
     validateRuleParts(parts) {
-        if ( parts.length !== 4 ) { return; }
-        if ( parts[1].indexOf('://') <= 0 ) { return; }
-        if (
-            /[^a-z_-]/.test(parts[2]) && parts[2] !== '*' ||
-            knownInvalidTypes.has(parts[2])
-        ) {
-            return;
-        }
-        if ( nameToActionMap[parts[3]] === undefined ) { return; }
-        return parts;
+        return validateURLRuleParts(parts);
     }
 
     addFromRuleParts(parts) {
