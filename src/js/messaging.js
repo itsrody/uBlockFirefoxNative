@@ -291,18 +291,18 @@ const getHostnameDict = function(hostnameDetailsMap, out) {
         hnDict[hostname] = { domain, counts: details.counts };
     };
 
-    for ( const hnDetails of hostnameDetailsMap.values() ) {
+    hostnameDetailsMap.forEach(hnDetails => {
         const hostname = hnDetails.hostname;
-        if ( hnDict[hostname] !== undefined ) { continue; }
+        if ( hnDict[hostname] !== undefined ) { return; }
         const domain = domainFromHostname(hostname) || hostname;
         const dnDetails =
             hostnameDetailsMap.get(domain) || { counts: createCounts() };
         if ( hnDict[domain] === undefined ) {
             createDictEntry(domain, domain, dnDetails);
         }
-        if ( hostname === domain ) { continue; }
+        if ( hostname === domain ) { return; }
         createDictEntry(domain, hostname, hnDetails);
-    }
+    });
 
     out.hostnameDict = hnDict;
     out.cnameMap = cnMap;
@@ -322,26 +322,26 @@ const getFirewallRules = function(src, out) {
     const ruleset = out.firewallRules = {};
     const df = sessionFirewall;
 
-    for ( const type of firewallRuleTypes ) {
+    firewallRuleTypes.forEach(type => {
         const r = df.lookupRuleData('*', '*', type);
-        if ( r === undefined ) { continue; }
+        if ( r === undefined ) { return; }
         ruleset[`/ * ${type}`] = r;
-    }
+    });
     if ( typeof src !== 'string' ) { return; }
 
-    for ( const type of firewallRuleTypes ) {
+    firewallRuleTypes.forEach(type => {
         const r = df.lookupRuleData(src, '*', type);
-        if ( r === undefined ) { continue; }
+        if ( r === undefined ) { return; }
         ruleset[`. * ${type}`] = r;
-    }
+    });
 
     const { hostnameDict } = out;
-    for ( const des in hostnameDict ) {
+    Object.keys(hostnameDict).forEach(des => {
         let r = df.lookupRuleData('*', des, '*');
         if ( r !== undefined ) { ruleset[`/ ${des} *`] = r; }
         r = df.lookupRuleData(src, des, '*');
         if ( r !== undefined ) { ruleset[`. ${des} *`] = r; }
-    }
+    });
 };
 
 const popupDataFromTabId = function(tabId, tabTitle) {
@@ -456,11 +456,15 @@ const getElementCount = async function(tabId, what) {
     });
 
     let total = 0;
-    for ( const count of results ) {
-        if ( typeof count !== 'number' ) { continue; }
-        if ( count === -1 ) { return -1; }
+    results.some(count => {
+        if ( typeof count !== 'number' ) { return false; }
+        if ( count === -1 ) {
+            total = -1;
+            return true;
+        }
         total += count;
-    }
+        return false;
+    });
 
     return total;
 };
@@ -1164,8 +1168,7 @@ const resetUserData = async function() {
 
 // Filter lists
 const prepListEntries = function(entries) {
-    for ( const k in entries ) {
-        if ( Object.hasOwn(entries, k) === false ) { continue; }
+    Object.keys(entries).forEach(k => {
         const entry = entries[k];
         if ( typeof entry.supportURL === 'string' && entry.supportURL !== '' ) {
             entry.supportName = hostnameFromURI(entry.supportURL);
@@ -1174,7 +1177,7 @@ const prepListEntries = function(entries) {
             entry.supportURL = `http://${hn}/`;
             entry.supportName = domainFromHostname(hn);
         }
-    }
+    });
 };
 
 const getLists = async function(callback) {
@@ -1251,25 +1254,25 @@ const modifyRuleset = function(details) {
         urlRuleset = sessionURLFiltering;
     }
     let toRemove = new Set(details.toRemove.trim().split(/\s*[\n\r]+\s*/));
-    for ( let rule of toRemove ) {
-        if ( rule === '' ) { continue; }
+    toRemove.forEach(rule => {
+        if ( rule === '' ) { return; }
         let parts = rule.split(/\s+/);
         if ( hnRuleset.removeFromRuleParts(parts) === false ) {
             if ( swRuleset.removeFromRuleParts(parts) === false ) {
                 urlRuleset.removeFromRuleParts(parts);
             }
         }
-    }
+    });
     let toAdd = new Set(details.toAdd.trim().split(/\s*[\n\r]+\s*/));
-    for ( let rule of toAdd ) {
-        if ( rule === '' ) { continue; }
+    toAdd.forEach(rule => {
+        if ( rule === '' ) { return; }
         let parts = rule.split(/\s+/);
         if ( hnRuleset.addFromRuleParts(parts) === false ) {
             if ( swRuleset.addFromRuleParts(parts) === false ) {
                 urlRuleset.addFromRuleParts(parts);
             }
         }
-    }
+    });
     if ( details.permanent ) {
         if ( swRuleset.changed ) {
             µb.saveHostnameSwitches();
