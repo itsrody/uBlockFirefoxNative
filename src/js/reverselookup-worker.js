@@ -30,14 +30,14 @@ let listEntries = Object.create(null);
 
 const extractBlocks = function(content, ...ids) {
     const out = [];
-    for ( const id of ids ) {
+    ids.forEach(id => {
         const pattern = `#block-start-${id}\n`;
         let beg = content.indexOf(pattern);
-        if ( beg === -1 ) { continue; }
+        if ( beg === -1 ) { return; }
         beg += pattern.length;
         const end = content.indexOf(`#block-end-${id}`, beg);
         out.push(content.slice(beg, end));
-    }
+    });
     return out.join('\n');
 };
 
@@ -50,9 +50,8 @@ const fromNetFilter = function(details) {
     const lists = [];
     const compiledFilter = details.compiledFilter;
 
-    for ( const assetKey in listEntries ) {
-        const entry = listEntries[assetKey];
-        if ( entry === undefined ) { continue; }
+    Object.entries(listEntries).forEach(([ assetKey, entry ]) => {
+        if ( entry === undefined ) { return; }
         if ( entry.networkContent === undefined ) {
             entry.networkContent = extractBlocks(entry.content, 'NETWORK_FILTERS:GOOD');
         }
@@ -80,7 +79,7 @@ const fromNetFilter = function(details) {
             });
             break;
         }
-    }
+    });
 
     const response = {};
     response[details.rawFilter] = lists;
@@ -188,9 +187,8 @@ const fromExtendedFilter = function(details) {
 
     const response = Object.create(null);
 
-    for ( const assetKey in listEntries ) {
-        const entry = listEntries[assetKey];
-        if ( entry === undefined ) { continue; }
+    Object.entries(listEntries).forEach(([ assetKey, entry ]) => {
+        if ( entry === undefined ) { return; }
         if ( entry.extendedContent === undefined ) {
             entry.extendedContent = extractBlocks(
                 entry.content,
@@ -293,7 +291,7 @@ const fromExtendedFilter = function(details) {
                 break;
             }
         }
-    }
+    });
 
     self.postMessage({ id: details.id, response });
 };
