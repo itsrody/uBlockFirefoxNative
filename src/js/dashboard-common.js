@@ -34,9 +34,7 @@ const splitLines = value => {
     const tail = parts.pop().split('\r');
     const lines = parts.map(line => line.trim());
     lines.push(...tail.map(line => line.trim()));
-    while ( lines.length !== 0 && lines[lines.length - 1] === '' ) {
-        lines.pop();
-    }
+    lines.length = lines.findLastIndex(line => line !== '') + 1;
     return lines;
 };
 
