@@ -19,6 +19,11 @@
     Home: https://github.com/gorhill/uBlock
 */
 
+import {
+    nameToSwitchStateMap,
+    switchBitOffsets,
+    switchStateToNameMap,
+} from './dynamic-filtering-protocol.js';
 import { LineIterator } from './text-utils.js';
 import { decomposeHostname } from './uri-utils.js';
 import punycode from '../lib/punycode.js';
@@ -26,35 +31,6 @@ import punycode from '../lib/punycode.js';
 /******************************************************************************/
 
 const decomposedSource = [];
-
-// Object.create(null) is used below to eliminate worries about unexpected
-// property names in prototype chain -- and this way we don't have to use
-// Object.hasOwn() to avoid this.
-
-const switchBitOffsets = Object.create(null);
-Object.assign(switchBitOffsets, {
-       'no-strict-blocking':  0,
-                'no-popups':  2,
-    'no-cosmetic-filtering':  4,
-          'no-remote-fonts':  6,
-           'no-large-media':  8,
-           'no-csp-reports': 10,
-             'no-scripting': 12,
-});
-
-const switchStateToNameMap = Object.create(null);
-Object.assign(switchStateToNameMap, {
-    '1': 'true',
-    '2': 'false',
-});
-
-const nameToSwitchStateMap = Object.create(null);
-Object.assign(nameToSwitchStateMap, {
-     'true': 1,
-    'false': 2,
-       'on': 1,
-      'off': 2,
-});
 
 /******************************************************************************/
 

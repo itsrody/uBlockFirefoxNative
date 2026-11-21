@@ -23,48 +23,16 @@ import {
     decomposeHostname,
     domainFromHostname,
 } from './uri-utils.js';
+import {
+    dynamicHostIntToActionMap as intToActionMap,
+    dynamicHostNameToActionMap as nameToActionMap,
+    supportedDynamicTypes,
+    typeBitOffsets,
+} from './dynamic-filtering-protocol.js';
 import { LineIterator } from './text-utils.js';
 import punycode from '../lib/punycode.js';
 
 /******************************************************************************/
-
-// Object.create(null) is used below to eliminate worries about unexpected
-// property names in prototype chain -- and this way we don't have to use
-// Object.hasOwn() to avoid this.
-
-const supportedDynamicTypes = Object.create(null);
-Object.assign(supportedDynamicTypes, {
-           '3p': true,
-        'image': true,
-'inline-script': true,
-    '1p-script': true,
-    '3p-script': true,
-     '3p-frame': true
-});
-
-const typeBitOffsets = Object.create(null);
-Object.assign(typeBitOffsets, {
-            '*':  0,
-'inline-script':  2,
-    '1p-script':  4,
-    '3p-script':  6,
-     '3p-frame':  8,
-        'image': 10,
-           '3p': 12
-});
-
-const nameToActionMap = Object.create(null);
-Object.assign(nameToActionMap, {
-    'block': 1,
-    'allow': 2,
-     'noop': 3
-});
-
-const intToActionMap = new Map([
-    [ 1, 'block' ],
-    [ 2, 'allow' ],
-    [ 3, 'noop' ]
-]);
 
 // For performance purpose, as simple tests as possible
 const reBadHostname = /[^0-9a-z_.[\]:%-]/;

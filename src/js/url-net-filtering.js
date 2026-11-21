@@ -19,6 +19,12 @@
     Home: https://github.com/gorhill/uBlock
 */
 
+import {
+    dynamicURLActionToNameMap as actionToNameMap,
+    dynamicURLIntToActionLogMap as intToActionMap,
+    dynamicURLKnownInvalidTypes as knownInvalidTypes,
+    dynamicURLNameToActionMap as nameToActionMap,
+} from './dynamic-filtering-protocol.js';
 import { LineIterator } from './text-utils.js';
 import { decomposeHostname } from './uri-utils.js';
 
@@ -32,30 +38,6 @@ import { decomposeHostname } from './uri-utils.js';
     rule entry: { url, action }
 
 *******************************************************************************/
-
-const actionToNameMap = {
-    1: 'block',
-    2: 'allow',
-    3: 'noop'
-};
-
-const nameToActionMap = Object.create(null);
-Object.assign(nameToActionMap, {
-    'block': 1,
-    'allow': 2,
-     'noop': 3
-});
-
-const knownInvalidTypes = new Set([
-    'doc',
-    'main_frame',
-]);
-
-const intToActionMap = new Map([
-    [ 1, ' block' ],
-    [ 2, ' allow' ],
-    [ 3, ' noop' ]
-]);
 
 const decomposedSource = [];
 
