@@ -335,11 +335,9 @@ export const nodeNameFromNodeType = new Map([
     [ NODE_TYPE_OPTION_VALUE_DOMAIN, 'netOptionValueDomain' ],
     [ NODE_TYPE_OPTION_VALUE_SEPARATOR, 'netOptionsValueSeparator' ],
 ]);
-{
-    for ( const [ name, type ] of nodeTypeFromOptionName ) {
-        nodeNameFromNodeType.set(type, name);
-    }
-}
+nodeTypeFromOptionName.forEach((type, name) => {
+    nodeNameFromNodeType.set(type, name);
+});
 
 /******************************************************************************/
 
@@ -3866,28 +3864,22 @@ export class ExtSelectorCompiler {
 
     astHasType(parts, type, depth = 0x7FFFFFFF) {
         if ( Array.isArray(parts) === false ) { return false; }
-        for ( const part of parts ) {
-            if ( part.data.type === type ) { return true; }
-            if (
+        return parts.some(part =>
+            part.data.type === type ||
+            (
                 Array.isArray(part.args) &&
                 depth !== 0 &&
                 this.astHasType(part.args, type, depth-1)
-            ) {
-                return true;
-            }
-        }
-        return false;
+            )
+        );
     }
 
     astHasName(parts, name) {
         if ( Array.isArray(parts) === false ) { return false; }
-        for ( const part of parts ) {
-            if ( part.data.name === name ) { return true; }
-            if ( Array.isArray(part.args) && this.astHasName(part.args, name) ) {
-                return true;
-            }
-        }
-        return false;
+        return parts.some(part =>
+            part.data.name === name ||
+            (Array.isArray(part.args) && this.astHasName(part.args, name))
+        );
     }
 
     astSelectorsFromSelectorList(args) {
@@ -4192,14 +4184,7 @@ export class ExtSelectorCompiler {
 
     compileAttrList(s) {
         if ( s === '' ) { return s; }
-        const attrs = s.split(/\s*,\s*/);
-        const out = [];
-        for ( const attr of attrs ) {
-            if ( attr !== '' ) {
-                out.push(attr);
-            }
-        }
-        return out;
+        return s.split(/\s*,\s*/).filter(attr => attr !== '');
     }
 
     compileXpathExpression(s) {

@@ -370,12 +370,7 @@ export class JSONPath {
             return JSONPath.keys(owner);
         }
         if ( k instanceof JSONPath.Regex ) {
-            const out = [];
-            for ( const key of JSONPath.keys(owner) ) {
-                if ( k.test(key) === false ) { continue; }
-                out.push(key);
-            }
-            return out;
+            return JSONPath.keys(owner).filter(key => k.test(key));
         }
         return [ k ];
     }
@@ -546,11 +541,12 @@ export class JSONPath {
     #resolvePath(path) {
         if ( path.length === 0 ) { return { value: this.#root }; }
         const key = path.at(-1);
-        let obj = this.#root
-        for ( let i = 0, n = path.length-1; i < n; i++ ) {
-            obj = obj[path[i]];
-            if ( obj instanceof Object === false ) { return {}; }
-        }
+        let obj = this.#root;
+        const resolved = path.slice(0, -1).every(pathKey => {
+            obj = obj[pathKey];
+            return obj instanceof Object;
+        });
+        if ( resolved === false ) { return {}; }
         return { obj, key, value: obj[key] };
     }
     #evaluateExpr(step, owner, k) {
@@ -593,9 +589,9 @@ export class JSONPath {
                 }
                 lval.push(rval); break;
             }
-            for ( const [ k, v ] of JSONPath.entries(rval) ) {
+            JSONPath.entries(rval).forEach(([ k, v ]) => {
                 lval[k] = v;
-            }
+            });
             break;
         }
         case 'call': {
