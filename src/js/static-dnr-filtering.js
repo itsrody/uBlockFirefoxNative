@@ -365,22 +365,34 @@ function mergeRules(rulesetMap, mergeTarget) {
         });
     };
     const extractTargetValue = (obj, target) => {
-        for ( const [ k, v ] of Object.entries(obj) ) {
-            if ( Array.isArray(v) && k === target ) { return v; }
-            if ( v instanceof Object ) {
-                const r = extractTargetValue(v, target);
-                if ( r !== undefined ) { return r; }
+        let found;
+        Object.entries(obj).find(([ k, v ]) => {
+            if ( Array.isArray(v) && k === target ) {
+                found = v;
+                return true;
             }
-        }
+            if ( v instanceof Object ) {
+                found = extractTargetValue(v, target);
+                return found !== undefined;
+            }
+            return false;
+        });
+        return found;
     };
     const extractTargetOwner = (obj, target) => {
-        for ( const [ k, v ] of Object.entries(obj) ) {
-            if ( Array.isArray(v) && k === target ) { return obj; }
-            if ( v instanceof Object ) {
-                const r = extractTargetOwner(v, target);
-                if ( r !== undefined ) { return r; }
+        let found;
+        Object.entries(obj).find(([ k, v ]) => {
+            if ( Array.isArray(v) && k === target ) {
+                found = obj;
+                return true;
             }
-        }
+            if ( v instanceof Object ) {
+                found = extractTargetOwner(v, target);
+                return found !== undefined;
+            }
+            return false;
+        });
+        return found;
     };
     const mergeMap = new Map();
     rulesetMap.forEach((rule, id) => {
@@ -397,8 +409,8 @@ function mergeRules(rulesetMap, mergeTarget) {
         const leftHandSet = new Set(
             extractTargetValue(leftHand, mergeTarget) || []
         );
-        for ( let i = 1; i < ids.length; i++ ) {
-            const rightHandId = ids[i];
+        ids.forEach((rightHandId, i) => {
+            if ( i === 0 ) { return; }
             const rightHand = rulesetMap.get(rightHandId);
             const rightHandArray =  extractTargetValue(rightHand, mergeTarget);
             if ( rightHandArray !== undefined ) {
@@ -411,7 +423,7 @@ function mergeRules(rulesetMap, mergeTarget) {
                 leftHandSet.clear();
             }
             rulesetMap.delete(rightHandId);
-        }
+        });
         const leftHandOwner = extractTargetOwner(leftHand, mergeTarget);
         if ( leftHandSet.size > 1 ) {
             //if ( leftHandOwner === undefined ) { debugger; }
@@ -431,28 +443,25 @@ function finalizeRuleset(context, network) {
 
     // Assign rule ids
     const rulesetMap = new Map();
-    {
-        let ruleId = 1;
-        for ( const rule of ruleset ) {
-            rulesetMap.set(ruleId++, rule);
-        }
-    }
+    ruleset.forEach((rule, i) => {
+        rulesetMap.set(i + 1, rule);
+    });
 
     // Patch id
     const rulesetFinal = [];
     {
         let ruleId = 1;
-        for ( const rule of rulesetMap.values() ) {
+        rulesetMap.forEach(rule => {
             if ( rule._error === undefined ) {
                 rule.id = ruleId++;
             } else {
                 rule.id = 0;
             }
             rulesetFinal.push(rule);
-        }
-        for ( const invalid of context.invalid ) {
+        });
+        context.invalid.forEach(invalid => {
             rulesetFinal.push({ _error: [ invalid ] });
-        }
+        });
     }
 
     network.ruleset = rulesetFinal;
@@ -465,15 +474,12 @@ async function dnrRulesetFromRawLists(lists, options = {}) {
     context.bad = options.networkBad;
     staticNetFilteringEngine.dnrFromCompiled('begin', context);
     context.extensionPaths = new Map(context.extensionPaths || []);
-    const toLoad = [];
     const toDNR = (context, list) => addToDNR(context, list);
-    for ( const list of lists ) {
-        if ( list instanceof Promise ) {
-            toLoad.push(list.then(list => toDNR(context, list)));
-        } else {
-            toLoad.push(toDNR(context, list));
-        }
-    }
+    const toLoad = lists.map(list => {
+        return list instanceof Promise
+            ? list.then(list => toDNR(context, list))
+            : toDNR(context, list);
+    });
     await Promise.all(toLoad);
     const result = {
         network: staticNetFilteringEngine.dnrFromCompiled('end', context),

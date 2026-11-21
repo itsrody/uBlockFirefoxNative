@@ -2518,9 +2518,9 @@ class FilterCollection {
     }
 
     static dnrFromCompiled(args, rule) {
-        for ( const unit of args[1] ) {
+        args[1].forEach(unit => {
             dnrRuleFromCompiled(unit, rule);
-        }
+        });
     }
 
     static logData(idata, details) {
@@ -5092,11 +5092,11 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
     // Adjust `important` priority
     // Mind:
     // - https://github.com/uBlockOrigin/uAssets/issues/29451#issuecomment-3150181993
-    for ( const rule of ruleset ) {
-        if ( rule.__important !== true ) { continue; }
+    ruleset.forEach(rule => {
+        if ( rule.__important !== true ) { return; }
         rule.priority ??= 0;
         rule.priority += 30;
-    }
+    });
 
     // Collect generichide filters
     const generichideExclusions = [];
@@ -5104,9 +5104,9 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
     {
         const bucket = buckets.get(ALLOW_REALM | typeNameToTypeValue['generichide']);
         if ( bucket ) {
-            for ( const rules of bucket.values() ) {
-                for ( const rule of rules ) {
-                    if ( rule.condition === undefined ) { continue; }
+            bucket.values().forEach(rules => {
+                rules.forEach(rule => {
+                    if ( rule.condition === undefined ) { return; }
                     if ( rule.condition.initiatorDomains ) {
                         generichideExclusions.push(...rule.condition.initiatorDomains);
                     } else if ( rule.condition.requestDomains ) {
@@ -5117,32 +5117,32 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
                     } else if ( rule.condition.excludedRequestDomains ) {
                         generichideInclusions.push(...rule.condition.excludedRequestDomains);
                     }
-                }
-            }
+                });
+            });
         }
     }
     {
         const bucket = buckets.get(BLOCKIMPORTANT_REALM | typeNameToTypeValue['generichide']);
         if ( bucket ) {
-            for ( const rules of bucket.values() ) {
-                for ( const rule of rules ) {
-                    if ( rule.condition === undefined ) { continue; }
+            bucket.values().forEach(rules => {
+                rules.forEach(rule => {
+                    if ( rule.condition === undefined ) { return; }
                     if ( rule.condition.initiatorDomains ) {
                         generichideInclusions.push(...rule.condition.initiatorDomains);
                     } else if ( rule.condition.requestDomains ) {
                         generichideInclusions.push(...rule.condition.requestDomains);
                     }
-                }
-            }
+                });
+            });
         }
     }
 
     // Detect and attempt salvage of rules with entity-based hostnames and/or
     // regex-based domains.
     const isUnsupportedDomain = hn => hn.endsWith('.*') || hn.startsWith('/');
-    for ( const rule of ruleset ) {
-        if ( rule.condition === undefined ) { continue; }
-        for ( const prop of [ 'Initiator', 'Request', 'Top' ] ) {
+    ruleset.forEach(rule => {
+        if ( rule.condition === undefined ) { return; }
+        [ 'Initiator', 'Request', 'Top' ].forEach(prop => {
             const hitProp = `${prop.toLowerCase()}Domains`;
             if ( Array.isArray(rule.condition[hitProp]) ) {
                 if ( rule.condition[hitProp].some(hn => isUnsupportedDomain(hn)) ) {
@@ -5169,12 +5169,12 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
                             : undefined;
                 }
             }
-        }
-    }
+        });
+    });
 
     // Patch modifier filters
-    for ( const rule of ruleset ) {
-        if ( rule.__modifierType === undefined ) { continue; }
+    ruleset.forEach(rule => {
+        if ( rule.__modifierType === undefined ) { return; }
         let patchDomainOption = false;
         switch ( rule.__modifierType ) {
         case 'csp':
@@ -5336,13 +5336,13 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
                 rule.condition.excludedInitiatorDomains = undefined;
             }
         }
-    }
+    });
 
     // Default priority is 1, remove priority if 1 or less.
-    for ( const rule of ruleset ) {
-        if ( rule.priority > 1 ) { continue; }
+    ruleset.forEach(rule => {
+        if ( rule.priority > 1 ) { return; }
         rule.priority = undefined;
-    }
+    });
 
     return {
         ruleset,
