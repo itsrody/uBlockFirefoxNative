@@ -78,7 +78,9 @@ class PSelectorContentTask {
         const root = node.content;
         if ( typeof root?.querySelectorAll !== 'function' ) { return; }
         const nodes = root.querySelectorAll(this.selector);
-        output.push(...nodes);
+        for ( const node of nodes ) {
+            output.push(node);
+        }
     }
 }
 
@@ -220,10 +222,14 @@ class PSelector {
     prime(input) {
         const root = input || docRegister;
         if ( this.selector === '' ) { return [ root ]; }
-        if ( input !== docRegister && /^ ?[>+~]/.test(this.selector) ) {
-            return Array.from(PSelectorSpathTask.qsa(input, this.selector));
+        const nodes = input !== docRegister && /^ ?[>+~]/.test(this.selector)
+            ? PSelectorSpathTask.qsa(input, this.selector)
+            : root.querySelectorAll(this.selector);
+        const out = [];
+        for ( const node of nodes ) {
+            out.push(node);
         }
-        return Array.from(root.querySelectorAll(this.selector));
+        return out;
     }
     exec(input) {
         let nodes = this.prime(input);

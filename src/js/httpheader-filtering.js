@@ -34,9 +34,10 @@ let acceptedCount = 0;
 let discardedCount = 0;
 
 const headerIndexFromName = function(name, headers, start = 0) {
-    return headers.findIndex((header, i) =>
-        i >= start && header.name.toLowerCase() === name
-    );
+    for ( let i = start; i < headers.length; i++ ) {
+        if ( headers[i].name.toLowerCase() === name ) { return i; }
+    }
+    return -1;
 };
 
 const logOne = function(isException, token, fctxt) {
@@ -145,27 +146,27 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
     // Split filters in different groups
     const filters = new Set();
     const exceptions = new Set();
-    all.forEach(s => {
+    for ( const s of all ) {
         const selector = s.slice(1);
         if ( s.charCodeAt(0) === 0x2D /* - */ ) {
             exceptions.add(selector);
         } else {
             filters.add(selector);
         }
-    });
+    }
 
     const hasGlobalException = exceptions.has('');
 
     let modified = false;
     let i = 0;
 
-    filters.forEach(name => {
+    for ( const name of filters ) {
         const isExcepted = hasGlobalException || exceptions.has(name);
         if ( isExcepted ) {
             if ( logger.enabled ) {
                 logOne(true, hasGlobalException ? '' : name, fctxt);
             }
-            return;
+            continue;
         }
         i = 0;
         for (;;) {
@@ -177,7 +178,7 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
             }
             modified = true;
         }
-    });
+    }
 
     return modified;
 };
