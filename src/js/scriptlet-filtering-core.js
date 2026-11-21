@@ -37,19 +37,24 @@ const normalizeRawFilter = parser => {
     return JSON.stringify(args);
 };
 
+const reNeedsQuotes = /^(["'`]).*\1$|,|^$/;
+const reEscapableQuote = /'/g;
+
 const requote = s => {
-    if ( /^(["'`]).*\1$|,|^$/.test(s) === false ) { return s; }
+    if ( reNeedsQuotes.test(s) === false ) { return s; }
     if ( s.includes("'") === false ) { return `'${s}'`; }
     if ( s.includes('"') === false ) { return `"${s}"`; }
     if ( s.includes('`') === false ) { return `\`${s}\``; }
-    return `'${s.replace(/'/g, "\\'")}'`;
+    return `'${s.replace(reEscapableQuote, "\\'")}'`;
 };
 
 const decompile = (json, isException) => {
     const prefix = isException ? '#@#' : '##';
     const args = JSON.parse(json);
-    return `${prefix}+js(${args.map(s => requote(s)).join(', ')})`;
+    return `${prefix}+js(${args.map(requote).join(', ')})`;
 };
+const decompileScriptlet = json => decompile(json, false);
+const decompileException = json => decompile(json, true);
 
 /******************************************************************************/
 
@@ -148,11 +153,11 @@ export class ScriptletFilteringEngine {
         this.scriptletDB.retrieveSpecifics(all, entity);
         this.scriptletDB.retrieveSpecificsByRegex(all, hostname, request.url);
         this.scriptletDB.retrieveGenerics(all);
-        const visitedAncestors = [];
+        const visitedAncestors = new Set();
         for ( const ancestor of ancestors ) {
             const { domain, hostname } = ancestor;
-            if ( visitedAncestors.includes(hostname) ) { continue; }
-            visitedAncestors.push(hostname);
+            if ( visitedAncestors.has(hostname) ) { continue; }
+            visitedAncestors.add(hostname);
             this.scriptletDB.retrieveSpecifics(all, `${hostname}>>`);
             const entity = entityFromHostname(hostname, domain);
             if ( entity !== '' ) {
@@ -180,8 +185,8 @@ export class ScriptletFilteringEngine {
         }
 
         return [
-            ...Array.from(scriptlets).map(a => decompile(a, false)),
-            ...Array.from(exceptions).map(a => decompile(a, true)),
+            ...Array.from(scriptlets).map(decompileScriptlet),
+            ...Array.from(exceptions).map(decompileException),
         ];
     }
 }

@@ -48,11 +48,29 @@ const worldFrameworks = {
     ISOLATED: structuredClone(frameworkTemplate),
     MAIN: structuredClone(frameworkTemplate),
 };
+const worldNames = Object.keys(worlds);
+const frameworkNames = Object.keys(worldFrameworks);
+
+const reEscapeForRegex = /[.*+?^${}()|[\]\\]/g;
+const reScriptletSecret = /self\.\$scriptletSecret\$/;
+const reHasHostnames = /self\.\$hasHostnames\$/;
+const reHasEntities = /self\.\$hasEntities\$/;
+const reHasAncestors = /self\.\$hasAncestors\$/;
+const reHasRegexes = /self\.\$hasRegexes\$/;
+const reScriptletFromRegexes = /self\.\$scriptletFromRegexes\$/;
+const reScriptletHostnames = /self\.\$scriptletHostnames\$/;
+const reScriptletArglistRefs = /self\.\$scriptletArglistRefs\$/;
+const reScriptletArglists = /self\.\$scriptletArglists\$/;
+const reScriptletArgs = /self\.\$scriptletArgs\$/;
+const reRulesetId = /\$rulesetId\$/;
+const reScriptletFunctionRefs = /self\.\$scriptletFunctionRefs\$/;
+const reScriptletFunctions = /self\.\$scriptletFunctions\$/;
+const reZetaSignature = /[^ ]+\n/;
 
 /******************************************************************************/
 
 function escapeForRegex(s) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return s.replace(reEscapeForRegex, '\\$&');
 }
 
 /******************************************************************************/
@@ -238,7 +256,7 @@ export function compile(rulesetId, details) {
 
 export function commit(rulesetId, template, secret) {
     const stats = {};
-    for ( const world of Object.keys(worlds) ) {
+    for ( const world of worldNames ) {
         const worldDetails = worlds[world];
         const { args, arglists } = worldDetails;
         const hostnames = Array.from(worldDetails.hostnames).toSorted((a, b) =>
@@ -250,32 +268,32 @@ export function commit(rulesetId, template, secret) {
                 JSON.stringify(Array.from(a[1])).slice(1,-1),
             ]).flat();
         if ( hostnames.length === 0 && scriptletFromRegexes.length === 0 ) { continue; }
-        let content = safeReplace(template, 'self.$scriptletSecret$', JSON.stringify(secret));
-        content = safeReplace(content, 'self.$hasHostnames$', JSON.stringify(hostnames.length !== 0));
-        content = safeReplace(content, 'self.$hasEntities$', JSON.stringify(worldDetails.hasEntities));
-        content = safeReplace(content, 'self.$hasAncestors$', JSON.stringify(worldDetails.hasAncestors));
-        content = safeReplace(content, 'self.$hasRegexes$', JSON.stringify(scriptletFromRegexes.length !== 0));
+        let content = safeReplace(template, reScriptletSecret, JSON.stringify(secret));
+        content = safeReplace(content, reHasHostnames, JSON.stringify(hostnames.length !== 0));
+        content = safeReplace(content, reHasEntities, JSON.stringify(worldDetails.hasEntities));
+        content = safeReplace(content, reHasAncestors, JSON.stringify(worldDetails.hasAncestors));
+        content = safeReplace(content, reHasRegexes, JSON.stringify(scriptletFromRegexes.length !== 0));
         content = safeReplace(content,
-            'self.$scriptletFromRegexes$',
+            reScriptletFromRegexes,
             `/* ${worldDetails.regexesOrPaths.size} */ ${JSON.stringify(scriptletFromRegexes)}`
         );
         content = safeReplace(content,
-            'self.$scriptletHostnames$',
+            reScriptletHostnames,
             `/* ${hostnames.length} */ ${JSON.stringify(hostnames.map(a => a[0]))}`
         );
         content = safeReplace(content,
-            'self.$scriptletArglistRefs$',
+            reScriptletArglistRefs,
             `/* ${hostnames.length} */ ${JSON.stringify(hostnames.map(a => a[1]))}`
         );
         content = safeReplace(content,
-            'self.$scriptletArglists$',
+            reScriptletArglists,
             `/* ${arglists.size} */ ${JSON.stringify(Array.from(arglists.keys()))}`
         );
         content = safeReplace(content,
-            'self.$scriptletArgs$',
+            reScriptletArgs,
             `/* ${args.size} */ ${JSON.stringify(Array.from(args.keys()))}`
         );
-        content = safeReplace(content, /\$rulesetId\$/, rulesetId, 0);
+        content = safeReplace(content, reRulesetId, rulesetId, 0);
         stats[world] = {
             code: content,
             hostnames: Array.from(worldDetails.matches).sort(),
@@ -291,25 +309,25 @@ export function commit(rulesetId, template, secret) {
 
 export function commitFramework(beginTemplate, endTemplate, secret) {
     const stats = {};
-    for ( const world of Object.keys(worldFrameworks) ) {
+    for ( const world of frameworkNames ) {
         const { scriptletFunctions, allFunctions } = worldFrameworks[world];
-        let beginCode = safeReplace(beginTemplate, 'self.$scriptletSecret$', JSON.stringify(secret));
-        beginCode = safeReplace(beginCode, 'self.$scriptletFunctionRefs$',
+        let beginCode = safeReplace(beginTemplate, reScriptletSecret, JSON.stringify(secret));
+        beginCode = safeReplace(beginCode, reScriptletFunctionRefs,
             `/* ${scriptletFunctions.size} */ [${Array.from(scriptletFunctions.keys()).join(',')}]`
         );
-        beginCode = safeReplace(beginCode, 'self.$scriptletFunctions$',
+        beginCode = safeReplace(beginCode, reScriptletFunctions,
             Array.from(allFunctions.values()).sort((a, b) => {
                 if ( a.startsWith('function zeta_') ) {
                     if ( b.startsWith('function zeta_') ) {
-                        const amatch = /[^ ]+\n/.exec(a);
-                        const bmatch = /[^ ]+\n/.exec(b);
+                        const amatch = reZetaSignature.exec(a);
+                        const bmatch = reZetaSignature.exec(b);
                         return amatch[0].localeCompare(bmatch[0]);
                     }
                 }
                 return a.localeCompare(b);
             }).join('\n\n')
         );
-        let endCode = safeReplace(endTemplate, 'self.$scriptletSecret$', JSON.stringify(secret));
+        let endCode = safeReplace(endTemplate, reScriptletSecret, JSON.stringify(secret));
         stats[world] = { beginCode, endCode };
     }
     return stats;

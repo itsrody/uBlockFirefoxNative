@@ -92,6 +92,9 @@ function uBO_mainWorldFallbackWrapper(details) {
     return 0;
 }
 
+const mainWorldFallbackWrapperSource = uBO_mainWorldFallbackWrapper.toString();
+const reEarlyBailoutMarker = /\(function earlyBailoutCode\(\)\{\}\)\(\);/;
+
 /******************************************************************************/
 
 // Assemble the MAIN-world fallback code used by manuallyInject(). It is
@@ -100,9 +103,9 @@ function uBO_mainWorldFallbackWrapper(details) {
 function uBO_assembleFallbackCode(details) {
     const { earlyBailoutCode, mainCode } = details;
     if ( Boolean(mainCode) === false ) { return; }
-    let wrapperCode = uBO_mainWorldFallbackWrapper.toString();
+    let wrapperCode = mainWorldFallbackWrapperSource;
     if ( earlyBailoutCode ) {
-        const match = /\(function earlyBailoutCode\(\)\{\}\)\(\);/.exec(wrapperCode);
+        const match = reEarlyBailoutMarker.exec(wrapperCode);
         wrapperCode = wrapperCode.slice(0, match.index) +
             earlyBailoutCode +
             wrapperCode.slice(match.index + match[0].length);
@@ -175,6 +178,32 @@ function prepareContentScript(url, tabId = -1, frameId = 0) {
     return entry;
 }
 
+function registerWorldHandle(entry, key, code, matches, world) {
+    const options = {
+        allFrames: true,
+        js: [ { code } ],
+        matchOriginAsFallback: true,
+        matches,
+        runAt: 'document_start',
+    };
+    if ( world !== undefined ) { options.world = world; }
+    entry[key] = browser.contentScripts.register(options).then(handle => {
+        entry[key] = handle;
+    }).catch(( ) => {
+        entry[key] = null;
+    });
+}
+
+function unregisterWorldHandle(entry, key) {
+    const handle = entry[key];
+    if ( !handle ) { return; }
+    if ( handle instanceof Promise ) {
+        handle.then(( ) => entry[key]?.unregister());
+    } else {
+        handle.unregister();
+    }
+}
+
 function registerContentScript(entry) {
     if ( entry.registered ) { return; }
     entry.registered = true;
@@ -183,33 +212,13 @@ function registerContentScript(entry) {
     entry.firstCommitPending = true;
     if ( Boolean(entry.manuallyInjectedCode) === false ) { return; }
     const { hostname } = entry;
+    const matches = [ `http://${hostname}/*`, `https://${hostname}/*` ];
     if ( entry.isolatedCode ) {
-        entry.isolatedHandle = browser.contentScripts.register({
-            allFrames: true,
-            js: [ { code: entry.isolatedCode } ],
-            matchOriginAsFallback: true,
-            matches: [ `http://${hostname}/*`, `https://${hostname}/*` ],
-            runAt: 'document_start',
-        }).then(handle => {
-            entry.isolatedHandle = handle;
-        }).catch(( ) => {
-            entry.isolatedHandle = null;
-        });
+        registerWorldHandle(entry, 'isolatedHandle', entry.isolatedCode, matches);
         entry.isolatedCode = null;
     }
     if ( entry.mainCode ) {
-        entry.mainHandle = browser.contentScripts.register({
-            allFrames: true,
-            js: [ { code: entry.mainCode } ],
-            matchOriginAsFallback: true,
-            matches: [ `http://${hostname}/*`, `https://${hostname}/*` ],
-            runAt: 'document_start',
-            world: 'MAIN',
-        }).then(handle => {
-            entry.mainHandle = handle;
-        }).catch(( ) => {
-            entry.mainHandle = null;
-        });
+        registerWorldHandle(entry, 'mainHandle', entry.mainCode, matches, 'MAIN');
         entry.mainCode = null;
     }
 }
@@ -218,20 +227,8 @@ function unregisterContentScript(hostname) {
     const entry = contentScriptDict.get(hostname);
     if ( entry === undefined ) { return; }
     contentScriptDict.delete(hostname);
-    if ( entry.mainHandle ) {
-        if ( entry.mainHandle instanceof Promise ) {
-            entry.mainHandle.then(( ) => entry.mainHandle?.unregister());
-        } else {
-            entry.mainHandle.unregister();
-        }
-    }
-    if ( entry.isolatedHandle ) {
-        if ( entry.isolatedHandle instanceof Promise ) {
-            entry.isolatedHandle.then(( ) => entry.isolatedHandle?.unregister());
-        } else {
-            entry.isolatedHandle.unregister();
-        }
-    }
+    unregisterWorldHandle(entry, 'mainHandle');
+    unregisterWorldHandle(entry, 'isolatedHandle');
 }
 
 function manuallyInject(tabId, frameId, entry) {
