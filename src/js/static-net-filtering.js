@@ -118,27 +118,34 @@ const getPartyBits = fctxt => {
 
 // The four bucket lookups are repeated for every realm pass. Their inputs
 // occupy disjoint bit ranges, so one OR'ed key is enough to reuse the quartet.
+// Category bits stay below 0x4000, so a direct-index array beats a Map get on
+// every request. The exact-type bit is split into its own array to preserve
+// the old distinct cache keys.
 const getRealmBuckets = (engine, realmBits, typeBits, partyBits) => {
-    const key = (realmBits | typeBits | partyBits) >>> 0;
-    let buckets = engine.realmBucketCache.get(key);
+    const exactType = typeBits & 0x80000000;
+    const plainTypeBits = typeBits & 0x7FFFFFFF;
+    const key = (realmBits | plainTypeBits | partyBits) >>> 0;
+    const cache = exactType === 0
+        ? engine.realmBucketCache
+        : engine.realmBucketCacheExact;
+    let buckets = cache[key];
     if ( buckets === undefined ) {
-        const exactType = typeBits & 0x80000000;
-        const plainTypeBits = typeBits & 0x7FFFFFFF;
+        const byBits = engine.bucketByBits;
         buckets = [
             exactType === 0
-                ? engine.bitsToBucket.get(realmBits)
+                ? byBits[realmBits]
                 : undefined,
             exactType !== 0 || plainTypeBits !== 0
-                ? engine.bitsToBucket.get(realmBits | plainTypeBits)
+                ? byBits[realmBits | plainTypeBits]
                 : undefined,
             exactType === 0 && partyBits !== 0
-                ? engine.bitsToBucket.get(realmBits | partyBits)
+                ? byBits[realmBits | partyBits]
                 : undefined,
             (exactType !== 0 || plainTypeBits !== 0) && partyBits !== 0
-                ? engine.bitsToBucket.get(realmBits | plainTypeBits | partyBits)
+                ? byBits[realmBits | plainTypeBits | partyBits]
                 : undefined,
         ];
-        engine.realmBucketCache.set(key, buckets);
+        cache[key] = buckets;
     }
     return buckets;
 };
@@ -4476,11 +4483,13 @@ const StaticNetFilteringEngine = function() {
     this.modifierFilterTypes = new Set();
     this.requestHeaderFilterCount = 0;
     this.headerRealmFilterCount = 0;
-    // As long as CategoryCount is reasonably low, we will use an array to
-    // store buckets using category bits as index. If ever CategoryCount
-    // becomes too large, we can just go back to using a Map.
+    // bitsToBucket stays authoritative for selfies and diagnostics. The
+    // parallel by-bits array gives the request path direct numeric indexing
+    // instead of a Map lookup, while cache arrays reuse each realm quartet.
     this.bitsToBucket = new Map();
-    this.realmBucketCache = new Map();
+    this.bucketByBits = [];
+    this.realmBucketCache = [];
+    this.realmBucketCacheExact = [];
     this.modifierScratch = {
         results: [],
         jobs: [],
@@ -4526,7 +4535,9 @@ StaticNetFilteringEngine.prototype.reset = function() {
     this.requestHeaderFilterCount = 0;
     this.headerRealmFilterCount = 0;
     this.bitsToBucket.clear();
-    this.realmBucketCache.clear();
+    this.bucketByBits.length = 0;
+    this.realmBucketCache.length = 0;
+    this.realmBucketCacheExact.length = 0;
     this.modifierScratch.results.length = 0;
     this.modifierScratch.jobs.length = 0;
     this.modifierScratch.resultPools.length = 0;
@@ -4623,6 +4634,7 @@ StaticNetFilteringEngine.prototype.freeze = function() {
         const bucket = this.bitsToBucket.get(bits) || (new Map());
         if ( bucket.size === 0 ) {
             this.bitsToBucket.set(bits, bucket);
+            this.bucketByBits[bits] = bucket;
         }
 
         const tokenHash = args[1];
@@ -4697,7 +4709,8 @@ StaticNetFilteringEngine.prototype.freeze = function() {
 
     // freeze() can add buckets, so cached quartets may contain stale
     // undefined entries for previously empty combinations.
-    this.realmBucketCache.clear();
+    this.realmBucketCache.length = 0;
+    this.realmBucketCacheExact.length = 0;
 
     // freeze() is also used after incremental user-filter changes, when only
     // newly compiled filters are present in goodFilters. Keep prior counts.
@@ -5273,6 +5286,7 @@ StaticNetFilteringEngine.prototype.addFilterUnit = function(
     const bucket = this.bitsToBucket.get(bits) || (new Map());
     if ( bucket.size === 0 ) {
         this.bitsToBucket.set(bits, bucket);
+        this.bucketByBits[bits] = bucket;
     }
     const istoredunit = bucket.get(tokenHash) || 0;
     if ( istoredunit === 0 ) {
@@ -5395,7 +5409,13 @@ StaticNetFilteringEngine.prototype.fromSelfie = function(selfie) {
     this.acceptedCount = selfie.acceptedCount;
     this.discardedCount = selfie.discardedCount;
     this.bitsToBucket = selfie.bitsToBucket;
-    this.realmBucketCache.clear();
+    const bucketByBits = this.bucketByBits;
+    bucketByBits.length = 0;
+    for ( const [ bits, bucket ] of this.bitsToBucket ) {
+        bucketByBits[bits] = bucket;
+    }
+    this.realmBucketCache.length = 0;
+    this.realmBucketCacheExact.length = 0;
     this.modifierFilterTypes = this.collectModifierFilterTypes();
     this.requestHeaderFilterCount = this.countRequestHeaderFilters();
     this.headerRealmFilterCount = this.countHeaderRealmFilters();
