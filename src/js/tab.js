@@ -477,12 +477,12 @@ import µb from './background.js';
     }
 
     function popupCandidateTest(targetTabId) {
-        for ( const [ tabId, candidate ] of popupCandidates ) {
+        Array.from(popupCandidates).forEach(([ tabId, candidate ]) => {
             if (
                 targetTabId !== tabId &&
                 targetTabId !== candidate.opener.tabId
             ) {
-                continue;
+                return;
             }
             // https://github.com/gorhill/uBlock/issues/3129
             //   If the trigger is a change in the opener's URL, mark the entry
@@ -496,7 +496,7 @@ import µb from './background.js';
             } else {
                 candidate.launchSelfDestruction();
             }
-        }
+        });
     }
 
     // These are to be used for the API of the tab context manager.
@@ -661,12 +661,13 @@ frameManager.addListener((type, details) => {
         let color = µb.blockingProfileColorCache.get(bits);
         if ( color !== undefined ) { return color; }
         let max = 0;
-        for ( const profile of µb.liveBlockingProfiles ) {
+        µb.liveBlockingProfiles.find(profile => {
             const v = bits & (profile.bits & ~1);
-            if ( v < max ) { break; }
+            if ( v < max ) { return true; }
             color = profile.color;
             max = v;
-        }
+            return false;
+        });
         if ( color === undefined ) {
             color = '#666';
         }
@@ -738,11 +739,11 @@ frameManager.addListener((type, details) => {
 
 {
     const pageStoreJanitor = ( ) => {
-        for ( const tabId of µb.pageStores.keys() ) {
-            if ( tabId === frameManager.TAB_ID_NONE ) { continue; }
-            if ( frameManager.tabDict.has(tabId) ) { continue; }
+        Array.from(µb.pageStores.keys()).forEach(tabId => {
+            if ( tabId === frameManager.TAB_ID_NONE ) { return; }
+            if ( frameManager.tabDict.has(tabId) ) { return; }
             µb.unbindTabFromPageStore(tabId);
-        }
+        });
         pageStoreJanitorTimer.on(pageStoreJanitorPeriod);
     };
 
