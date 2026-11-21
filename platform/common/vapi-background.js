@@ -56,22 +56,17 @@ vAPI.app = {
     intFromVersion: function(s) {
         const parts = s.match(/(?:^|\.|b|rc)\d+/g);
         if ( parts === null ) { return 0; }
-        let vint = 0;
-        for ( let i = 0; i < 4; i++ ) {
+        return Array.from({ length: 4 }, (_, i) => {
             const pstr = parts[i] || '';
-            let pint;
-            if ( pstr === '' ) {
-                pint = 0;
-            } else if ( pstr.startsWith('.') || pstr.startsWith('b') ) {
-                pint = parseInt(pstr.slice(1), 10);
-            } else if ( pstr.startsWith('rc') ) {
-                pint = parseInt(pstr.slice(2), 10) + 100;
-            } else {
-                pint = parseInt(pstr, 10);
+            if ( pstr === '' ) { return 0; }
+            if ( pstr.startsWith('.') || pstr.startsWith('b') ) {
+                return parseInt(pstr.slice(1), 10);
             }
-            vint = vint * 1000 + pint;
-        }
-        return vint;
+            if ( pstr.startsWith('rc') ) {
+                return parseInt(pstr.slice(2), 10) + 100;
+            }
+            return parseInt(pstr, 10);
+        }).reduce((vint, pint) => vint * 1000 + pint, 0);
     },
 
     restart: function() {
@@ -825,10 +820,10 @@ vAPI.messaging = {
                     matchAboutBlank: true,
                     runAt: 'document_start',
                 };
-                for ( const cssText of msg.add ) {
+                msg.add.forEach(cssText => {
                     details.code = cssText;
                     promises.push(vAPI.tabs.insertCSS(tabId, details));
-                }
+                });
             }
             if ( msg.remove ) {
                 const details = {
@@ -836,10 +831,10 @@ vAPI.messaging = {
                     frameId: portDetails.frameId,
                     matchAboutBlank: true,
                 };
-                for ( const cssText of msg.remove ) {
+                msg.remove.forEach(cssText => {
                     details.code = cssText;
                     promises.push(vAPI.tabs.removeCSS(tabId, details));
-                }
+                });
             }
             Promise.all(promises).then(( ) => {
                 callback();
@@ -1008,11 +1003,9 @@ vAPI.Net = class {
         this.validTypes = new Set();
         {
             const wrrt = browser.webRequest.ResourceType;
-            for ( const typeKey in wrrt ) {
-                if ( Object.hasOwn(wrrt, typeKey) ) {
-                    this.validTypes.add(wrrt[typeKey]);
-                }
-            }
+            Object.values(wrrt).forEach(type => {
+                this.validTypes.add(type);
+            });
         }
         this.suspendableListener = undefined;
         this.deferredSuspendableListener = undefined;
@@ -1199,12 +1192,8 @@ vAPI.Net = class {
         this.unsuspendAllRequests(discard);
     }
     headerValue(headers, name) {
-        for ( const header of headers ) {
-            if ( header.name.toLowerCase() === name ) {
-                return header.value.trim();
-            }
-        }
-        return '';
+        return headers.find(header => header.name.toLowerCase() === name)
+            ?.value.trim() ?? '';
     }
     static canSuspend() {
         return false;
@@ -1227,9 +1216,9 @@ vAPI.contextMenu = webext.menus && {
         if ( hash === this._hash ) { return; }
         this._hash = hash;
         webext.menus.removeAll();
-        for ( const entry of entries ) {
+        entries.forEach(entry => {
             webext.menus.create(JSON.parse(JSON.stringify(entry)));
-        }
+        });
         const n = entries.length;
         callback = callback || null;
         if ( callback === this._callback ) { return; }
@@ -1298,15 +1287,14 @@ vAPI.adminStorage = (( ) => {
             }
             const out = {};
             if ( Array.isArray(key) ) {
-                for ( const k of key ) {
-                    if ( bin[k] === undefined ) { continue; }
+                key.filter(k => bin[k] !== undefined).forEach(k => {
                     out[k] = bin[k];
-                }
+                });
                 return out;
             }
-            for ( const [ k, v ] of Object.entries(key) ) {
+            Object.entries(key).forEach(([ k, v ]) => {
                 out[k] = bin[k] !== undefined ? bin[k] : v;
-            }
+            });
             return out;
         }
     };

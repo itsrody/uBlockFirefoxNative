@@ -172,7 +172,7 @@ vAPI.Net = class extends vAPI.Net {
             return Array.from(this.validTypes);
         }
         const out = new Set();
-        for ( const type of types ) {
+        types.forEach(type => {
             if ( this.validTypes.has(type) ) {
                 out.add(type);
             }
@@ -182,7 +182,7 @@ vAPI.Net = class extends vAPI.Net {
             if ( type === 'sub_frame' ) {
                 out.add('object');
             }
-        }
+        });
         return Array.from(out);
     }
 
@@ -384,13 +384,13 @@ vAPI.Net = class extends vAPI.Net {
     unsuspendAllRequests(discard = false) {
         const pendingRequests = this.pendingRequests;
         this.pendingRequests = [];
-        for ( const entry of pendingRequests ) {
+        pendingRequests.forEach(entry => {
             entry.resolve(
                 discard !== true
                     ? this.onBeforeSuspendableRequest(entry.details)
                     : undefined
             );
-        }
+        });
     }
 
     static canSuspend() {
