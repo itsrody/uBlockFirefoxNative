@@ -56,6 +56,14 @@ const decompile = (json, isException) => {
 const decompileScriptlet = json => decompile(json, false);
 const decompileException = json => decompile(json, true);
 
+const retrieveScratch = {
+    all: new Set(),
+    visited: new Set(),
+    scriptlets: new Set(),
+    exceptions: new Set(),
+    output: [],
+};
+
 /******************************************************************************/
 
 export class ScriptletFilteringEngine {
@@ -145,7 +153,12 @@ export class ScriptletFilteringEngine {
     retrieve(request) {
         if ( this.scriptletDB.size === 0 ) { return; }
 
-        const all = new Set();
+        const { all, visited, scriptlets, exceptions, output } = retrieveScratch;
+        all.clear();
+        visited.clear();
+        scriptlets.clear();
+        exceptions.clear();
+        output.length = 0;
         const { ancestors = [], domain, hostname } = request;
 
         this.scriptletDB.retrieveSpecifics(all, hostname);
@@ -153,11 +166,10 @@ export class ScriptletFilteringEngine {
         this.scriptletDB.retrieveSpecifics(all, entity);
         this.scriptletDB.retrieveSpecificsByRegex(all, hostname, request.url);
         this.scriptletDB.retrieveGenerics(all);
-        const visitedAncestors = new Set();
         for ( const ancestor of ancestors ) {
             const { domain, hostname } = ancestor;
-            if ( visitedAncestors.has(hostname) ) { continue; }
-            visitedAncestors.add(hostname);
+            if ( visited.has(hostname) ) { continue; }
+            visited.add(hostname);
             this.scriptletDB.retrieveSpecifics(all, `${hostname}>>`);
             const entity = entityFromHostname(hostname, domain);
             if ( entity !== '' ) {
@@ -172,8 +184,6 @@ export class ScriptletFilteringEngine {
         }
 
         // Split filters in different groups
-        const scriptlets = new Set();
-        const exceptions = new Set();
         for ( const s of all ) {
             if ( s.charCodeAt(0) === 0x2D /* - */ ) { continue; }
             const selector = s.slice(1);
@@ -184,10 +194,9 @@ export class ScriptletFilteringEngine {
             }
         }
 
-        return [
-            ...Array.from(scriptlets).map(decompileScriptlet),
-            ...Array.from(exceptions).map(decompileException),
-        ];
+        for ( const s of scriptlets ) { output.push(decompileScriptlet(s)); }
+        for ( const s of exceptions ) { output.push(decompileException(s)); }
+        return output.slice();
     }
 }
 

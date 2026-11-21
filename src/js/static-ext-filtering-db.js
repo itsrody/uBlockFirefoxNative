@@ -227,21 +227,23 @@ export class StaticExtFilteringHostnameDB {
             pos = hostname.indexOf('.', pos) + 1;
             if ( pos === 0 ) { break; }
         }
-        if ( this.#hostnameToStringListMap.has('*') ) {
-            this.#processList('*', this.#hostnameToStringListMap.get('*'), out);
+        const generic = this.#hostnameToStringListMap.get('*');
+        if ( generic !== undefined ) {
+            this.#processList('*', generic, out);
         }
-        if ( this.#hostnameToStringListMap.has('') ) {
-            this.#processList('*', this.#hostnameToStringListMap.get(''), out);
+        const wildcard = this.#hostnameToStringListMap.get('');
+        if ( wildcard !== undefined ) {
+            this.#processList('*', wildcard, out);
         }
-        this.#matcherMap.forEach((iSlot, hn) => {
+        for ( const [ hn, iSlot ] of this.#matcherMap ) {
             this.#processList(hn, this.#matcherSlots[iSlot].iList, out);
-        });
+        }
         if ( this.#ancestorSlots === undefined ) {
             this.#ancestorSlots = [];
-            this.#hostnameToStringListMap.forEach((iList, hn) => {
-                if ( hn.endsWith('>>') === false ) { return; }
+            for ( const [ hn, iList ] of this.#hostnameToStringListMap ) {
+                if ( hn.endsWith('>>') === false ) { continue; }
                 this.#ancestorSlots.push(hn, iList);
-            });
+            }
         }
         for ( let i = 0; i < this.#ancestorSlots.length; i+=2 ) {
             this.#processList(this.#ancestorSlots[i+0], this.#ancestorSlots[i+1], out);

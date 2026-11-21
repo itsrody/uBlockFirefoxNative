@@ -185,11 +185,11 @@ function registerWorldHandle(entry, key, code, matches, world) {
         matchOriginAsFallback: true,
         matches,
         runAt: 'document_start',
+        world,
     };
-    if ( world !== undefined ) { options.world = world; }
     entry[key] = browser.contentScripts.register(options).then(handle => {
         entry[key] = handle;
-    }).catch(( ) => {
+    }, ( ) => {
         entry[key] = null;
     });
 }
@@ -214,7 +214,7 @@ function registerContentScript(entry) {
     const { hostname } = entry;
     const matches = [ `http://${hostname}/*`, `https://${hostname}/*` ];
     if ( entry.isolatedCode ) {
-        registerWorldHandle(entry, 'isolatedHandle', entry.isolatedCode, matches);
+        registerWorldHandle(entry, 'isolatedHandle', entry.isolatedCode, matches, 'ISOLATED');
         entry.isolatedCode = null;
     }
     if ( entry.mainCode ) {

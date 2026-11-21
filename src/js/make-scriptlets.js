@@ -40,13 +40,9 @@ const worlds = {
     ISOLATED: structuredClone(worldTemplate),
     MAIN: structuredClone(worldTemplate),
 };
-const frameworkTemplate = {
-    scriptletFunctions: new Map(),
-    allFunctions: new Map(),
-};
 const worldFrameworks = {
-    ISOLATED: structuredClone(frameworkTemplate),
-    MAIN: structuredClone(frameworkTemplate),
+    ISOLATED: { scriptletFunctions: new Map(), allFunctions: new Map() },
+    MAIN: { scriptletFunctions: new Map(), allFunctions: new Map() },
 };
 const worldNames = Object.keys(worlds);
 const frameworkNames = Object.keys(worldFrameworks);
@@ -66,6 +62,31 @@ const reRulesetId = /\$rulesetId\$/;
 const reScriptletFunctionRefs = /self\.\$scriptletFunctionRefs\$/;
 const reScriptletFunctions = /self\.\$scriptletFunctions\$/;
 const reZetaSignature = /[^ ]+\n/;
+
+let frameworkParts;
+
+/******************************************************************************/
+
+function compareScriptletFunctions(a, b) {
+    if ( a.startsWith('function zeta_') && b.startsWith('function zeta_') ) {
+        return reZetaSignature.exec(a)[0].localeCompare(reZetaSignature.exec(b)[0]);
+    }
+    return a.localeCompare(b);
+}
+
+function buildFrameworkParts() {
+    const parts = {};
+    for ( const world of frameworkNames ) {
+        const { scriptletFunctions, allFunctions } = worldFrameworks[world];
+        parts[world] = {
+            refs: `/* ${scriptletFunctions.size} */ [${Array.from(scriptletFunctions.keys()).join(',')}]`,
+            functions: Array.from(allFunctions.values())
+                .sort(compareScriptletFunctions)
+                .join('\n\n'),
+        };
+    }
+    return parts;
+}
 
 /******************************************************************************/
 
@@ -124,7 +145,8 @@ function createScriptletCoreCode(allFunctions, resourceEntry) {
 
 function compileBroadExclusion(details) {
     if ( Boolean(details.excludeMatches?.length) === false ) { return; }
-    for ( const worldDetails of Object.values(worlds) ) {
+    for ( const world of worldNames ) {
+        const worldDetails = worlds[world];
         for ( const hn of details.excludeMatches ) {
             if ( isHnRegexOrPath(hn) ) {
                 const refs = worldDetails.regexesOrPaths.get(hn) ?? new Set();
@@ -145,15 +167,32 @@ function compileBroadExclusion(details) {
 
 /******************************************************************************/
 
+function clearWorld(w) {
+    w.args.clear();
+    w.arglists.clear();
+    w.arglists.set('', 0);
+    w.hostnames.clear();
+    w.regexesOrPaths.clear();
+    w.matches.clear();
+    w.hasEntities = false;
+    w.hasAncestors = false;
+}
+
+function clearFramework(w) {
+    w.scriptletFunctions.clear();
+    w.allFunctions.clear();
+}
+
 export function reset() {
-    worlds.ISOLATED = structuredClone(worldTemplate);
-    worlds.MAIN = structuredClone(worldTemplate);
+    clearWorld(worlds.ISOLATED);
+    clearWorld(worlds.MAIN);
 }
 
 export function resetFramework() {
     reset();
-    worldFrameworks.ISOLATED = structuredClone(frameworkTemplate);
-    worldFrameworks.MAIN = structuredClone(frameworkTemplate);
+    clearFramework(worldFrameworks.ISOLATED);
+    clearFramework(worldFrameworks.MAIN);
+    frameworkParts = undefined;
 }
 
 export function resetAll() {
@@ -189,31 +228,37 @@ export function compile(rulesetId, details) {
     if ( scriptletFunctions.has(resourceEntry.name) === false ) {
         scriptletFunctions.set(resourceEntry.name, scriptletFunctions.size);
         createScriptletCoreCode(allFunctions, resourceEntry);
+        frameworkParts = undefined;
     }
     // Convert args to arg indices
     const arglist = details.args.slice();
     arglist[0] = scriptletFunctions.get(resourceEntry.name);
     for ( let i = 1; i < arglist.length; i++ ) {
         const arg = arglist[i];
-        if ( worldDetails.args.has(arg) === false ) {
-            worldDetails.args.set(arg, worldDetails.args.size);
+        let index = worldDetails.args.get(arg);
+        if ( index === undefined ) {
+            index = worldDetails.args.size;
+            worldDetails.args.set(arg, index);
         }
-        arglist[i] = worldDetails.args.get(arg);
+        arglist[i] = index;
     }
     const arglistKey = JSON.stringify(arglist).slice(1, -1);
-    if ( worldDetails.arglists.has(arglistKey) === false ) {
-        worldDetails.arglists.set(arglistKey, worldDetails.arglists.size);
+    let arglistIndex = worldDetails.arglists.get(arglistKey);
+    if ( arglistIndex === undefined ) {
+        arglistIndex = worldDetails.arglists.size;
+        worldDetails.arglists.set(arglistKey, arglistIndex);
     }
-    const arglistIndex = worldDetails.arglists.get(arglistKey);
     if ( details.matches ) {
         for ( const hn of details.matches ) {
             if ( isHnRegexOrPath(hn) ) {
                 worldDetails.matches.clear();
                 worldDetails.matches.add('*');
-                if ( worldDetails.regexesOrPaths.has(hn) === false ) {
-                    worldDetails.regexesOrPaths.set(hn, new Set());
+                let refs = worldDetails.regexesOrPaths.get(hn);
+                if ( refs === undefined ) {
+                    refs = new Set();
+                    worldDetails.regexesOrPaths.set(hn, refs);
                 }
-                worldDetails.regexesOrPaths.get(hn).add(arglistIndex);
+                refs.add(arglistIndex);
                 continue;
             }
             const isEntity = hn.endsWith('.*') || hn.endsWith('.*>>');
@@ -227,10 +272,12 @@ export function compile(rulesetId, details) {
             if ( worldDetails.matches.has('*') === false ) {
                 worldDetails.matches.add(hn);
             }
-            if ( worldDetails.hostnames.has(hn) === false ) {
-                worldDetails.hostnames.set(hn, new Set());
+            let refs = worldDetails.hostnames.get(hn);
+            if ( refs === undefined ) {
+                refs = new Set();
+                worldDetails.hostnames.set(hn, refs);
             }
-            worldDetails.hostnames.get(hn).add(arglistIndex);
+            refs.add(arglistIndex);
         }
     } else {
         worldDetails.matches.add('*');
@@ -238,16 +285,20 @@ export function compile(rulesetId, details) {
     if ( details.excludeMatches ) {
         for ( const hn of details.excludeMatches ) {
             if ( isHnRegexOrPath(hn) ) {
-                if ( worldDetails.regexesOrPaths.has(hn) === false ) {
-                    worldDetails.regexesOrPaths.set(hn, new Set());
+                let refs = worldDetails.regexesOrPaths.get(hn);
+                if ( refs === undefined ) {
+                    refs = new Set();
+                    worldDetails.regexesOrPaths.set(hn, refs);
                 }
-                worldDetails.regexesOrPaths.get(hn).add(~arglistIndex);
+                refs.add(~arglistIndex);
                 continue;
             }
-            if ( worldDetails.hostnames.has(hn) === false ) {
-                worldDetails.hostnames.set(hn, new Set());
+            let refs = worldDetails.hostnames.get(hn);
+            if ( refs === undefined ) {
+                refs = new Set();
+                worldDetails.hostnames.set(hn, refs);
             }
-            worldDetails.hostnames.get(hn).add(~arglistIndex);
+            refs.add(~arglistIndex);
         }
     }
 }
@@ -261,11 +312,11 @@ export function commit(rulesetId, template, secret) {
         const { args, arglists } = worldDetails;
         const hostnames = Array.from(worldDetails.hostnames).toSorted((a, b) =>
             hostnameCompare(a[0], b[0])
-        ).map(a => ([ a[0], JSON.stringify(Array.from(a[1]).map(a => JSON.parse(a))).slice(1,-1)]));
+        ).map(a => ([ a[0], Array.from(a[1]).join(',') ]));
         const scriptletFromRegexes = Array.from(worldDetails.regexesOrPaths)
             .map(a => [
                 compileRegexOrPathTarget(a[0]),
-                JSON.stringify(Array.from(a[1])).slice(1,-1),
+                Array.from(a[1]).join(','),
             ]).flat();
         if ( hostnames.length === 0 && scriptletFromRegexes.length === 0 ) { continue; }
         let content = safeReplace(template, reScriptletSecret, JSON.stringify(secret));
@@ -308,26 +359,14 @@ export function commit(rulesetId, template, secret) {
 /******************************************************************************/
 
 export function commitFramework(beginTemplate, endTemplate, secret) {
+    const parts = frameworkParts ?? (frameworkParts = buildFrameworkParts());
+    const secretJSON = JSON.stringify(secret);
     const stats = {};
     for ( const world of frameworkNames ) {
-        const { scriptletFunctions, allFunctions } = worldFrameworks[world];
-        let beginCode = safeReplace(beginTemplate, reScriptletSecret, JSON.stringify(secret));
-        beginCode = safeReplace(beginCode, reScriptletFunctionRefs,
-            `/* ${scriptletFunctions.size} */ [${Array.from(scriptletFunctions.keys()).join(',')}]`
-        );
-        beginCode = safeReplace(beginCode, reScriptletFunctions,
-            Array.from(allFunctions.values()).sort((a, b) => {
-                if ( a.startsWith('function zeta_') ) {
-                    if ( b.startsWith('function zeta_') ) {
-                        const amatch = reZetaSignature.exec(a);
-                        const bmatch = reZetaSignature.exec(b);
-                        return amatch[0].localeCompare(bmatch[0]);
-                    }
-                }
-                return a.localeCompare(b);
-            }).join('\n\n')
-        );
-        let endCode = safeReplace(endTemplate, reScriptletSecret, JSON.stringify(secret));
+        let beginCode = safeReplace(beginTemplate, reScriptletSecret, secretJSON);
+        beginCode = safeReplace(beginCode, reScriptletFunctionRefs, parts[world].refs);
+        beginCode = safeReplace(beginCode, reScriptletFunctions, parts[world].functions);
+        const endCode = safeReplace(endTemplate, reScriptletSecret, secretJSON);
         stats[world] = { beginCode, endCode };
     }
     return stats;
@@ -336,6 +375,7 @@ export function commitFramework(beginTemplate, endTemplate, secret) {
 /******************************************************************************/
 
 export function importScriptlet(details) {
+    frameworkParts = undefined;
     const funcBody = details.code.replace(/\/\*.+?\*\//gs, '').trim();
     const funcName = `zeta_${globalThis.crypto.randomUUID().replaceAll('-', '')}`;
     const { name } = details;
@@ -365,6 +405,7 @@ export function importScriptlet(details) {
 /******************************************************************************/
 
 export function init(scriptlets) {
+    frameworkParts = undefined;
     for ( const scriptlet of scriptlets ) {
         const { name, aliases, fn } = scriptlet;
         const entry = {
