@@ -57,8 +57,8 @@ import {
     bitFromType,
     dnrTypeBitDescriptors,
     modifierBitsFromType,
+    modifierDescriptorFromName,
     modifierNameFromType,
-    modifierTypeFromName,
     otherTypeBitValue,
     typeBitDescriptors,
     typeNameToTypeValue,
@@ -4453,6 +4453,15 @@ const StaticNetFilteringEngine = function() {
     this.realmBucketCache = new Map();
     this.modifierScratch = {
         results: [],
+        jobs: [],
+        resultPools: [],
+        env: {
+            type: 0,
+            bits: 0,
+            th: 0,
+            iunit: 0,
+            results: undefined,
+        },
         toAddImportant: new Map(),
         toAdd: new Map(),
         toRemove: new Map(),
@@ -4489,6 +4498,8 @@ StaticNetFilteringEngine.prototype.reset = function() {
     this.bitsToBucket.clear();
     this.realmBucketCache.clear();
     this.modifierScratch.results.length = 0;
+    this.modifierScratch.jobs.length = 0;
+    this.modifierScratch.resultPools.length = 0;
     this.modifierScratch.toAddImportant.clear();
     this.modifierScratch.toAdd.clear();
     this.modifierScratch.toRemove.clear();
@@ -4700,8 +4711,8 @@ StaticNetFilteringEngine.prototype.collectModifierFilterTypes = function() {
 };
 
 StaticNetFilteringEngine.prototype.hasModifierFilters = function(modifierName) {
-    const modifierType = modifierTypeFromName.get(modifierName);
-    return modifierType !== undefined && this.modifierFilterTypes.has(modifierType);
+    const descriptor = modifierDescriptorFromName.get(modifierName);
+    return descriptor !== undefined && this.modifierFilterTypes.has(descriptor.type);
 };
 
 /******************************************************************************/
@@ -5488,12 +5499,16 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
     fctxt,
     modifierName
 ) {
-    if ( this.notReady || this.hasModifierFilters(modifierName) === false ) { return; }
+    const descriptor = modifierDescriptorFromName.get(modifierName);
+    if (
+        this.notReady ||
+        descriptor === undefined ||
+        this.modifierFilterTypes.has(descriptor.type) === false
+    ) { return; }
 
+    const modifierType = descriptor.type;
+    const modifierBits = descriptor.bits;
     const typeBits = getTypeBits(fctxt) || otherTypeBitValue;
-    const modifierType = modifierTypeFromName.get(modifierName);
-    const modifierBits = modifierBitsFromType.get(modifierType);
-
     const partyBits = getPartyBits(fctxt);
 
     const catBits00 = modifierBits;
@@ -5521,13 +5536,12 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifiers = function(
     const scratch = this.modifierScratch;
     const results = scratch.results;
     results.length = 0;
-    const env = {
-        type: modifierType || 0,
-        bits: 0,
-        th: 0,
-        iunit: 0,
-        results,
-    };
+    const env = scratch.env;
+    env.type = modifierType;
+    env.bits = 0;
+    env.th = 0;
+    env.iunit = 0;
+    env.results = results;
 
     const tokenHashes = urlTokenizer.getTokens();
     let i = 0;
@@ -5582,21 +5596,20 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifierSets = function(
     for ( const name of modifierNames ) { out[name] = undefined; }
     if ( this.notReady ) { return out; }
 
-    const candidates = [];
-    for ( const name of modifierNames ) {
-        if ( this.hasModifierFilters(name) ) {
-            candidates.push(name);
-        }
-    }
-    if ( candidates.length === 0 ) { return out; }
-
+    const scratch = this.modifierScratch;
+    const jobs = scratch.jobs;
+    const resultPools = scratch.resultPools;
     const typeBits = getTypeBits(fctxt) || otherTypeBitValue;
     const partyBits = getPartyBits(fctxt);
-    const active = [];
+    let jobCount = 0;
 
-    for ( const name of candidates ) {
-        const modifierType = modifierTypeFromName.get(name);
-        const modifierBits = modifierBitsFromType.get(modifierType);
+    for ( const name of modifierNames ) {
+        const descriptor = modifierDescriptorFromName.get(name);
+        if (
+            descriptor === undefined ||
+            this.modifierFilterTypes.has(descriptor.type) === false
+        ) { continue; }
+        const modifierBits = descriptor.bits;
         const buckets = getRealmBuckets(
             this,
             modifierBits,
@@ -5613,31 +5626,38 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifierSets = function(
         ) {
             continue;
         }
-        active.push({
-            name,
-            modifierType,
-            results: [],
-            catBits00: modifierBits,
-            catBits01: modifierBits | typeBits,
-            catBits10: modifierBits | partyBits,
-            catBits11: modifierBits | typeBits | partyBits,
-            bucket00,
-            bucket01,
-            bucket10,
-            bucket11,
-        });
+        let results = resultPools[jobCount];
+        if ( results === undefined ) {
+            results = [];
+            resultPools[jobCount] = results;
+        }
+        results.length = 0;
+        let job = jobs[jobCount];
+        if ( job === undefined ) {
+            job = {};
+            jobs[jobCount] = job;
+        }
+        jobCount += 1;
+        job.name = name;
+        job.modifierType = descriptor.type;
+        job.results = results;
+        job.catBits00 = modifierBits;
+        job.catBits01 = modifierBits | typeBits;
+        job.catBits10 = modifierBits | partyBits;
+        job.catBits11 = modifierBits | typeBits | partyBits;
+        job.bucket00 = bucket00;
+        job.bucket01 = bucket01;
+        job.bucket10 = bucket10;
+        job.bucket11 = bucket11;
     }
-    if ( active.length === 0 ) { return out; }
+    if ( jobCount === 0 ) { return out; }
 
     resetRegisters(fctxt, typeBits);
 
-    const env = {
-        type: 0,
-        bits: 0,
-        th: 0,
-        iunit: 0,
-        results: undefined,
-    };
+    const env = scratch.env;
+    env.bits = 0;
+    env.th = 0;
+    env.iunit = 0;
     const tokenHashes = urlTokenizer.getTokens();
     let i = 0;
     let iunit = 0;
@@ -5646,7 +5666,8 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifierSets = function(
         if ( th === INVALID_TOKEN_HASH ) { break; }
         env.th = th;
         $tokenBeg = tokenHashes[i+1];
-        for ( const job of active ) {
+        for ( let j = 0; j < jobCount; j++ ) {
+            const job = jobs[j];
             env.type = job.modifierType;
             env.results = job.results;
             if (
@@ -5681,8 +5702,8 @@ StaticNetFilteringEngine.prototype.matchAndFetchModifierSets = function(
         i += 2;
     }
 
-    const scratch = this.modifierScratch;
-    for ( const job of active ) {
+    for ( let j = 0; j < jobCount; j++ ) {
+        const job = jobs[j];
         out[job.name] = reconcileModifierResults(scratch, job.results);
     }
     return out;

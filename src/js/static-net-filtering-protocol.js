@@ -208,3 +208,11 @@ export const modifierNameFromType = new Map([
     [ MODIFIER_TYPE_REPLACE, 'replace' ],
     [ MODIFIER_TYPE_URLSKIP, 'urlskip' ],
 ]);
+
+// One lookup at match time instead of separate name/type/bits map walks.
+export const modifierDescriptorFromName = new Map(
+    Array.from(modifierTypeFromName, ( [ name, type ] ) => [
+        name,
+        Object.freeze({ name, type, bits: modifierBitsFromType.get(type) }),
+    ])
+);
