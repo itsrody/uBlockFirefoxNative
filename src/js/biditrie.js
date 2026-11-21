@@ -126,12 +126,10 @@ const roundToPageSize = v => (v + PAGE_SIZE-1) & ~(PAGE_SIZE-1);
 
 // http://www.cse.yorku.ca/~oz/hash.html#djb2
 const i32Checksum = (buf32) => {
-    const n = buf32.length;
-    let hash = 177573 ^ n;
-    for ( let i = 0; i < n; i++ ) {
-        hash = (hash << 5) + hash ^ buf32[i];
-    }
-    return hash;
+    return buf32.reduce(
+        (hash, v) => (hash << 5) + hash ^ v,
+        177573 ^ buf32.length
+    );
 };
 
 class BidiTrieContainer {
@@ -629,13 +627,11 @@ class BidiTrieContainer {
         }
         const charCodes = this.buf8;
         needleLeft += this.buf32[CHAR0_SLOT];
-        const needleRight = needleLeft + needleLen;
-        while ( charCodes[haystackLeft] === charCodes[needleLeft] ) {
-            needleLeft += 1;
-            if ( needleLeft === needleRight ) { return 1; }
-            haystackLeft += 1;
+        if ( needleLen === 0 ) {
+            return charCodes[haystackLeft] === charCodes[needleLeft] ? 1 : 0;
         }
-        return 0;
+        return charCodes.subarray(needleLeft, needleLeft + needleLen)
+            .every((value, i) => value === charCodes[haystackLeft + i]) ? 1 : 0;
     }
 
     // Find the left-most instance of substring in main string
