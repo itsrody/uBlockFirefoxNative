@@ -21,7 +21,7 @@
 
 /******************************************************************************/
 
-let listEntries = Object.create(null);
+const listEntries = new Map();
 
 /******************************************************************************/
 
@@ -30,14 +30,14 @@ let listEntries = Object.create(null);
 
 const extractBlocks = function(content, ...ids) {
     const out = [];
-    ids.forEach(id => {
+    for ( const id of ids ) {
         const pattern = `#block-start-${id}\n`;
         let beg = content.indexOf(pattern);
-        if ( beg === -1 ) { return; }
+        if ( beg === -1 ) { continue; }
         beg += pattern.length;
         const end = content.indexOf(`#block-end-${id}`, beg);
         out.push(content.slice(beg, end));
-    });
+    }
     return out.join('\n');
 };
 
@@ -50,8 +50,8 @@ const fromNetFilter = function(details) {
     const lists = [];
     const compiledFilter = details.compiledFilter;
 
-    Object.entries(listEntries).forEach(([ assetKey, entry ]) => {
-        if ( entry === undefined ) { return; }
+    for ( const [ assetKey, entry ] of listEntries ) {
+        if ( entry === undefined ) { continue; }
         if ( entry.networkContent === undefined ) {
             entry.networkContent = extractBlocks(entry.content, 'NETWORK_FILTERS:GOOD');
         }
@@ -79,7 +79,7 @@ const fromNetFilter = function(details) {
             });
             break;
         }
-    });
+    }
 
     const response = {};
     response[details.rawFilter] = lists;
@@ -187,8 +187,8 @@ const fromExtendedFilter = function(details) {
 
     const response = Object.create(null);
 
-    Object.entries(listEntries).forEach(([ assetKey, entry ]) => {
-        if ( entry === undefined ) { return; }
+    for ( const [ assetKey, entry ] of listEntries ) {
+        if ( entry === undefined ) { continue; }
         if ( entry.extendedContent === undefined ) {
             entry.extendedContent = extractBlocks(
                 entry.content,
@@ -291,7 +291,7 @@ const fromExtendedFilter = function(details) {
                 break;
             }
         }
-    });
+    }
 
     self.postMessage({ id: details.id, response });
 };
@@ -303,11 +303,11 @@ self.onmessage = function(e) {
 
     switch ( msg.what ) {
     case 'resetLists':
-        listEntries = Object.create(null);
+        listEntries.clear();
         break;
 
     case 'setList':
-        listEntries[msg.details.assetKey] = msg.details;
+        listEntries.set(msg.details.assetKey, msg.details);
         break;
 
     case 'fromNetFilter':

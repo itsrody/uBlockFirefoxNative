@@ -50,9 +50,9 @@ const stopWorker = function() {
     worker.terminate();
     worker = null;
     needLists = true;
-    pendingResponses.forEach(resolver => {
+    for ( const resolver of pendingResponses.values() ) {
         resolver();
-    });
+    }
     pendingResponses.clear();
 };
 
@@ -92,15 +92,15 @@ const initWorker = function() {
         });
     };
 
-    Object.entries(µb.availableFilterLists).forEach(([listKey, entry]) => {
-        if ( entry.off === true ) { return; }
+    for ( const [ listKey, entry ] of Object.entries(µb.availableFilterLists) ) {
+        if ( entry.off === true ) { continue; }
         entries.set(listKey, {
             title: listKey !== µb.userFiltersPath ?
                 entry.title :
                 i18n$('1pPageName'),
             supportURL: entry.supportURL || ''
         });
-    });
+    }
     if ( entries.size === 0 ) {
         return Promise.resolve();
     }
