@@ -750,12 +750,8 @@ vAPI.messaging = {
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/Port
     //   port.sender is always present for onConnect() listeners.
     onPortConnect: function(port) {
-        port.onDisconnect.addListener(port =>
-            this.onPortDisconnect(port)
-        );
-        port.onMessage.addListener((request, port) =>
-            this.onPortMessage(request, port)
-        );
+        port.onDisconnect.addListener(boundOnPortDisconnect);
+        port.onMessage.addListener(boundOnPortMessage);
         const portDetails = { port };
         const sender = port.sender;
         const { origin, tab, url } = sender;
@@ -783,9 +779,7 @@ vAPI.messaging = {
         }
         this.defaultHandler = defaultHandler;
 
-        webext.runtime.onConnect.addListener(
-            port => this.onPortConnect(port)
-        );
+        webext.runtime.onConnect.addListener(boundOnPortConnect);
 
     },
 
@@ -919,6 +913,13 @@ vAPI.messaging = {
         callback();
     },
 };
+
+// WebExtension events pass the port to their listeners. Bind each handler once
+// so every port reuses the same function instead of allocating a closure per
+// connection, while keeping the original argument order and receiver.
+const boundOnPortConnect = vAPI.messaging.onPortConnect.bind(vAPI.messaging);
+const boundOnPortDisconnect = vAPI.messaging.onPortDisconnect.bind(vAPI.messaging);
+const boundOnPortMessage = vAPI.messaging.onPortMessage.bind(vAPI.messaging);
 
 /******************************************************************************/
 /******************************************************************************/
