@@ -68,6 +68,8 @@ export class StaticExtFilteringHostnameDB {
 
     #hostnameToStringListMap = new Map();
     #ancestorSlots;
+    #hostnameSuffixes = [];
+    #entitySuffixes = [];
     #matcherMap = new Map();
     #hostnameToMatcherListMap = new Map();
     #strSlots = [ '' ];     // Array of strings (selectors and pseudo-selectors)
@@ -170,6 +172,59 @@ export class StaticExtFilteringHostnameDB {
             hn = hn.slice(pos + 1);
         }
         this.#retrieveSpecificsByRegex('', out, hostname, pathname);
+    }
+
+    // Build the same suffix chain once for the plain and regex passes. The
+    // final '' is regex-only; a trailing-dot hostname can also produce an
+    // earlier '' which the plain pass does process. The plain pass stops
+    // before a wildcard suffix reached by stripping a label.
+    #fillSuffixes(hostname, out) {
+        out.length = 0;
+        if ( hostname === '' ) { return; }
+        let hn = hostname;
+        for (;;) {
+            out.push(hn);
+            const pos = hn.indexOf('.');
+            if ( pos === -1 ) { break; }
+            hn = hn.slice(pos + 1);
+        }
+        out.push('');
+    }
+
+    #retrieveSpecificsFromSuffixes(out, suffixes) {
+        for ( let i = 0; i < suffixes.length; i++ ) {
+            const hn = suffixes[i];
+            if ( hn === '' && i === suffixes.length - 1 ) { break; }
+            if ( i !== 0 && hn === '*' ) { break; }
+            const iList = this.#hostnameToStringListMap.get(hn);
+            if ( iList !== undefined ) {
+                this.#retrieveFromSlot(out, iList);
+            }
+        }
+    }
+
+    // The pathname is computed once per retrieval, not once per suffix.
+    #retrieveSpecificsByRegexFromSuffixes(out, hostname, pathname, suffixes) {
+        for ( let i = 0; i < suffixes.length; i++ ) {
+            this.#retrieveSpecificsByRegex(suffixes[i], out, hostname, pathname);
+        }
+    }
+
+    retrieveAll(out, hostname, entity, url) {
+        this.#fillSuffixes(hostname, this.#hostnameSuffixes);
+        this.#fillSuffixes(entity, this.#entitySuffixes);
+        this.#retrieveSpecificsFromSuffixes(out, this.#hostnameSuffixes);
+        this.#retrieveSpecificsFromSuffixes(out, this.#entitySuffixes);
+        if ( this.#hostnameSuffixes.length !== 0 ) {
+            const pathname = naivePathnameFromURL(url) ?? '';
+            this.#retrieveSpecificsByRegexFromSuffixes(
+                out,
+                hostname,
+                pathname,
+                this.#hostnameSuffixes
+            );
+        }
+        this.retrieveGenerics(out);
     }
 
     #retrieveSpecificsByRegex(hn, out, hostname, pathname) {

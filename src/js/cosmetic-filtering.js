@@ -816,15 +816,10 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
             }
         }
 
-        // Retrieve filters with a non-empty hostname
-        this.specificFilters.retrieveSpecifics(allSet, hostname);
-        // Retrieve filters with a entity-based hostname value
+        // Retrieve hostname, entity, path-specific and generic filters in
+        // their established order with one batched suffix walk.
         const entity = entityFromHostname(hostname, request.domain);
-        this.specificFilters.retrieveSpecifics(allSet, entity);
-        // Retrieve filters with a regex-based hostname value
-        this.specificFilters.retrieveSpecificsByRegex(allSet, hostname, request.url);
-        // Retrieve filters with an empty hostname
-        this.specificFilters.retrieveGenerics(allSet);
+        this.specificFilters.retrieveAll(allSet, hostname, entity, request.url);
 
         // Split filters in different groups
         for ( const s of allSet ) {

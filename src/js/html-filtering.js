@@ -401,11 +401,8 @@ htmlFilteringEngine.fromCompiledContent = function(reader) {
 htmlFilteringEngine.retrieve = function(fctxt) {
     const all = new Set();
     const hostname = fctxt.getHostname();
-    filterDB.retrieveSpecifics(all, hostname);
     const entity = entityFromHostname(hostname, fctxt.getDomain());
-    filterDB.retrieveSpecifics(all, entity);
-    filterDB.retrieveSpecificsByRegex(all, hostname, fctxt.url);
-    filterDB.retrieveGenerics(all);
+    filterDB.retrieveAll(all, hostname, entity, fctxt.url);
     if ( all.size === 0 ) { return; }
 
     // https://github.com/gorhill/uBlock/issues/2835
