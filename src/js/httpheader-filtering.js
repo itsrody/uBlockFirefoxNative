@@ -33,13 +33,6 @@ const filterDB = new StaticExtFilteringHostnameDB();
 let acceptedCount = 0;
 let discardedCount = 0;
 
-const headerIndexFromName = function(name, headers, start = 0) {
-    for ( let i = start; i < headers.length; i++ ) {
-        if ( headers[i].name.toLowerCase() === name ) { return i; }
-    }
-    return -1;
-};
-
 const logOne = function(isException, token, fctxt) {
     fctxt.duplicate()
         .setRealm('extended')
@@ -157,8 +150,19 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
 
     const hasGlobalException = exceptions.has('');
 
+    const byName = new Map();
+    for ( let i = 0; i < headers.length; i++ ) {
+        const header = headers[i];
+        const name = header.name.toLowerCase();
+        let entries = byName.get(name);
+        if ( entries === undefined ) {
+            entries = [];
+            byName.set(name, entries);
+        }
+        entries.push(header);
+    }
+
     let modified = false;
-    let i = 0;
 
     for ( const name of filters ) {
         const isExcepted = hasGlobalException || exceptions.has(name);
@@ -168,11 +172,12 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
             }
             continue;
         }
-        i = 0;
-        for (;;) {
-            i = headerIndexFromName(name, headers, i);
-            if ( i === -1 ) { break; }
-            headers.splice(i, 1);
+        const entries = byName.get(name);
+        if ( entries === undefined ) { continue; }
+        for ( let i = 0; i < entries.length; i++ ) {
+            const pos = headers.indexOf(entries[i]);
+            if ( pos === -1 ) { continue; }
+            headers.splice(pos, 1);
             if ( logger.enabled ) {
                 logOne(false, name, fctxt);
             }

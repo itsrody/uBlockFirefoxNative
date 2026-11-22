@@ -186,20 +186,23 @@ let $isBlockImportant = false;
 
 class HostnameDetails {
     #cache = new Map();
-    #mru = [];
+
+    // Map insertion order is the MRU order: head is least recently used,
+    // tail is most recently used. A repeated get/delete/set moves an entry
+    // without maintaining a parallel JS array.
     #lookup(hostname) {
-        const details = this.#cache.get(hostname) ?? { hostname };
+        let details = this.#cache.get(hostname);
+        if ( details === undefined ) {
+            details = { hostname };
+        }
         if ( details.domain === undefined ) {
             if ( this.#cache.size === 8 ) {
-                this.#cache.delete(this.#mru.pop());
+                this.#cache.delete(this.#cache.keys().next().value);
             }
-            this.#mru.unshift(hostname);
-            this.#cache.set(hostname, details);
-        } else if ( this.#mru[0] !== hostname ) {
-            const pos = this.#mru.indexOf(hostname);
-            this.#mru.splice(pos, 1);
-            this.#mru.unshift(hostname);
+        } else {
+            this.#cache.delete(hostname);
         }
+        this.#cache.set(hostname, details);
         return details;
     }
     get hostname() { return ''; }
@@ -243,37 +246,46 @@ const $topDetails = new TopDetails();
 const $httpHeaders = {
     init(responseHeaders, requestHeaders) {
         const headers = this.headers;
+        const byName = this.byName;
+        byName.clear();
         let n = 0;
         for ( let i = 0; i < responseHeaders.length; i++ ) {
-            headers[n++] = responseHeaders[i];
+            const header = responseHeaders[i];
+            headers[n++] = header;
+            const name = header.name.toLowerCase();
+            const value = header.value === undefined ? null : header.value;
+            if ( byName.get(name) === undefined ) {
+                byName.set(name, value);
+            }
         }
         for ( let i = 0; i < requestHeaders.length; i++ ) {
-            headers[n++] = requestHeaders[i];
+            const header = requestHeaders[i];
+            headers[n++] = header;
+            const name = header.name.toLowerCase();
+            const value = header.value === undefined ? null : header.value;
+            if ( byName.get(name) === undefined ) {
+                byName.set(name, value);
+            }
         }
         headers.length = n;
         this.parsed.clear();
     },
     reset() {
         this.headers.length = 0;
+        this.byName.clear();
         this.parsed.clear();
     },
     lookup(name) {
         let value = this.parsed.get(name);
         if ( value === undefined ) {
-            const headers = this.headers;
-            for ( let i = 0; i < headers.length; i++ ) {
-                const header = headers[i];
-                if ( name === header.name.toLowerCase() ) {
-                    value = header.value;
-                    break;
-                }
-            }
+            value = this.byName.get(name);
             if ( value === undefined ) { value = null; }
             this.parsed.set(name, value);
         }
         return value ?? undefined;
     },
     headers: [],
+    byName: new Map(),
     parsed: new Map(),
 };
 
