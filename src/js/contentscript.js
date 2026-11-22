@@ -932,9 +932,7 @@ vAPI.DOMFilterer = class {
     const pendingLists = [];
     const pendingNodes = [];
     const processedSet = new Set();
-    const ignoreTags = Object.assign(Object.create(null), {
-        br: 1, head: 1, link: 1, meta: 1, script: 1, style: 1
-    });
+    const ignoreTags = new Set([ 'br', 'head', 'link', 'meta', 'script', 'style' ]);
     let domObserver;
     let domFilterer;
     let hostname = '';
@@ -1132,7 +1130,7 @@ vAPI.DOMFilterer = class {
                 if ( addedNodes.length === 0 ) { continue; }
                 for ( const node of addedNodes ) {
                     if ( node.nodeType !== 1 ) { continue; }
-                    if ( ignoreTags[node.localName] ) { continue; }
+                    if ( ignoreTags.has(node.localName) ) { continue; }
                     if ( node.parentElement === null ) { continue; }
                     addPendingList([ node ]);
                     if ( node.firstElementChild === null ) { continue; }
