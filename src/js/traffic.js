@@ -44,6 +44,8 @@ const patchLocalRedirectURL = url => url.charCodeAt(0) === 0x2F /* '/' */
     ? vAPI.getURL(url)
     : url;
 
+const headerReplaceCSPModifierNames = [ 'replace', 'csp' ];
+
 /******************************************************************************/
 
 // Intercept and filter web requests.
@@ -533,11 +535,35 @@ function onHeadersReceived(details) {
         }
     }
 
-    if ( bodyFilterer.canFilter(fctxt, details, contentType, mime, headerIndex) ) {
+    const canFilterBody = bodyFilterer.canFilter(
+        fctxt,
+        details,
+        contentType,
+        mime,
+        headerIndex
+    );
+    const isDocument = fctxt.isDocument();
+    let replaceDirectives;
+    let cspDirectives;
+    if ( canFilterBody && isDocument ) {
+        const modifierSets =
+            staticNetFilteringEngine.matchAndFetchModifierSets(
+                fctxt,
+                headerReplaceCSPModifierNames
+            );
+        replaceDirectives = modifierSets.replace;
+        cspDirectives = modifierSets.csp;
+    } else if ( isDocument ) {
+        cspDirectives =
+            staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'csp');
+    } else if ( canFilterBody ) {
+        replaceDirectives =
+            staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'replace');
+    }
+
+    if ( canFilterBody ) {
         const jobs = [];
         // `replace=` filter option
-        const replaceDirectives =
-            staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'replace');
         if ( replaceDirectives ) {
             jobs.push({
                 fn: textResponseFilterer,
@@ -566,8 +592,8 @@ function onHeadersReceived(details) {
 
     // https://github.com/uBlockOrigin/uBlock-issues/issues/229#issuecomment-2220354261
     // Inject CSP/PP in document resource only
-    if ( fctxt.isDocument() ) {
-        if ( injectCSP(fctxt, pageStore, responseHeaders) === true ) {
+    if ( isDocument ) {
+        if ( injectCSP(fctxt, pageStore, responseHeaders, cspDirectives) === true ) {
             modifiedHeaders = true;
         }
         if ( injectPP(fctxt, pageStore, responseHeaders) === true ) {
@@ -1006,7 +1032,7 @@ const bodyFilterer = (( ) => {
 
 /******************************************************************************/
 
-function injectCSP(fctxt, pageStore, responseHeaders) {
+function injectCSP(fctxt, pageStore, responseHeaders, staticDirectives) {
     const cspSubsets = [];
     const requestType = fctxt.type;
 
@@ -1058,8 +1084,6 @@ function injectCSP(fctxt, pageStore, responseHeaders) {
     // Static filtering.
 
     fctxt.type = requestType;
-    const staticDirectives =
-        staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'csp');
     if ( staticDirectives !== undefined ) {
         cspSubsets.push(...staticDirectives
             .filter(directive => directive.result === 1)
@@ -1135,7 +1159,8 @@ function injectCSP(fctxt, pageStore, responseHeaders) {
 
 function injectPP(fctxt, pageStore, responseHeaders) {
     const permissions = [];
-    const directives = staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'permissions');
+    const directives =
+        staticNetFilteringEngine.matchAndFetchModifiers(fctxt, 'permissions');
     if ( directives !== undefined ) {
         permissions.push(...directives
             .filter(directive => directive.result === 1)
