@@ -139,6 +139,7 @@ const globalsDeclPrefix = 'const $SCRIPTLET_GLOBALS$ = ';
 const wrapperEnd = '})();';
 const noContentScriptOptions = {};
 const retrieveOneScratch = new Map();
+const parsedArgsCache = new Map();
 
 /******************************************************************************/
 
@@ -202,7 +203,12 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
         );
         makeScriptlets.reset();
         for ( const [ rawargs, details ] of map ) {
-            details.args = JSON.parse(rawargs);
+            let args = parsedArgsCache.get(rawargs);
+            if ( args === undefined ) {
+                args = JSON.parse(rawargs);
+                parsedArgsCache.set(rawargs, args);
+            }
+            details.args = args.slice();
             details.trustedSource = true;
             makeScriptlets.compile('uBlock', details);
         }

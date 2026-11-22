@@ -63,6 +63,10 @@ const reScriptletFunctionRefs = /self\.\$scriptletFunctionRefs\$/;
 const reScriptletFunctions = /self\.\$scriptletFunctions\$/;
 const reZetaSignature = /[^ ]+\n/;
 
+// Reused synchronously by compile(): only numeric indices are written, and
+// the key is serialized before the next call can overwrite it.
+const compileArgScratch = [];
+
 let frameworkParts;
 
 /******************************************************************************/
@@ -231,18 +235,18 @@ export function compile(rulesetId, details) {
         frameworkParts = undefined;
     }
     // Convert args to arg indices
-    const arglist = details.args.slice();
-    arglist[0] = scriptletFunctions.get(resourceEntry.name);
-    for ( let i = 1; i < arglist.length; i++ ) {
-        const arg = arglist[i];
+    compileArgScratch.length = details.args.length;
+    compileArgScratch[0] = scriptletFunctions.get(resourceEntry.name);
+    for ( let i = 1; i < details.args.length; i++ ) {
+        const arg = details.args[i];
         let index = worldDetails.args.get(arg);
         if ( index === undefined ) {
             index = worldDetails.args.size;
             worldDetails.args.set(arg, index);
         }
-        arglist[i] = index;
+        compileArgScratch[i] = index;
     }
-    const arglistKey = JSON.stringify(arglist).slice(1, -1);
+    const arglistKey = compileArgScratch.join(',');
     let arglistIndex = worldDetails.arglists.get(arglistKey);
     if ( arglistIndex === undefined ) {
         arglistIndex = worldDetails.arglists.size;
