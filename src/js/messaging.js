@@ -61,6 +61,39 @@ import µb from './background.js';
 
 /******************************************************************************/
 
+// Reuse stable option dictionaries for the repeated Firefox injections. The
+// native call consumes each dictionary before returning its promise, so only
+// the file or frameId field needs to be refreshed for the next injection.
+const scriptletOptions = { file: '' };
+const domSurveyOptions = { allFrames: true, file: '', runAt: 'document_end' };
+const cosmeticReportOptions = {
+    allFrames: true,
+    file: '/js/scriptlets/cosmetic-report.js',
+    matchAboutBlank: true,
+    runAt: 'document_start',
+};
+const contentscriptExtraOptions = {
+    allFrames: false,
+    file: '/js/contentscript-extra.js',
+    frameId: 0,
+    matchAboutBlank: true,
+    runAt: 'document_start',
+};
+const cosmeticLoggerOptions = {
+    allFrames: false,
+    file: '/js/scriptlets/cosmetic-logger.js',
+    frameId: 0,
+    matchAboutBlank: true,
+    runAt: 'document_start',
+};
+const noscriptSpoofOptions = {
+    file: '/js/scriptlets/noscript-spoof.js',
+    frameId: 0,
+    runAt: 'document_end',
+};
+
+/******************************************************************************/
+
 // https://github.com/uBlockOrigin/uBlock-issues/issues/710
 //   Listeners have a name and a "privileged" status.
 //   The nameless default handler is always deemed "privileged".
@@ -129,9 +162,8 @@ const onMessage = function(request, sender, callback) {
         return;
 
     case 'scriptlet':
-        vAPI.tabs.executeScript(request.tabId, {
-            file: `/js/scriptlets/${request.scriptlet}.js`
-        }).then(result => {
+        scriptletOptions.file = `/js/scriptlets/${request.scriptlet}.js`;
+        vAPI.tabs.executeScript(request.tabId, scriptletOptions).then(result => {
             callback(result);
         });
         return;
@@ -448,11 +480,8 @@ const popupDataFromRequest = async function(request) {
 };
 
 const getElementCount = async function(tabId, what) {
-    const results = await vAPI.tabs.executeScript(tabId, {
-        allFrames: true,
-        file: `/js/scriptlets/dom-survey-${what}.js`,
-        runAt: 'document_end',
-    });
+    domSurveyOptions.file = `/js/scriptlets/dom-survey-${what}.js`;
+    const results = await vAPI.tabs.executeScript(tabId, domSurveyOptions);
 
     let total = 0;
     results.some(count => {
@@ -486,12 +515,8 @@ const launchReporter = async function(request) {
     //   Important: for whatever reason, not using `document_start` causes the
     //   Promise returned by `tabs.executeScript()` to resolve only when the
     //   associated tab is closed.
-    const cosmeticSurveyResults = await vAPI.tabs.executeScript(request.tabId, {
-        allFrames: true,
-        file: '/js/scriptlets/cosmetic-report.js',
-        matchAboutBlank: true,
-        runAt: 'document_start',
-    });
+    const cosmeticSurveyResults =
+        await vAPI.tabs.executeScript(request.tabId, cosmeticReportOptions);
 
     const filters = cosmeticSurveyResults.reduce((a, v) => {
         if ( Array.isArray(v) ) { a.push(...v); }
@@ -696,13 +721,8 @@ const retrieveContentScriptParameters = async function(sender, request) {
             )
         )
     ) {
-        await vAPI.tabs.executeScript(tabId, {
-            allFrames: false,
-            file: '/js/contentscript-extra.js',
-            frameId,
-            matchAboutBlank: true,
-            runAt: 'document_start',
-        });
+        contentscriptExtraOptions.frameId = frameId;
+        await vAPI.tabs.executeScript(tabId, contentscriptExtraOptions);
     }
 
     // https://github.com/NanoMeow/QuickReports/issues/6#issuecomment-414516623
@@ -715,13 +735,8 @@ const retrieveContentScriptParameters = async function(sender, request) {
             scriptletFilteringEngine.toLogger(request, filters);
         }
         if ( cosmeticFiltering.specific || cosmeticFiltering.generic ) {
-            vAPI.tabs.executeScript(tabId, {
-                allFrames: false,
-                file: '/js/scriptlets/cosmetic-logger.js',
-                frameId,
-                matchAboutBlank: true,
-                runAt: 'document_start',
-            });
+            cosmeticLoggerOptions.frameId = frameId;
+            vAPI.tabs.executeScript(tabId, cosmeticLoggerOptions);
         }
     }
 
@@ -793,11 +808,8 @@ const onMessage = function(request, sender, callback) {
         }
         const fctxt = µb.filteringContext.fromTabId(sender.tabId);
         if ( pageStore.filterScripting(fctxt) ) {
-            vAPI.tabs.executeScript(sender.tabId, {
-                file: '/js/scriptlets/noscript-spoof.js',
-                frameId: sender.frameId,
-                runAt: 'document_end',
-            });
+            noscriptSpoofOptions.frameId = sender.frameId;
+            vAPI.tabs.executeScript(sender.tabId, noscriptSpoofOptions);
         }
         break;
     }
@@ -856,13 +868,11 @@ const onMessage = function(request, sender, callback) {
     // The procedural filterer must be present in case the user wants to
     // type-in custom filters.
     case 'elementPickerArguments':
-        return vAPI.tabs.executeScript(sender.tabId, {
-            allFrames: false,
-            file: '/js/contentscript-extra.js',
-            frameId: sender.frameId,
-            matchAboutBlank: true,
-            runAt: 'document_start',
-        }).then(( ) => {
+        contentscriptExtraOptions.frameId = sender.frameId;
+        return vAPI.tabs.executeScript(
+            sender.tabId,
+            contentscriptExtraOptions
+        ).then(( ) => {
             callback({
                 target: µb.epickerArgs.target,
                 mouse: µb.epickerArgs.mouse,

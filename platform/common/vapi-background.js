@@ -261,10 +261,13 @@ const toTabId = function(tabId) {
 // vAPI.Tabs normalizes Firefox tab and webNavigation behavior for shared code.
 
 vAPI.Tabs = class {
-    async executeScript(...args) {
+    // Firefox consumes the injection dictionary synchronously, before the
+    // promise settles. Callers can therefore reuse stable option objects and
+    // update only their variable fields for the next injection.
+    async executeScript(tabId, details) {
         let result;
         try {
-            result = await webext.tabs.executeScript(...args);
+            result = await webext.tabs.executeScript(tabId, details);
         }
         catch {
         }
