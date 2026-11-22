@@ -477,12 +477,12 @@ import µb from './background.js';
     }
 
     function popupCandidateTest(targetTabId) {
-        Array.from(popupCandidates).forEach(([ tabId, candidate ]) => {
+        for ( const [ tabId, candidate ] of popupCandidates ) {
             if (
                 targetTabId !== tabId &&
                 targetTabId !== candidate.opener.tabId
             ) {
-                return;
+                continue;
             }
             // https://github.com/gorhill/uBlock/issues/3129
             //   If the trigger is a change in the opener's URL, mark the entry
@@ -496,7 +496,7 @@ import µb from './background.js';
             } else {
                 candidate.launchSelfDestruction();
             }
-        });
+        }
     }
 
     // These are to be used for the API of the tab context manager.
@@ -739,11 +739,11 @@ frameManager.addListener((type, details) => {
 
 {
     const pageStoreJanitor = ( ) => {
-        Array.from(µb.pageStores.keys()).forEach(tabId => {
-            if ( tabId === frameManager.TAB_ID_NONE ) { return; }
-            if ( frameManager.tabDict.has(tabId) ) { return; }
+        for ( const tabId of µb.pageStores.keys() ) {
+            if ( tabId === frameManager.TAB_ID_NONE ) { continue; }
+            if ( frameManager.tabDict.has(tabId) ) { continue; }
             µb.unbindTabFromPageStore(tabId);
-        });
+        }
         pageStoreJanitorTimer.on(pageStoreJanitorPeriod);
     };
 

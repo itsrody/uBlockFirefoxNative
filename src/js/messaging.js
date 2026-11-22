@@ -1217,18 +1217,18 @@ const getLists = async function(callback) {
 // TODO: also return origin of embedded frames?
 const getOriginHints = function() {
     const out = new Set();
-    Array.from(µb.pageStores.keys()).forEach(tabId => {
-        if ( tabId === -1 ) { return; }
+    for ( const tabId of µb.pageStores.keys() ) {
+        if ( tabId === -1 ) { continue; }
         const topURL = frameManager.getTopURL(tabId);
-        if ( Boolean(topURL) === false ) { return; }
+        if ( Boolean(topURL) === false ) { continue; }
         const rootHostname = hostnameFromURI(topURL);
         const rootDomain = domainFromHostname(rootHostname);
-        if ( rootDomain.endsWith('-scheme') ) { return; }
+        if ( rootDomain.endsWith('-scheme') ) { continue; }
         const isPunycode = rootHostname.includes('xn--');
         out.add(isPunycode ? punycode.toUnicode(rootDomain) : rootDomain);
-        if ( rootHostname === rootDomain ) { return; }
+        if ( rootHostname === rootDomain ) { continue; }
         out.add(isPunycode ? punycode.toUnicode(rootHostname) : rootHostname);
-    });
+    }
     return Array.from(out);
 };
 
@@ -1602,13 +1602,15 @@ const getLoggerData = async function(details, activeTabId, callback) {
         tooltips: µb.userSettings.tooltipsDisabled === false
     };
     if ( µb.pageStoresToken !== details.tabIdsToken ) {
-        response.tabIds = Array.from(µb.pageStores, ([ tabId, pageStore ]) => {
+        const tabIds = [];
+        for ( const [ tabId, pageStore ] of µb.pageStores ) {
             const { rawURL, title } = pageStore;
             if ( rawURL.startsWith(extensionOriginURL) ) {
-                if ( rawURL.startsWith(documentBlockedURL) === false ) { return undefined; }
+                if ( rawURL.startsWith(documentBlockedURL) === false ) { continue; }
             }
-            return [ tabId, title ];
-        }).filter(Boolean);
+            tabIds.push([ tabId, title ]);
+        }
+        response.tabIds = tabIds;
     }
     if ( activeTabId ) {
         const pageStore = µb.pageStoreFromTabId(activeTabId);
