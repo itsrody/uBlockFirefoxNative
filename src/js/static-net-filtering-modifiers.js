@@ -32,6 +32,23 @@ import { urlSkip as urlSkipDirective } from './urlskip.js';
 // code between resets, so the scratch arrays cannot be observed reentrantly.
 const queryParams = [];
 const queryParts = [];
+const queryRemoved = [];
+
+// The redirect sort comparator is called many times per request; resolve each
+// directive once and let the comparator read the precomputed values.
+const redirectSortScratch = {
+    order: [],
+    sorted: [],
+    priorities: [],
+    bits: [],
+    available: [],
+};
+
+const reSkipSteps = / +/;
+
+// Cache parsed steps without growing the directive's shared parser cache:
+// urlskip historically leaves directive.cache untouched.
+const urlSkipStepsCache = new WeakMap();
 
 export function redirectRequest(engine, redirectEngine, fctxt, directives) {
     if ( directives === undefined ) {
@@ -42,7 +59,24 @@ export function redirectRequest(engine, redirectEngine, fctxt, directives) {
     const highest = directives.length - 1;
     // More than a single directive means more work.
     if ( highest !== 0 ) {
-        directives.sort((a, b) => compareRedirectRequests(redirectEngine, a, b));
+        const { order, sorted, priorities, bits, available } =
+            redirectSortScratch;
+        order.length = 0;
+        for ( let i = 0; i < directives.length; i++ ) {
+            const parsed = parseRedirectRequestValue(directives[i]);
+            priorities[i] = parsed.priority;
+            bits[i] = parsed.bits;
+            available[i] = redirectEngine.hasToken(parsed.token);
+            order.push(i);
+        }
+        order.sort(compareRedirectRequests);
+        sorted.length = 0;
+        for ( let i = 0; i < order.length; i++ ) {
+            sorted[i] = directives[order[i]];
+        }
+        for ( let i = 0; i < order.length; i++ ) {
+            directives[i] = sorted[i];
+        }
     }
     // Redirect to highest-ranked directive
     const directive = directives[highest];
@@ -60,20 +94,19 @@ function parseRedirectRequestValue(directive) {
     return directive.cache;
 }
 
-function compareRedirectRequests(redirectEngine, a, b) {
-    const { token: atok, priority: aint, bits: abits } =
-        parseRedirectRequestValue(a);
-    if ( redirectEngine.hasToken(atok) === false ) { return -1; }
-    const { token: btok, priority: bint, bits: bbits } =
-        parseRedirectRequestValue(b);
-    if ( redirectEngine.hasToken(btok) === false ) { return 1; }
+function compareRedirectRequests(a, b) {
+    const { priorities, bits, available } = redirectSortScratch;
+    if ( available[a] === false ) { return -1; }
+    if ( available[b] === false ) { return 1; }
+    const abits = bits[a];
+    const bbits = bits[b];
     if ( abits !== bbits ) {
         if ( (abits & IMPORTANT_REALM) !== 0 ) { return 1; }
         if ( (bbits & IMPORTANT_REALM) !== 0 ) { return -1; }
         if ( (abits & ALLOW_REALM) !== 0 ) { return -1; }
         if ( (bbits & ALLOW_REALM) !== 0 ) { return 1; }
     }
-    return aint - bint;
+    return priorities[a] - priorities[b];
 }
 
 /******************************************************************************/
@@ -129,8 +162,12 @@ export function urlSkip(engine, fctxt, blocked, out = [], directives) {
             continue;
         }
         const urlin = fctxt.url;
-        const value = directive.value;
-        const steps = value.includes(' ') && value.split(/ +/) || [ value ];
+        let steps = urlSkipStepsCache.get(directive);
+        if ( steps === undefined ) {
+            const value = directive.value;
+            steps = value.includes(' ') && value.split(reSkipSteps) || [ value ];
+            urlSkipStepsCache.set(directive, steps);
+        }
         const urlout = urlSkipDirective(urlin, blocked, steps, directive);
         if ( urlout === undefined ) { continue; }
         if ( urlout === urlin ) { continue; }
@@ -158,24 +195,30 @@ export function filterQuery(engine, fctxt, out = [], directives) {
     if ( qpos === -1 ) { return; }
     let hpos = url.indexOf('#', qpos + 1);
     if ( hpos === -1 ) { hpos = url.length; }
-    const query = url.slice(qpos + 1, hpos);
     queryParams.length = 0;
-    if ( query !== '' ) {
-        const pairs = query.split('&');
-        for ( let i = 0; i < pairs.length; i++ ) {
-            const kv = pairs[i];
+    let pairCount = 0;
+    if ( hpos > qpos + 1 ) {
+        let beg = qpos + 1;
+        for (;;) {
+            const amp = url.indexOf('&', beg);
+            const stop = amp === -1 || amp > hpos ? hpos : amp;
+            const kv = url.slice(beg, stop);
             const pos = kv.indexOf('=');
             if ( pos === -1 ) {
                 queryParams.push(kv, '');
             } else {
                 queryParams.push(kv.slice(0, pos), kv.slice(pos + 1));
             }
+            queryRemoved[pairCount] = 0;
+            pairCount += 1;
+            if ( amp === -1 || amp > hpos ) { break; }
+            beg = amp + 1;
         }
     }
     const params = queryParams;
-    const beforeParamCount = params.length;
+    let liveCount = pairCount;
     for ( const directive of directives ) {
-        if ( params.length === 0 ) { break; }
+        if ( liveCount === 0 ) { break; }
         const isException = (directive.bits & ALLOW_REALM) !== 0;
         if ( isException && directive.value === '' ) {
             out.push(directive);
@@ -184,28 +227,32 @@ export function filterQuery(engine, fctxt, out = [], directives) {
         const { all, bad, name, not, re } = parseQueryPruneValue(directive);
         if ( bad ) { continue; }
         if ( all ) {
-            if ( isException === false ) { params.length = 0; }
+            if ( isException === false ) {
+                for ( let i = 0; i < pairCount; i++ ) {
+                    queryRemoved[i] = 1;
+                }
+                liveCount = 0;
+            }
             out.push(directive);
             break;
         }
         let filtered = false;
         let matched = false;
-        let i = params.length;
-        while ( i > 0 ) {
-            i -= 2;
+        for ( let i = pairCount - 1; i >= 0; i-- ) {
+            if ( queryRemoved[i] !== 0 ) { continue; }
             if ( name !== undefined ) {
-                matched = params[i] === name;
+                matched = params[i+i] === name;
             } else if ( re !== undefined ) {
-                const key = params[i+0];
-                const raw = params[i+1];
-                let value = raw;
+                const key = params[i+i];
+                let value = params[i+i+1];
                 try { value = decodeURIComponent(value); }
                 catch { }
                 matched = re.test(`${key}=${value}`);
             }
             if ( matched === not ) { continue; }
             if ( isException === false ) {
-                params.splice(i, 2);
+                queryRemoved[i] = 1;
+                liveCount -= 1;
             }
             filtered = true;
         }
@@ -214,13 +261,14 @@ export function filterQuery(engine, fctxt, out = [], directives) {
         }
     }
     if ( out.length === 0 ) { return; }
-    if ( params.length !== beforeParamCount ) {
+    if ( liveCount !== pairCount ) {
         fctxt.redirectURL = url.slice(0, qpos);
-        if ( params.length !== 0 ) {
+        if ( liveCount !== 0 ) {
             queryParts.length = 0;
-            for ( let i = 0; i < params.length; i += 2 ) {
-                const key = params[i];
-                const val = params[i+1];
+            for ( let i = 0; i < pairCount; i++ ) {
+                if ( queryRemoved[i] !== 0 ) { continue; }
+                const key = params[i+i];
+                const val = params[i+i+1];
                 queryParts.push(val !== '' ? key + '=' + val : key);
             }
             fctxt.redirectURL += '?' + queryParts.join('&');

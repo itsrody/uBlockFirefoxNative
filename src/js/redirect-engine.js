@@ -109,12 +109,12 @@ class RedirectEntry {
             const secret = warSecret();
             if ( secret !== '' ) { params.push(`secret=${secret}`); }
             if ( this.params !== undefined ) {
-                params.push(...this.params.flatMap(name => {
+                for ( let i = 0; i < this.params.length; i++ ) {
+                    const name = this.params[i];
                     const value = fctxt[name];
-                    return value === undefined
-                        ? []
-                        : [ `${name}=${encodeURIComponent(value)}` ];
-                }));
+                    if ( value === undefined ) { continue; }
+                    params.push(`${name}=${encodeURIComponent(value)}`);
+                }
             }
             let url = `${this.warURL}`;
             if ( params.length !== 0 ) {
