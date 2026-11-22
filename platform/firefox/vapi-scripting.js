@@ -156,6 +156,12 @@ const isolatedAssembly = {
 };
 const contentScriptDict = new Map();
 const topOriginOptions = { topOrigin: undefined };
+const manualInjectOptions = {
+    frameId: 0,
+    matchAboutBlank: true,
+    runAt: 'document_start',
+    code: undefined,
+};
 let getContentScripts;
 
 function prepareContentScript(url, tabId = -1, frameId = 0) {
@@ -254,12 +260,9 @@ function unregisterContentScript(hostname) {
 
 function manuallyInject(tabId, frameId, entry) {
     if ( Boolean(entry.manuallyInjectedCode) === false ) { return; }
-    return browser.tabs.executeScript(tabId, {
-        frameId,
-        matchAboutBlank: true,
-        runAt: 'document_start',
-        code: entry.manuallyInjectedCode,
-    }).catch(ignoreRejection);
+    manualInjectOptions.frameId = frameId;
+    manualInjectOptions.code = entry.manuallyInjectedCode;
+    return browser.tabs.executeScript(tabId, manualInjectOptions).catch(ignoreRejection);
 }
 
 function getEffectiveURL(details) {

@@ -230,28 +230,39 @@ export function getAncestors(details) {
 }
 
 // Avoid exception-driven control flow for tabless and behind-the-scene
-// requests: a missing frame URL is an expected state on Firefox.
-const topFrameURL = tabId => {
-    const url = tabDict.get(tabId)?.frameDict.get(0)?.url;
-    return typeof url === 'string' && url !== '' ? url : undefined;
+// requests: a missing frame URL is an expected state on Firefox. The parse is
+// cached on the frame object so href and origin share one URL construction;
+// comparing the raw URL also handles in-place updates from tabs.onUpdated.
+const topFrameURLCache = new WeakMap();
+
+const topFrameDetails = tabId => {
+    const tabData = tabDict.get(tabId);
+    if ( tabData === undefined ) { return; }
+    const frameData = tabData.frameDict.get(0);
+    if ( frameData === undefined ) { return; }
+    const { url } = frameData;
+    if ( typeof url !== 'string' || url === '' ) { return; }
+    let details = topFrameURLCache.get(frameData);
+    if ( details !== undefined && details.url === url ) { return details; }
+    details = { url, href: undefined, origin: undefined };
+    try {
+        const parsed = new URL(url);
+        details.href = parsed.href;
+        details.origin = parsed.origin;
+    } catch {
+    }
+    topFrameURLCache.set(frameData, details);
+    return details;
 };
 
 export function getTopURL(tabId) {
-    const rawURL = topFrameURL(tabId);
-    if ( rawURL === undefined ) { return; }
-    try {
-        return new URL(rawURL).href;
-    } catch {
-    }
+    const details = topFrameDetails(tabId);
+    return details === undefined ? undefined : details.href;
 }
 
 export function getTopOrigin(tabId) {
-    const rawURL = topFrameURL(tabId);
-    if ( rawURL === undefined ) { return; }
-    try {
-        return new URL(rawURL).origin;
-    } catch {
-    }
+    const details = topFrameDetails(tabId);
+    return details === undefined ? undefined : details.origin;
 }
 
 /******************************************************************************/
