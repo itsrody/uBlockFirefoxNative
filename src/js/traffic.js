@@ -517,9 +517,8 @@ function onHeadersReceived(details) {
         }
     }
 
-    const headerIndex = makeHeaderIndex(responseHeaders);
     const contentType =
-        headerValueFromIndex('content-type', headerIndex, responseHeaders) ||
+        headerValueFromName('content-type', responseHeaders) ||
         contentTypeFromDetails(details);
     const mime = mimeFromContentType(contentType);
 
@@ -539,8 +538,7 @@ function onHeadersReceived(details) {
         fctxt,
         details,
         contentType,
-        mime,
-        headerIndex
+        mime
     );
     const isDocument = fctxt.isDocument();
     let replaceDirectives;
@@ -613,9 +611,8 @@ function onHeadersReceived(details) {
         const cacheControl = µb.hiddenSettings.cacheControlForFirefox1376932;
         if ( cacheControl !== 'unset' ) {
             // Header filters and CSP/PP injection may have mutated the array.
-            const finalHeaderIndex = makeHeaderIndex(responseHeaders);
-            const i = finalHeaderIndex.get('cache-control');
-            if ( i !== undefined ) {
+            const i = headerIndexFromName('cache-control', responseHeaders);
+            if ( i !== -1 ) {
                 responseHeaders[i].value = cacheControl;
             } else {
                 responseHeaders.push({ name: 'Cache-Control', value: cacheControl });
@@ -980,7 +977,7 @@ const bodyFilterer = (( ) => {
             session.stream.onerror = onStreamError;
             sessions.set(session.stream, session);
         }
-        static canFilter(fctxt, details, contentType, mimeFromResponse, headerIndex) {
+        static canFilter(fctxt, details, contentType, mimeFromResponse) {
             if ( µb.canFilterResponseData !== true ) { return; }
 
             if ( (fctxt.itype & BINARY_TYPES) !== 0 ) { return; }
@@ -1000,11 +997,8 @@ const bodyFilterer = (( ) => {
 
             // https://bugzilla.mozilla.org/show_bug.cgi?id=1426789
             const headers = details.responseHeaders;
-            const disposition = headerValueFromIndex(
-                'content-disposition',
-                headerIndex,
-                headers
-            );
+            const disposition =
+                headerValueFromName('content-disposition', headers);
             if ( disposition !== '' ) {
                 if ( disposition.startsWith('inline') === false ) { return; }
             }
@@ -1217,24 +1211,15 @@ foilLargeMediaElement.TYPE_BITS = fc.IMAGE | fc.MEDIA | fc.XMLHTTPREQUEST;
 
 /******************************************************************************/
 
-// Build one lowercase-name index per response and reuse it for read-only
-// lookups. Traversing in reverse lets the native reducer keep the lowest
-// index for duplicate names, matching headerIndexFromName().
-const makeHeaderIndex = headers =>
-    headers.reduceRight((index, header, i) => {
-        index.set(header.name.toLowerCase(), i);
-        return index;
-    }, new Map());
-
-const headerValueFromIndex = (name, index, headers) => {
-    const i = index.get(name);
-    return i === undefined ? '' : headers[i].value;
+// Caller must ensure headerName is normalized to lower case. A direct scan
+// keeps the lowest index for duplicate names without allocating a per-response
+// Map or a per-lookup callback.
+const headerIndexFromName = (headerName, headers) => {
+    for ( let i = 0; i < headers.length; i++ ) {
+        if ( headers[i].name.toLowerCase() === headerName ) { return i; }
+    }
+    return -1;
 };
-
-// Caller must ensure headerName is normalized to lower case.
-
-const headerIndexFromName = (headerName, headers) =>
-    headers.findIndex(header => header.name.toLowerCase() === headerName);
 
 const headerValueFromName = function(headerName, headers) {
     const i = headerIndexFromName(headerName, headers);
