@@ -41,12 +41,13 @@ const SelectorCacheEntry = class {
         this.cosmeticHashes = new Set();
         this.disableSurveyor = false;
         this.net = new Map();
+        this.netByAccessId = new Map();
         this.accessId = SelectorCacheEntry.accessId++;
         return this;
     }
 
     dispose() {
-        this.cosmetic = this.cosmeticHashes = this.net = null;
+        this.cosmetic = this.cosmeticHashes = this.net = this.netByAccessId = null;
         if ( SelectorCacheEntry.junkyard.length < 25 ) {
             SelectorCacheEntry.junkyard.push(this);
         }
@@ -57,32 +58,44 @@ const SelectorCacheEntry = class {
         if ( selectors.length !== 0 ) {
             this.cosmetic.add(selectors);
         }
-        details.hashes.forEach(hash => {
-            this.cosmeticHashes.add(hash);
-        });
+        const hashes = details.hashes;
+        for ( let i = 0; i < hashes.length; i++ ) {
+            this.cosmeticHashes.add(hashes[i]);
+        }
     }
 
     addNet(selectors) {
-        if ( typeof selectors === 'string' ) {
-            this.net.set(selectors, this.accessId);
-        } else {
-            this.net.set(selectors.join(',\n'), this.accessId);
+        const key = typeof selectors === 'string'
+            ? selectors
+            : selectors.join(',\n');
+        const previous = this.net.get(key);
+        if ( previous !== undefined ) {
+            this.netByAccessId.delete(previous);
         }
+        this.net.set(key, this.accessId);
+        this.netByAccessId.set(this.accessId, key);
         // Net request-derived selectors: I limit the number of cached
         // selectors, as I expect cases where the blocked network requests
         // are never the exact same URL.
         if ( this.net.size < SelectorCacheEntry.netHighWaterMark ) { return; }
-        const keys = Array.from(this.net)
-            .sort((a, b) => b[1] - a[1])
-            .slice(SelectorCacheEntry.netLowWaterMark)
-            .map(a => a[0]);
-        keys.forEach(key => {
-            this.net.delete(key);
-        });
+        while ( this.net.size > SelectorCacheEntry.netLowWaterMark ) {
+            const oldest = this.netByAccessId.keys().next();
+            if ( oldest.done ) { break; }
+            const keyToDelete = this.netByAccessId.get(oldest.value);
+            this.netByAccessId.delete(oldest.value);
+            this.net.delete(keyToDelete);
+        }
     }
 
     addNetOne(selector, token) {
+        const previous = this.net.get(selector);
+        if ( previous !== undefined ) {
+            this.netByAccessId.delete(previous);
+        }
         this.net.set(selector, token);
+        if ( token !== undefined ) {
+            this.netByAccessId.set(token, selector);
+        }
     }
 
     add(details) {
@@ -102,6 +115,7 @@ const SelectorCacheEntry = class {
         }
         if ( type === undefined || type === 'net' ) {
             this.net.clear();
+            this.netByAccessId.clear();
         }
     }
 
@@ -632,18 +646,19 @@ CosmeticFilteringEngine.prototype.removeFromSelectorCache = function(
     type = undefined
 ) {
     const targetHostnameLength = targetHostname.length;
-    Array.from(this.selectorCache)
-        .filter(([ hostname ]) => {
-            if ( targetHostname === '*' ) { return true; }
-            if ( hostname.endsWith(targetHostname) === false ) { return false; }
-            return (
-                hostname.length === targetHostnameLength ||
-                hostname.at(-1) === '.'
-            );
-        })
-        .forEach(([ , item ]) => {
+    for ( const [ hostname, item ] of this.selectorCache ) {
+        if ( targetHostname === '*' ) {
             item.remove(type);
-        });
+            continue;
+        }
+        if ( hostname.endsWith(targetHostname) === false ) { continue; }
+        if (
+            hostname.length === targetHostnameLength ||
+            hostname.at(-1) === '.'
+        ) {
+            item.remove(type);
+        }
+    }
 };
 
 /******************************************************************************/
@@ -733,9 +748,13 @@ CosmeticFilteringEngine.prototype.retrieveGenericSelectors = function(request) {
     // the exceptions to be applied.
     const excepted = [];
     if ( selectorsSet.size !== 0 && Array.isArray(request.exceptions) ) {
-        excepted.push(...request.exceptions.filter(exception =>
-            selectorsSet.delete(exception)
-        ));
+        const exceptions = request.exceptions;
+        for ( let i = 0; i < exceptions.length; i++ ) {
+            const exception = exceptions[i];
+            if ( selectorsSet.delete(exception) ) {
+                excepted.push(exception);
+            }
+        }
     }
 
     if ( selectorsSet.size === 0 && excepted.length === 0 ) { return; }

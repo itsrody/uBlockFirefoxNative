@@ -22,34 +22,33 @@
 export class MRUCache {
     constructor(maxSize) {
         this.maxSize = maxSize;
-        this.array = [];
         this.map = new Map();
         this.resetTime = Date.now();
     }
+    // Map insertion order is the MRU order: head is least recently used,
+    // tail is most recently used. Re-inserting a key moves it to the tail
+    // without a parallel array or index/splice work.
     add(key, value) {
-        const found = this.map.has(key);
-        this.map.set(key, value);
-        if ( found ) { return; }
-        if ( this.array.length === this.maxSize ) {
-            this.map.delete(this.array.pop());
+        if ( this.map.has(key) ) {
+            this.map.set(key, value);
+            return;
         }
-        this.array.unshift(key);
+        if ( this.map.size === this.maxSize ) {
+            this.map.delete(this.map.keys().next().value);
+        }
+        this.map.set(key, value);
     }
     remove(key) {
-        if ( this.map.delete(key) === false ) { return; }
-        this.array.splice(this.array.indexOf(key), 1);
+        this.map.delete(key);
     }
     lookup(key) {
         const value = this.map.get(key);
         if ( value === undefined ) { return; }
-        if ( this.array[0] === key ) { return value; }
-        const i = this.array.indexOf(key);
-        this.array.copyWithin(1, 0, i);
-        this.array[0] = key;
+        this.map.delete(key);
+        this.map.set(key, value);
         return value;
     }
     reset() {
-        this.array = [];
         this.map.clear();
         this.resetTime = Date.now();
     }
