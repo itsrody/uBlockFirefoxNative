@@ -57,19 +57,19 @@ class DynamicSwitchRuleFiltering {
 
     assign(from) {
         // Remove rules not in other
-        this.switches.forEach((_, hn) => {
+        for ( const hn of this.switches.keys() ) {
             if ( from.switches.has(hn) === false ) {
                 this.switches.delete(hn);
                 this.changed = true;
             }
-        });
+        }
         // Add/change rules in other
-        from.switches.forEach((bits, hn) => {
+        for ( const [ hn, bits ] of from.switches ) {
             if ( this.switches.get(hn) !== bits ) {
                 this.switches.set(hn, bits);
                 this.changed = true;
             }
-        });
+        }
     }
 
     copyRules(from, srcHostname) {
@@ -135,15 +135,15 @@ class DynamicSwitchRuleFiltering {
         // Turn off all descendant switches, they will inherit the state of the
         // branch's origin.
         const targetLen = targetHostname.length;
-        this.switches.forEach((_, hostname) => {
-            if ( hostname === targetHostname ) { return; }
-            if ( hostname.length <= targetLen ) { return; }
-            if ( hostname.endsWith(targetHostname) === false ) { return; }
+        for ( const hostname of this.switches.keys() ) {
+            if ( hostname === targetHostname ) { continue; }
+            if ( hostname.length <= targetLen ) { continue; }
+            if ( hostname.endsWith(targetHostname) === false ) { continue; }
             if ( hostname.charAt(hostname.length - targetLen - 1) !== '.' ) {
-                return;
+                continue;
             }
             this.toggle(switchName, hostname, 0);
-        });
+        }
 
         return this.changed;
     }

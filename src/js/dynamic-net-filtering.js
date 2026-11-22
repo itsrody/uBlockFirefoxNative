@@ -84,19 +84,19 @@ class DynamicHostRuleFiltering {
 
     assign(other) {
         // Remove rules not in other
-        this.rules.forEach((_, k) => {
+        for ( const k of this.rules.keys() ) {
             if ( other.rules.has(k) === false ) {
                 this.rules.delete(k);
                 this.changed = true;
             }
-        });
+        }
         // Add/change rules in other
-        other.rules.forEach((bits, k) => {
+        for ( const [ k, bits ] of other.rules ) {
             if ( this.rules.get(k) !== bits ) {
                 this.rules.set(k, bits);
                 this.changed = true;
             }
-        });
+        }
     }
 
     copyRules(from, srcHostname, desHostnames) {

@@ -123,15 +123,15 @@ class DynamicURLRuleFiltering {
 
     assign(other) {
         // Remove rules not in other
-        this.rules.forEach((_, key) => {
+        for ( const key of this.rules.keys() ) {
             if ( other.rules.has(key) === false ) {
                 this.rules.delete(key);
             }
-        });
+        }
         // Add/change rules in other
-        other.rules.forEach((entries, key) => {
+        for ( const [ key, entries ] of other.rules ) {
             this.rules.set(key, entries.slice());
-        });
+        }
         this.changed = true;
     }
 
