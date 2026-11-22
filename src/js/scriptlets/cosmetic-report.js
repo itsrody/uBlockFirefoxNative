@@ -44,9 +44,7 @@ const hasSelector = selector => {
 };
 
 const safeQuerySelector = selector => {
-    const safeSelector = rePseudoElements.test(selector)
-        ? selector.replace(rePseudoElements, '')
-        : selector;
+    const safeSelector = selector.replace(rePseudoElements, '');
     try {
         return document.querySelector(safeSelector);
     }
@@ -56,14 +54,14 @@ const safeQuerySelector = selector => {
 };
 
 const safeGroupSelectors = selectors => {
-    const arr = Array.isArray(selectors)
-        ? selectors
-        : Array.from(selectors);
-    return arr.map(s => {
-        return rePseudoElements.test(s)
-            ? s.replace(rePseudoElements, '')
-            : s;
-    }).join(',\n');
+    let out = '';
+    let separator = '';
+    for ( const s of selectors ) {
+        out += separator;
+        out += s.replace(rePseudoElements, '');
+        separator = ',\n';
+    }
+    return out;
 };
 
 const allSelectors = vAPI.domFilterer.getAllSelectors();

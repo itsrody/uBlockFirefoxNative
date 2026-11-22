@@ -55,9 +55,7 @@ function hasSelector(selector, context = document) {
 }
 
 function safeMatchSelector(selector, context) {
-    const safeSelector = rePseudoElements.test(selector)
-        ? selector.replace(rePseudoElements, '')
-        : selector;
+    const safeSelector = selector.replace(rePseudoElements, '');
     try {
         return context.matches(safeSelector);
     }
@@ -67,9 +65,7 @@ function safeMatchSelector(selector, context) {
 }
 
 function safeQuerySelector(selector, context = document) {
-    const safeSelector = rePseudoElements.test(selector)
-        ? selector.replace(rePseudoElements, '')
-        : selector;
+    const safeSelector = selector.replace(rePseudoElements, '');
     try {
         return context.querySelector(safeSelector);
     }
@@ -79,14 +75,14 @@ function safeQuerySelector(selector, context = document) {
 }
 
 function safeGroupSelectors(selectors) {
-    const arr = Array.isArray(selectors)
-        ? selectors
-        : Array.from(selectors);
-    return arr.map(s => {
-        return rePseudoElements.test(s)
-            ? s.replace(rePseudoElements, '')
-            : s;
-    }).join(',\n');
+    let out = '';
+    let separator = '';
+    for ( const s of selectors ) {
+        out += separator;
+        out += s.replace(rePseudoElements, '');
+        separator = ',\n';
+    }
+    return out;
 }
 
 /******************************************************************************/
