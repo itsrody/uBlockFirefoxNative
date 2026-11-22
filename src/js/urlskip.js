@@ -72,6 +72,8 @@
  * 
  * */
 
+const safeBase64Replacer = s => s === '-' ? '+' : '/';
+
 export function urlSkip(url, blocked, steps) {
     try {
         let redirectBlocked = false;
@@ -91,9 +93,15 @@ export function urlSkip(url, blocked, steps) {
                 if ( i < 0 ) { return false; }
                 const url = new URL(urlin);
                 if ( i >= url.searchParams.size ) { return false; }
-                const params = Array.from(url.searchParams.keys());
-                urlout = decodeURIComponent(params[i]);
-                return true;
+                let paramIndex = 0;
+                for ( const key of url.searchParams.keys() ) {
+                    if ( paramIndex === i ) {
+                        urlout = decodeURIComponent(key);
+                        return true;
+                    }
+                    paramIndex += 1;
+                }
+                return false;
             }
             // Enforce https
             if ( c0 === 0x2B && step === '+https' ) { // +
@@ -111,11 +119,7 @@ export function urlSkip(url, blocked, steps) {
                 }
                 // Safe Base64
                 if ( step === '-safebase64' ) {
-                    if ( urlSkip.safeBase64Replacer === undefined ) {
-                        urlSkip.safeBase64Map = { '-': '+', '_': '/' };
-                        urlSkip.safeBase64Replacer = s => urlSkip.safeBase64Map[s];
-                    }
-                    urlout = urlin.replace(/[-_]/g, urlSkip.safeBase64Replacer);
+                    urlout = urlin.replace(/[-_]/g, safeBase64Replacer);
                     urlout = self.atob(urlout);
                     return true;
                 }
