@@ -858,10 +858,12 @@ export class AstFilterParser {
         this.netOptionValueParser = new ArglistParser(',');
         this.scriptletArgListParser = new ArglistParser(',');
         this.domainRegexValueParser = new ArglistParser('/');
+        const netOptionTokens = [];
+        for ( const s of netOptionTokenDescriptors.keys() ) {
+            netOptionTokens.push(escapeForRegex(s));
+        }
         this.reNetOptionTokens = new RegExp(
-            `^~?(${Array.from(netOptionTokenDescriptors.keys())
-                .map(s => escapeForRegex(s))
-                .join('|')})\\b`
+            `^~?(${netOptionTokens.join('|')})\\b`
         );
     }
 
@@ -4196,7 +4198,12 @@ export class ExtSelectorCompiler {
 
     compileAttrList(s) {
         if ( s === '' ) { return s; }
-        return s.split(/\s*,\s*/).filter(attr => attr !== '');
+        const parts = s.split(/\s*,\s*/);
+        const out = [];
+        for ( let i = 0, n = parts.length; i < n; i++ ) {
+            if ( parts[i] !== '' ) { out.push(parts[i]); }
+        }
+        return out;
     }
 
     compileXpathExpression(s) {

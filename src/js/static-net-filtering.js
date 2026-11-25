@@ -1525,30 +1525,34 @@ const compileDomainOpt = (ctors, iterable, prepend, units) => {
     const entityMisses = [];
     const regexHits = [];
     const regexMisses = [];
-    iterable.forEach(s => {
+    for ( const s of iterable ) {
         const len = s.length;
         const beg = len > 1 && s.charCodeAt(0) === 0x7E /* '~' */ ? 1 : 0;
-        if ( len <= beg ) { return; }
+        if ( len <= beg ) { continue; }
         if ( s.charCodeAt(beg) === 0x2F /* / */ ) {
-            if ( beg === 0 ) { regexHits.push(s); return; }
-            regexMisses.push(s.slice(1)); return;
+            if ( beg === 0 ) { regexHits.push(s); continue; }
+            regexMisses.push(s.slice(1)); continue;
         }
         if ( s.endsWith('.*') === false ) {
-            if ( beg === 0 ) { hostnameHits.push(s); return; }
-            hostnameMisses.push(s.slice(1)); return;
+            if ( beg === 0 ) { hostnameHits.push(s); continue; }
+            hostnameMisses.push(s.slice(1)); continue;
         }
-        if ( beg === 0 ) { entityHits.push(s); return; }
+        if ( beg === 0 ) { entityHits.push(s); continue; }
         entityMisses.push(s.slice(1));
-    });
+    }
     const toTrie = [];
     let trieWhich = 0b00;
     if ( hostnameHits.length > 1 ) {
-        toTrie.push(...hostnameHits);
+        for ( let i = 0, n = hostnameHits.length; i < n; i++ ) {
+            toTrie.push(hostnameHits[i]);
+        }
         hostnameHits.length = 0;
         trieWhich |= 0b01;
     }
     if ( entityHits.length > 1 ) {
-        toTrie.push(...entityHits);
+        for ( let i = 0, n = entityHits.length; i < n; i++ ) {
+            toTrie.push(entityHits[i]);
+        }
         entityHits.length = 0;
         trieWhich |= 0b10;
     }
@@ -1558,23 +1562,31 @@ const compileDomainOpt = (ctors, iterable, prepend, units) => {
             ctors[2].compile(toTrie.sort(), trieWhich)
         );
     }
-    compiledHit.push(
-        ...hostnameHits.map(hn => ctors[0].compile(hn)),
-        ...entityHits.map(hn => ctors[1].compile(hn)),
-        ...regexHits.map(hn => ctors[3].compile(hn))
-    );
+    for ( let i = 0, n = hostnameHits.length; i < n; i++ ) {
+        compiledHit.push(ctors[0].compile(hostnameHits[i]));
+    }
+    for ( let i = 0, n = entityHits.length; i < n; i++ ) {
+        compiledHit.push(ctors[1].compile(entityHits[i]));
+    }
+    for ( let i = 0, n = regexHits.length; i < n; i++ ) {
+        compiledHit.push(ctors[3].compile(regexHits[i]));
+    }
     if ( compiledHit.length > 1 ) {
         compiledHit[0] = FilterDomainHitAny.compile(compiledHit.slice());
         compiledHit.length = 1;
     }
     toTrie.length = trieWhich = 0;
     if ( hostnameMisses.length > 1 ) {
-        toTrie.push(...hostnameMisses);
+        for ( let i = 0, n = hostnameMisses.length; i < n; i++ ) {
+            toTrie.push(hostnameMisses[i]);
+        }
         hostnameMisses.length = 0;
         trieWhich |= 0b01;
     }
     if ( entityMisses.length > 1 ) {
-        toTrie.push(...entityMisses);
+        for ( let i = 0, n = entityMisses.length; i < n; i++ ) {
+            toTrie.push(entityMisses[i]);
+        }
         entityMisses.length = 0;
         trieWhich |= 0b10;
     }
@@ -1584,21 +1596,25 @@ const compileDomainOpt = (ctors, iterable, prepend, units) => {
             ctors[6].compile(toTrie.sort(), trieWhich)
         );
     }
-    compiledMiss.push(
-        ...hostnameMisses.map(hn => ctors[4].compile(hn)),
-        ...entityMisses.map(hn => ctors[5].compile(hn)),
-        ...regexMisses.map(hn => ctors[7].compile(hn))
-    );
+    for ( let i = 0, n = hostnameMisses.length; i < n; i++ ) {
+        compiledMiss.push(ctors[4].compile(hostnameMisses[i]));
+    }
+    for ( let i = 0, n = entityMisses.length; i < n; i++ ) {
+        compiledMiss.push(ctors[5].compile(entityMisses[i]));
+    }
+    for ( let i = 0, n = regexMisses.length; i < n; i++ ) {
+        compiledMiss.push(ctors[7].compile(regexMisses[i]));
+    }
     if ( prepend ) {
         if ( compiledHit.length !== 0 ) {
             units.unshift(compiledHit[0]);
         }
-        if ( compiledMiss.length !== 0 ) {
-            units.unshift(...compiledMiss);
+        for ( let i = compiledMiss.length - 1; i >= 0; i-- ) {
+            units.unshift(compiledMiss[i]);
         }
     } else {
-        if ( compiledMiss.length !== 0 ) {
-            units.push(...compiledMiss);
+        for ( let i = 0, n = compiledMiss.length; i < n; i++ ) {
+            units.push(compiledMiss[i]);
         }
         if ( compiledHit.length !== 0 ) {
             units.push(compiledHit[0]);
