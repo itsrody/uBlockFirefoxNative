@@ -169,17 +169,17 @@ const NetFilteringResultCache = class {
 
     prune() {
         const obsolete = Date.now() - this.shelfLife;
-        this.blocked.forEach((tstamp, key) => {
+        for ( const [ key, tstamp ] of this.blocked ) {
             if ( tstamp <= obsolete ) {
                 this.results.delete(key);
                 this.blocked.delete(key);
             }
-        });
-        this.results.forEach((entry, key) => {
+        }
+        for ( const [ key, entry ] of this.results ) {
             if ( entry.tstamp <= obsolete ) {
                 this.results.delete(key);
             }
-        });
+        }
         if ( this.blocked.size !== 0 || this.results.size !== 0 ) {
             this.pruneAsync();
         }

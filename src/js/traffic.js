@@ -447,16 +447,16 @@ function onBeforeBehindTheSceneRequest(fctxt) {
         ) {
             hostname = docHostname;
             pageStores.clear();
-            µb.pageStores.forEach(pageStore => {
-                if ( pageStore.tabHostname !== docHostname ) { return; }
+            for ( const pageStore of µb.pageStores.values() ) {
+                if ( pageStore.tabHostname !== docHostname ) { continue; }
                 pageStores.add(pageStore);
-            });
+            }
             pageStoresToken = µb.pageStoresToken;
             gcTimer.offon(30011);
         }
-        pageStores.forEach(pageStore => {
+        for ( const pageStore of pageStores ) {
             pageStore.journalAddRequest(fctxt, result);
-        });
+        }
     };
 }
 
