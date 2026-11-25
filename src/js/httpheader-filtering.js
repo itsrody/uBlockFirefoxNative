@@ -151,15 +151,15 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
     const hasGlobalException = exceptions.has('');
 
     const byName = new Map();
+    const removedPositions = new Set();
     for ( let i = 0; i < headers.length; i++ ) {
-        const header = headers[i];
-        const name = header.name.toLowerCase();
+        const name = headers[i].name.toLowerCase();
         let entries = byName.get(name);
         if ( entries === undefined ) {
             entries = [];
             byName.set(name, entries);
         }
-        entries.push(header);
+        entries.push(i);
     }
 
     let modified = false;
@@ -174,14 +174,21 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
         }
         const entries = byName.get(name);
         if ( entries === undefined ) { continue; }
-        for ( let i = 0; i < entries.length; i++ ) {
-            const pos = headers.indexOf(entries[i]);
-            if ( pos === -1 ) { continue; }
-            headers.splice(pos, 1);
+        for ( let i = 0, n = entries.length; i < n; i++ ) {
+            const pos = entries[i];
+            if ( removedPositions.has(pos) ) { continue; }
+            removedPositions.add(pos);
             if ( logger.enabled ) {
                 logOne(false, name, fctxt);
             }
             modified = true;
+        }
+    }
+
+    if ( modified ) {
+        let i = headers.length;
+        while ( i-- ) {
+            if ( removedPositions.has(i) ) { headers.splice(i, 1); }
         }
     }
 
