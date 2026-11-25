@@ -5567,12 +5567,15 @@ const reconcileModifierResults = (scratch, results) => {
         return;
     }
 
-    const out = Array.from(toAdd.values());
-    if ( toAddImportant.size !== 0 ) {
-        out.push(...toAddImportant.values());
+    const out = [];
+    for ( const result of toAdd.values() ) {
+        out.push(result);
     }
-    if ( toRemove.size !== 0 ) {
-        out.push(...toRemove.values());
+    for ( const result of toAddImportant.values() ) {
+        out.push(result);
+    }
+    for ( const result of toRemove.values() ) {
+        out.push(result);
     }
     return out;
 };
