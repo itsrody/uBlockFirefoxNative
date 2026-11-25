@@ -67,6 +67,14 @@ const reZetaSignature = /[^ ]+\n/;
 // the key is serialized before the next call can overwrite it.
 const compileArgScratch = [];
 
+// Reused synchronously by commit() and dependency expansion: each buffer is
+// serialized before another world or resource can overwrite it.
+const commitHostnamesScratch = [];
+const commitRefsScratch = [];
+const commitSetRefsScratch = [];
+const commitKeysScratch = [];
+const dependencyScratch = [];
+
 let frameworkParts;
 
 /******************************************************************************/
@@ -133,15 +141,20 @@ function compileRegexOrPathTarget(target) {
 function createScriptletCoreCode(allFunctions, resourceEntry) {
     allFunctions.set(resourceEntry.name, resourceEntry.code);
     if ( Boolean(resourceEntry.dependencies?.length) === false ) { return; }
-    const dependencies = resourceEntry.dependencies.slice();
-    while ( dependencies.length !== 0 ) {
-        const token = dependencies.shift();
+    dependencyScratch.length = 0;
+    for ( const token of resourceEntry.dependencies ) {
+        dependencyScratch.push(token);
+    }
+    for ( let i = 0; i < dependencyScratch.length; i++ ) {
+        const token = dependencyScratch[i];
         const details = resourceDetails.get(token);
         if ( details === undefined ) { continue; }
         if ( allFunctions.has(details.name) ) { continue; }
         allFunctions.set(details.name, details.code);
         if ( Array.isArray(details.dependencies) === false ) { continue; }
-        dependencies.push(...details.dependencies);
+        for ( const dependency of details.dependencies ) {
+            dependencyScratch.push(dependency);
+        }
     }
 }
 
@@ -314,14 +327,26 @@ export function commit(rulesetId, template, secret) {
     for ( const world of worldNames ) {
         const worldDetails = worlds[world];
         const { args, arglists } = worldDetails;
-        const hostnames = Array.from(worldDetails.hostnames).toSorted((a, b) =>
-            hostnameCompare(a[0], b[0])
-        ).map(a => ([ a[0], Array.from(a[1]).join(',') ]));
+        const hostnames = commitHostnamesScratch;
+        hostnames.length = 0;
+        commitRefsScratch.length = 0;
+        for ( const [ hn, refSet ] of worldDetails.hostnames ) {
+            commitSetRefsScratch.length = 0;
+            for ( const ref of refSet ) {
+                commitSetRefsScratch.push(ref);
+            }
+            hostnames.push([ hn, commitSetRefsScratch.join(',') ]);
+        }
+        hostnames.sort((a, b) => hostnameCompare(a[0], b[0]));
         const scriptletFromRegexes = [];
-        for ( const [ target, refs ] of worldDetails.regexesOrPaths ) {
+        for ( const [ target, refSet ] of worldDetails.regexesOrPaths ) {
+            commitSetRefsScratch.length = 0;
+            for ( const ref of refSet ) {
+                commitSetRefsScratch.push(ref);
+            }
             scriptletFromRegexes.push(
                 compileRegexOrPathTarget(target),
-                Array.from(refs).join(',')
+                commitSetRefsScratch.join(',')
             );
         }
         if ( hostnames.length === 0 && scriptletFromRegexes.length === 0 ) { continue; }
@@ -334,26 +359,47 @@ export function commit(rulesetId, template, secret) {
             reScriptletFromRegexes,
             `/* ${worldDetails.regexesOrPaths.size} */ ${JSON.stringify(scriptletFromRegexes)}`
         );
+        commitRefsScratch.length = 0;
+        for ( const entry of hostnames ) {
+            commitRefsScratch.push(entry[0]);
+        }
         content = safeReplace(content,
             reScriptletHostnames,
-            `/* ${hostnames.length} */ ${JSON.stringify(hostnames.map(a => a[0]))}`
+            `/* ${hostnames.length} */ ${JSON.stringify(commitRefsScratch)}`
         );
+        commitKeysScratch.length = 0;
+        for ( const entry of hostnames ) {
+            commitKeysScratch.push(entry[1]);
+        }
         content = safeReplace(content,
             reScriptletArglistRefs,
-            `/* ${hostnames.length} */ ${JSON.stringify(hostnames.map(a => a[1]))}`
+            `/* ${hostnames.length} */ ${JSON.stringify(commitKeysScratch)}`
         );
+        commitKeysScratch.length = 0;
+        for ( const key of arglists.keys() ) {
+            commitKeysScratch.push(key);
+        }
         content = safeReplace(content,
             reScriptletArglists,
-            `/* ${arglists.size} */ ${JSON.stringify(Array.from(arglists.keys()))}`
+            `/* ${arglists.size} */ ${JSON.stringify(commitKeysScratch)}`
         );
+        commitKeysScratch.length = 0;
+        for ( const key of args.keys() ) {
+            commitKeysScratch.push(key);
+        }
         content = safeReplace(content,
             reScriptletArgs,
-            `/* ${args.size} */ ${JSON.stringify(Array.from(args.keys()))}`
+            `/* ${args.size} */ ${JSON.stringify(commitKeysScratch)}`
         );
         content = safeReplace(content, reRulesetId, rulesetId, 0);
+        const matches = [];
+        for ( const hn of worldDetails.matches ) {
+            matches.push(hn);
+        }
+        matches.sort();
         stats[world] = {
             code: content,
-            hostnames: Array.from(worldDetails.matches).sort(),
+            hostnames: matches,
             hasRegexes: scriptletFromRegexes.length !== 0,
             hasAncestors: worldDetails.hasAncestors,
             hasEntities: worldDetails.hasEntities,

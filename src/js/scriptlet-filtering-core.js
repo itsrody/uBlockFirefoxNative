@@ -48,10 +48,16 @@ const requote = s => {
     return `'${s.replace(reEscapableQuote, "\\'")}'`;
 };
 
+const decompileScratch = [];
+
 const decompile = (json, isException) => {
     const prefix = isException ? '#@#' : '##';
     const args = JSON.parse(json);
-    return `${prefix}+js(${args.map(requote).join(', ')})`;
+    decompileScratch.length = 0;
+    for ( let i = 0; i < args.length; i++ ) {
+        decompileScratch.push(requote(args[i]));
+    }
+    return `${prefix}+js(${decompileScratch.join(', ')})`;
 };
 const decompileScriptlet = json => decompile(json, false);
 const decompileException = json => decompile(json, true);
