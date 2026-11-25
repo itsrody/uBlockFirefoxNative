@@ -279,6 +279,8 @@ const CosmeticFilteringEngine = function() {
         proceduralSet: new Set(),
         injectedCSS: [],
         networkFilters: [],
+        specificArray: [],
+        genericArray: [],
     };
     this.reset();
 };
@@ -318,6 +320,8 @@ CosmeticFilteringEngine.prototype.reset = function() {
     scratch.proceduralSet.clear();
     scratch.injectedCSS.length = 0;
     scratch.networkFilters.length = 0;
+    scratch.specificArray.length = 0;
+    scratch.genericArray.length = 0;
 
     this.selfieVersion = 2;
 };
@@ -803,6 +807,8 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
         proceduralSet,
         injectedCSS,
         networkFilters,
+        specificArray,
+        genericArray,
     } = scratch;
     exceptionSet.clear();
     specificSet.clear();
@@ -810,6 +816,8 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
     proceduralSet.clear();
     injectedCSS.length = 0;
     networkFilters.length = 0;
+    specificArray.length = 0;
+    genericArray.length = 0;
 
     const hostname = request.hostname;
     const cacheEntry = this.selectorCache.get(hostname);
@@ -859,7 +867,9 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
 
         // Apply exceptions to specific filterset
         if ( exceptionSet.size !== 0 ) {
-            out.exceptionFilters = Array.from(exceptionSet);
+            for ( const selector of exceptionSet ) {
+                out.exceptionFilters.push(selector);
+            }
             for ( const selector of specificSet ) {
                 if ( exceptionSet.has(selector) === false ) { continue; }
                 specificSet.delete(selector);
@@ -868,8 +878,12 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
         }
 
         if ( specificSet.size !== 0 ) {
+            specificArray.length = 0;
+            for ( const selector of specificSet ) {
+                specificArray.push(selector);
+            }
             injectedCSS.push(
-                `${Array.from(specificSet).join(',\n')}\n{display:none!important;}`
+                `${specificArray.join(',\n')}\n{display:none!important;}`
             );
         }
 
@@ -895,7 +909,9 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
                 proceduralSet.delete(json);
                 out.convertedProceduralFilters.push(json);
             }
-            out.proceduralFilters.push(...proceduralSet);
+            for ( const selector of proceduralSet ) {
+                out.proceduralFilters.push(selector);
+            }
         }
     }
 
@@ -926,12 +942,18 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
                             str.excepted.push(exception);
                         }
                     }
-                    str.s = Array.from(genericSet).join(',\n');
+                    genericArray.length = 0;
+                    for ( const selector of genericSet ) {
+                        genericArray.push(selector);
+                    }
+                    str.s = genericArray.join(',\n');
                 }
                 entry.mru.add(exceptionSetHash, str);
             }
             if ( str.excepted.length !== 0 ) {
-                out.exceptedFilters.push(...str.excepted);
+                for ( const selector of str.excepted ) {
+                    out.exceptedFilters.push(selector);
+                }
             }
             if ( str.s.length !== 0 ) {
                 injectedCSS.push(`${str.s}\n{display:none!important;}`);
@@ -971,6 +993,8 @@ CosmeticFilteringEngine.prototype.retrieveSpecificSelectors = function(
     proceduralSet.clear();
     injectedCSS.length = 0;
     networkFilters.length = 0;
+    specificArray.length = 0;
+    genericArray.length = 0;
 
     return out;
 };

@@ -192,11 +192,12 @@ export class StaticExtFilteringHostnameDB {
     }
 
     #retrieveSpecificsFromSuffixes(out, suffixes) {
+        const map = this.#hostnameToStringListMap;
         for ( let i = 0; i < suffixes.length; i++ ) {
             const hn = suffixes[i];
             if ( hn === '' && i === suffixes.length - 1 ) { break; }
             if ( i !== 0 && hn === '*' ) { break; }
-            const iList = this.#hostnameToStringListMap.get(hn);
+            const iList = map.get(hn);
             if ( iList !== undefined ) {
                 this.#retrieveFromSlot(out, iList);
             }
@@ -212,9 +213,13 @@ export class StaticExtFilteringHostnameDB {
 
     retrieveAll(out, hostname, entity, url) {
         this.#fillSuffixes(hostname, this.#hostnameSuffixes);
-        this.#fillSuffixes(entity, this.#entitySuffixes);
         this.#retrieveSpecificsFromSuffixes(out, this.#hostnameSuffixes);
-        this.#retrieveSpecificsFromSuffixes(out, this.#entitySuffixes);
+        // Empty entities fill no suffixes; equal entities would only re-add
+        // strings already present in the caller's set.
+        if ( entity !== '' && entity !== hostname ) {
+            this.#fillSuffixes(entity, this.#entitySuffixes);
+            this.#retrieveSpecificsFromSuffixes(out, this.#entitySuffixes);
+        }
         if ( this.#hostnameSuffixes.length !== 0 ) {
             const pathname = naivePathnameFromURL(url) ?? '';
             this.#retrieveSpecificsByRegexFromSuffixes(
