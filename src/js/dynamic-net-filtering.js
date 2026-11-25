@@ -41,6 +41,7 @@ import {
 
 const decomposedSource = [];
 const decomposedDestination = [];
+const reFirstPartyRule = /^(\S+) (\S+)/;
 
 /******************************************************************************/
 
@@ -385,16 +386,21 @@ class DynamicHostRuleFiltering {
         return false;
     }
 
-    export1stPartyRules() {
+    append1stPartyRules(out) {
         const bitoffset = typeBitOffsets['*'];
-        return Array.from(this.rules).flatMap(([ srcdes, bits ]) => {
-            const match = /^(\S+) (\S+)/.exec(srcdes);
-            if ( match === null ) { return []; }
-            if ( match[1] !== match[2] && match[2] !== '*' ) { return []; }
+        for ( const [ srcdes, bits ] of this.rules ) {
+            const match = reFirstPartyRule.exec(srcdes);
+            if ( match === null ) { continue; }
+            if ( match[1] !== match[2] && match[2] !== '*' ) { continue; }
             const value = (bits >>> bitoffset) & 0b11;
-            if  ( value === 0 ) { return []; }
-            return [ [ match[1], value === 2 ] ];
-        });
+            if ( value === 0 ) { continue; }
+            out.push([ match[1], value === 2 ]);
+        }
+        return out;
+    }
+
+    export1stPartyRules() {
+        return this.append1stPartyRules([]);
     }
 
     toSelfie() {

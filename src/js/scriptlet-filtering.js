@@ -140,6 +140,8 @@ const wrapperEnd = '})();';
 const noContentScriptOptions = {};
 const retrieveOneScratch = new Map();
 const parsedArgsCache = new Map();
+const trustedDataScratch = [];
+const topFrameRulesScratch = [];
 
 /******************************************************************************/
 
@@ -258,27 +260,31 @@ export class ScriptletFilteringEngineEx extends ScriptletFilteringEngine {
             out.mainCode = assembleMainWorldWrapper(result.MAIN.code, out);
         }
         const trustedSiteMatcher = µb.trustedSites.getMatcher();
-        const trustedData = [];
+        trustedDataScratch.length = 0;
         for ( const entry of trustedSiteMatcher.data ) {
             if ( entry[0] === '#' ) { continue; }
-            trustedData.push(entry);
+            trustedDataScratch.push(entry);
         }
         let earlyBailoutCode =
             isTrustedContextSource + '\n' +
             'if ( isTrustedContext(\n' +
             `${trustedSiteMatcher.match.toString()},\n` +
             'new Map(\n' +
-            JSON.stringify(trustedData) + '\n' +
+            JSON.stringify(trustedDataScratch) + '\n' +
             ')) ) { return; }';
-        const topFrameRules = [];
-        for ( const rule of sessionFirewall.export1stPartyRules() ) {
+        topFrameRulesScratch.length = 0;
+        sessionFirewall.append1stPartyRules(topFrameRulesScratch);
+        let ruleCount = 0;
+        for ( let i = 0; i < topFrameRulesScratch.length; i++ ) {
+            const rule = topFrameRulesScratch[i];
             if ( rule[1] === 'behind-the-scene' ) { continue; }
-            topFrameRules.push(rule);
+            topFrameRulesScratch[ruleCount++] = rule;
         }
-        if ( topFrameRules.length !== 0 ) {
+        topFrameRulesScratch.length = ruleCount;
+        if ( topFrameRulesScratch.length !== 0 ) {
             earlyBailoutCode += '\n' + topFrameRulesMatcherSource +
                 '\nif ( topFrameRulesMatcher(new Map(' +
-                JSON.stringify(topFrameRules) + ')) ) { return; }';
+                JSON.stringify(topFrameRulesScratch) + ')) ) { return; }';
         }
         out.earlyBailoutCode = earlyBailoutCode;
         return out;
