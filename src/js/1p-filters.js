@@ -173,26 +173,26 @@ function threeWayMerge(newContent) {
     };
     const pushInsertions = (changes, start) => {
         const stop = firstNonInsertion(changes, start);
-        out.push(...changes.slice(start, stop).map(change => change[1]));
+        for ( let i = start; i < stop; i++ ) {
+            out.push(changes[i][1]);
+        }
         return stop;
     };
     let j = 0, k = 0;
-    prvContent.forEach(line => {
+    for ( const line of prvContent ) {
         j = pushInsertions(newChanges, j);
         k = pushInsertions(usrChanges, k);
         if ( k === usrChanges.length || usrChanges[k][0] !== -1 ) {
             out.push(line);
         }
         j += 1; k += 1;
-    });
-    out.push(...newChanges.slice(j)
-        .filter(change => change[0] === 1)
-        .map(change => change[1])
-    );
-    out.push(...usrChanges.slice(k)
-        .filter(change => change[0] === 1)
-        .map(change => change[1])
-    );
+    }
+    for ( let i = j, n = newChanges.length; i < n; i++ ) {
+        if ( newChanges[i][0] === 1 ) { out.push(newChanges[i][1]); }
+    }
+    for ( let i = k, n = usrChanges.length; i < n; i++ ) {
+        if ( usrChanges[i][0] === 1 ) { out.push(usrChanges[i][1]); }
+    }
     return out.join('\n');
 }
 

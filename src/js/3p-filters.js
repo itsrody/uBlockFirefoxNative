@@ -350,9 +350,10 @@ const hashFromListsetDetails = ( ) => {
         listsetDetails.parseCosmeticFilters === true,
         listsetDetails.ignoreGenericCosmeticFilters === true,
     ];
-    const listHashes = Object.entries(listsetDetails.available)
-        .filter(entry => entry[1].off !== true)
-        .map(entry => entry[0]);
+    const listHashes = [];
+    for ( const [ key, details ] of Object.entries(listsetDetails.available) ) {
+        if ( details.off !== true ) { listHashes.push(key); }
+    }
     hashParts.push( listHashes.sort().join(), '', false);
     filteringSettingsHash = hashParts.join();
 };
@@ -362,12 +363,15 @@ const hashFromCurrentFromSettings = ( ) => {
         qs$('#parseCosmeticFilters').checked,
         qs$('#ignoreGenericCosmeticFilters').checked,
     ];
-    const listHashes = Array.from(
-        qsa$('#lists .listEntry[data-key]:not(.toRemove)')
-    ).filter(liEntry =>
-        liEntry.dataset.role === 'leaf' &&
-        dom.cl.has(liEntry, 'checked')
-    ).map(liEntry => liEntry.dataset.key);
+    const listHashes = [];
+    for ( const liEntry of qsa$('#lists .listEntry[data-key]:not(.toRemove)') ) {
+        if (
+            liEntry.dataset.role === 'leaf' &&
+            dom.cl.has(liEntry, 'checked')
+        ) {
+            listHashes.push(liEntry.dataset.key);
+        }
+    }
     const textarea = qs$('#lists .listEntry[data-role="import"].expanded textarea');
     hashParts.push(
         listHashes.sort().join(),

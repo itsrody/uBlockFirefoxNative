@@ -32,8 +32,13 @@ self.uBlockDashboard = self.uBlockDashboard || {};
 const splitLines = value => {
     const parts = value.split('\n');
     const tail = parts.pop().split('\r');
-    const lines = parts.map(line => line.trim());
-    lines.push(...tail.map(line => line.trim()));
+    const lines = [];
+    for ( let i = 0, n = parts.length; i < n; i++ ) {
+        lines.push(parts[i].trim());
+    }
+    for ( let i = 0, n = tail.length; i < n; i++ ) {
+        lines.push(tail[i].trim());
+    }
     lines.length = lines.findLastIndex(line => line !== '') + 1;
     return lines;
 };
