@@ -731,10 +731,15 @@ CosmeticFilteringEngine.prototype.retrieveGenericSelectors = function(request) {
         if ( bucket === undefined ) { continue; }
         let selectors = this.lowlyGenericCache.get(hash);
         if ( selectors === undefined ) {
-            selectors = bucket.split(',\n').map(selector => ({
-                selector,
-                isSimple: selector === keyFromSelector(selector),
-            }));
+            const parts = bucket.split(',\n');
+            selectors = [];
+            for ( let i = 0, n = parts.length; i < n; i++ ) {
+                const selector = parts[i];
+                selectors.push({
+                    selector,
+                    isSimple: selector === keyFromSelector(selector),
+                });
+            }
             this.lowlyGenericCache.set(hash, selectors);
         }
         for ( const { selector, isSimple } of selectors ) {
