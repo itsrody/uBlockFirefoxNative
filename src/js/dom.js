@@ -60,19 +60,23 @@ class dom {
                 ? elements[0].getAttribute(attr)
                 : undefined;
         }
-        elements.forEach(elem => {
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            const elem = elements[i];
             if ( value === null ) {
                 elem.removeAttribute(attr);
             } else {
                 elem.setAttribute(attr, value);
             }
-        });
+        }
     }
 
     static clear(target) {
-        normalizeTarget(target).forEach(elem => {
-            elem.replaceChildren();
-        });
+        const elements = normalizeTarget(target);
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            elements[i].replaceChildren();
+        }
     }
 
     static clone(target) {
@@ -92,9 +96,10 @@ class dom {
         if ( value === undefined ) {
             return elements.length !== 0 ? elements[0][prop] : undefined;
         }
-        elements.forEach(elem => {
-            elem[prop] = value;
-        });
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            elements[i][prop] = value;
+        }
     }
 
     static text(target, text) {
@@ -102,23 +107,29 @@ class dom {
         if ( text === undefined ) {
             return targets.length !== 0 ? targets[0].textContent : undefined;
         }
-        targets.forEach(elem => {
-            elem.textContent = text;
-        });
+        for ( let i = 0, n = targets.length; i < n; i++ ) {
+            if ( i in targets === false ) { continue; }
+            targets[i].textContent = text;
+        }
     }
 
     static remove(target) {
-        normalizeTarget(target).forEach(elem => {
-            elem.remove();
-        });
+        const elements = normalizeTarget(target);
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            elements[i].remove();
+        }
     }
 
     static empty(target) {
-        normalizeTarget(target).forEach(elem => {
-            Array.from(elem.children).forEach(child => {
-                child.remove();
-            });
-        });
+        const elements = normalizeTarget(target);
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            const children = Array.from(elements[i].children);
+            for ( let j = 0, m = children.length; j < m; j++ ) {
+                children[j].remove();
+            }
+        }
     }
 
     // target, type, callback, [options]
@@ -174,29 +185,38 @@ class dom {
 
 dom.cl = class {
     static add(target, name) {
-        normalizeTarget(target).forEach(elem => {
-            elem.classList.add(name);
-        });
+        const elements = normalizeTarget(target);
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            elements[i].classList.add(name);
+        }
     }
 
     static remove(target, ...names) {
-        normalizeTarget(target).forEach(elem => {
-            elem.classList.remove(...names);
-        });
+        const elements = normalizeTarget(target);
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            elements[i].classList.remove(...names);
+        }
     }
 
     static toggle(target, name, state) {
         let r;
-        normalizeTarget(target).forEach(elem => {
-            r = elem.classList.toggle(name, state);
-        });
+        const elements = normalizeTarget(target);
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            r = elements[i].classList.toggle(name, state);
+        }
         return r;
     }
 
     static has(target, name) {
-        return normalizeTarget(target).some(elem =>
-            elem.classList.contains(name)
-        );
+        const elements = normalizeTarget(target);
+        for ( let i = 0, n = elements.length; i < n; i++ ) {
+            if ( i in elements === false ) { continue; }
+            if ( elements[i].classList.contains(name) ) { return true; }
+        }
+        return false;
     }
 };
 

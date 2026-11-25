@@ -83,7 +83,9 @@ class PSelectorContentTask extends PSelectorTask {
         const root = node.content;
         if ( typeof root?.querySelectorAll !== 'function' ) { return; }
         const nodes = root.querySelectorAll(this.selector);
-        output.push(...nodes);
+        for ( let i = 0, n = nodes.length; i < n; i++ ) {
+            output.push(nodes[i]);
+        }
     }
 }
 
@@ -310,7 +312,9 @@ class PSelectorShadowTask extends PSelectorTask {
         const root = this.openOrClosedShadowRoot(node);
         if ( root === null ) { return; }
         const nodes = root.querySelectorAll(this.selector);
-        output.push(...nodes);
+        for ( let i = 0, n = nodes.length; i < n; i++ ) {
+            output.push(nodes[i]);
+        }
     }
     get openOrClosedShadowRoot() {
         if ( PSelectorShadowTask.openOrClosedShadowRoot !== undefined ) {
