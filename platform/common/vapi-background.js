@@ -1180,8 +1180,13 @@ vAPI.Net = class {
         this.unsuspendAllRequests(discard);
     }
     headerValue(headers, name) {
-        return headers.find(header => header.name.toLowerCase() === name)
-            ?.value.trim() ?? '';
+        for ( let i = 0; i < headers.length; i++ ) {
+            const header = headers[i];
+            if ( header.name.toLowerCase() === name ) {
+                return header.value.trim();
+            }
+        }
+        return '';
     }
     static canSuspend() {
         return false;

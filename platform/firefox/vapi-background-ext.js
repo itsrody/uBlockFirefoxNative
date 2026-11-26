@@ -147,8 +147,9 @@ vAPI.Net = class extends vAPI.Net {
     }
 
     normalizeDetails(details) {
-        details.tabUrl = details.frameAncestors?.length
-            ? details.frameAncestors.at(-1).url
+        const ancestors = details.frameAncestors;
+        details.tabUrl = ancestors !== undefined && ancestors !== null && ancestors.length !== 0
+            ? ancestors[ancestors.length - 1].url
             : frameManager.getTopURL(details.tabId);
         // https://github.com/uBlockOrigin/uBlock-issues/issues/3379
         if ( skipDNS(details.proxyInfo) && details.ip === '0.0.0.0' ) {
@@ -388,13 +389,14 @@ vAPI.Net = class extends vAPI.Net {
     unsuspendAllRequests(discard = false) {
         const pendingRequests = this.pendingRequests;
         this.pendingRequests = [];
-        pendingRequests.forEach(entry => {
+        for ( let i = 0; i < pendingRequests.length; i++ ) {
+            const entry = pendingRequests[i];
             entry.resolve(
                 discard !== true
                     ? this.onBeforeSuspendableRequest(entry.details)
                     : undefined
             );
-        });
+        }
     }
 
     static canSuspend() {
