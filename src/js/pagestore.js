@@ -398,7 +398,7 @@ const PageStore = class {
     }
 
     isNotTrusted() {
-        return µb.isTrustedSite(this.rawURL) !== true;
+        return µb.isTrustedSite(this.rawURL, this.tabHostname) !== true;
     }
 
     toggleTrustedStatus(url, scope, state) {

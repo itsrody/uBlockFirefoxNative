@@ -121,7 +121,7 @@ function onBeforeRootFrameRequest(fctxt) {
     let logData;
 
     // If the site is whitelisted, disregard strict blocking
-    const trusted = µb.isTrustedSite(requestURL);
+    const trusted = µb.isTrustedSite(requestURL, requestHostname);
     if ( trusted ) {
         result = 2;
         if ( logger.enabled ) {

@@ -128,12 +128,12 @@ export class TrustedSiteParser {
 /******************************************************************************/
 
 export class TrustedSiteManager {
-    isTrusted(url) {
+    isTrusted(url, hostname = hostnameFromURI(url)) {
         if ( this.#matcher === undefined ) {
             this.#matcher = this.getMatcher();
         }
         return Boolean(
-            this.#matcher.match(this.#matcher.data, url, hostnameFromURI(url))
+            this.#matcher.match(this.#matcher.data, url, hostname)
         );
     }
     toggle(url, scope, newState) {

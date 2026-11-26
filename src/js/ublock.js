@@ -46,8 +46,8 @@ import µb from './background.js';
 /******************************************************************************/
 /******************************************************************************/
 
-µb.isTrustedSite = function(url) {
-    return this.trustedSites.isTrusted(url);
+µb.isTrustedSite = function(url, hostname) {
+    return this.trustedSites.isTrusted(url, hostname);
 }
 
 µb.isNotTrustedSite = function(url) {
