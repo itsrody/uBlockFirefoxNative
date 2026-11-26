@@ -1296,7 +1296,14 @@ const strictBlockBypasser = {
 // Capture request headers only while at least one $requestheader filter is
 // compiled. The manager is re-synced whenever filtering behavior changes.
 const noRequestHeaders = [];
-const requestHeadersManager = {
+let requestHeadersManager;
+const onRequestHeadersSend = details => {
+    requestHeadersManager.requests.set(details.requestId, details.requestHeaders);
+};
+const onRequestHeadersDone = details => {
+    requestHeadersManager.requests.delete(details.requestId);
+};
+requestHeadersManager = {
     requests: new Map(),
     listening: false,
     listeners: undefined,
@@ -1308,21 +1315,18 @@ const requestHeadersManager = {
         if ( needed === this.listening ) { return; }
         const filter = { urls: [ 'http://*/*', 'https://*/*' ] };
         if ( needed ) {
-            const onSendHeaders = details => {
-                this.requests.set(details.requestId, details.requestHeaders);
-            };
-            const onDone = details => {
-                this.requests.delete(details.requestId);
-            };
             browser.webRequest.onSendHeaders.addListener(
-                onSendHeaders,
+                onRequestHeadersSend,
                 filter,
                 [ 'requestHeaders' ]
             );
-            browser.webRequest.onBeforeRedirect.addListener(onDone, filter);
-            browser.webRequest.onCompleted.addListener(onDone, filter);
-            browser.webRequest.onErrorOccurred.addListener(onDone, filter);
-            this.listeners = { onSendHeaders, onDone };
+            browser.webRequest.onBeforeRedirect.addListener(onRequestHeadersDone, filter);
+            browser.webRequest.onCompleted.addListener(onRequestHeadersDone, filter);
+            browser.webRequest.onErrorOccurred.addListener(onRequestHeadersDone, filter);
+            this.listeners = {
+                onSendHeaders: onRequestHeadersSend,
+                onDone: onRequestHeadersDone,
+            };
         } else {
             const { onSendHeaders, onDone } = this.listeners;
             browser.webRequest.onSendHeaders.removeListener(onSendHeaders);

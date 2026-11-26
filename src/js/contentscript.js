@@ -193,20 +193,23 @@ vAPI.SafeAnimationFrame = class {
     constructor(callback) {
         this.fid = this.tid = undefined;
         this.callback = callback;
+        this.rafCallback = ( ) => { this.onRAF(); };
+        this.stoCallback = ( ) => { this.onSTO(); };
+        this.macroCallback = ( ) => { this.macroToMicro(); };
     }
     start(delay) {
         if ( self.vAPI instanceof Object === false ) { return; }
         if ( delay === undefined ) {
             if ( this.fid === undefined ) {
-                this.fid = requestAnimationFrame(( ) => { this.onRAF(); } );
+                this.fid = requestAnimationFrame(this.rafCallback);
             }
             if ( this.tid === undefined ) {
-                this.tid = vAPI.setTimeout(( ) => { this.onSTO(); }, 20000);
+                this.tid = vAPI.setTimeout(this.stoCallback, 20000);
             }
             return;
         }
         if ( this.fid === undefined && this.tid === undefined ) {
-            this.tid = vAPI.setTimeout(( ) => { this.macroToMicro(); }, delay);
+            this.tid = vAPI.setTimeout(this.macroCallback, delay);
         }
     }
     clear() {
