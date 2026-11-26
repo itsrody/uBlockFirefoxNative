@@ -654,11 +654,12 @@ const reContentTypeMime = /^[^;]+/i;
 
 function textResponseFilterer(session, directives) {
     const applied = [];
-    directives.forEach(directive => {
-        if ( directive.refs instanceof Object === false ) { return; }
+    for ( let i = 0; i < directives.length; i++ ) {
+        const directive = directives[i];
+        if ( directive.refs instanceof Object === false ) { continue; }
         if ( directive.result !== 1 ) {
             applied.push(directive);
-            return;
+            continue;
         }
         const { refs } = directive;
         if ( refs.$cache !== null ) {
@@ -671,7 +672,7 @@ function textResponseFilterer(session, directives) {
             refs.$cache = sfp.parseReplaceValue(refs.value);
         }
         const cache = refs.$cache;
-        if ( cache === undefined ) { return; }
+        if ( cache === undefined ) { continue; }
         switch ( cache.type ) {
         case 'json': {
             const json = session.getString();
@@ -686,20 +687,21 @@ function textResponseFilterer(session, directives) {
         case 'jsonl': {
             const linesBefore = session.getString().split(/\n+/);
             const linesAfter = [];
-            linesBefore.forEach(lineBefore => {
+            for ( let j = 0; j < linesBefore.length; j++ ) {
+                const lineBefore = linesBefore[j];
                 let obj;
                 try { obj = JSON.parse(lineBefore); } catch { }
                 if ( typeof obj !== 'object' || obj === null ) {
                     linesAfter.push(lineBefore);
-                    return;
+                    continue;
                 }
                 const objAfter = cache.jsonp.apply(obj);
                 if ( objAfter === undefined ) {
                     linesAfter.push(lineBefore);
-                    return;
+                    continue;
                 }
                 linesAfter.push(cache.jsonp.toJSON(objAfter));
-            });
+            }
             session.setString(linesAfter.join('\n'));
             break;
         }
@@ -717,11 +719,15 @@ function textResponseFilterer(session, directives) {
         default:
             break;
         }
-    });
+    }
     if ( applied.length === 0 ) { return; }
     if ( logger.enabled !== true ) { return; }
+    const logData = [];
+    for ( let i = 0; i < applied.length; i++ ) {
+        logData.push(applied[i].logData( ));
+    }
     session.setRealm('network')
-         .pushFilters(applied.map(a => a.logData()))
+         .pushFilters(logData)
          .toLogger();
 }
 

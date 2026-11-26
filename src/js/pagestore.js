@@ -67,6 +67,16 @@ const netFilteringCacheKey = fctxt =>
     fctxt.type + ' ' +
     fctxt.url;
 
+// pushFilters() can retain the array it receives, so build a fresh one each
+// time instead of reusing a scratch array across requests.
+const directiveLogData = directives => {
+    const out = [];
+    for ( let i = 0; i < directives.length; i++ ) {
+        out.push(directives[i].logData( ));
+    }
+    return out;
+};
+
 // Reused by the synchronous onBeforeRequest path: keep one batched lookup per
 // applicable modifier combination rather than allocating names per request.
 const urlTransformModifierNames = [ 'uritransform' ];
@@ -794,7 +804,7 @@ const PageStore = class {
         }
         if ( directives.length === 0 ) { return; }
         if ( logger.enabled !== true ) { return; }
-        fctxt.pushFilters(directives.map(a => a.logData()));
+        fctxt.pushFilters(directiveLogData(directives));
         if ( fctxt.redirectURL === undefined ) { return; }
         fctxt.pushFilter({
             source: 'redirect',
@@ -842,7 +852,7 @@ const PageStore = class {
         }
         if ( directives.length === 0 ) { return; }
         if ( logger.enabled !== true ) { return; }
-        fctxt.pushFilters(directives.map(a => a.logData()));
+        fctxt.pushFilters(directiveLogData(directives));
         if ( fctxt.redirectURL === undefined ) { return; }
         fctxt.pushFilter({
             source: 'redirect',
@@ -853,7 +863,7 @@ const PageStore = class {
     skipMainDocument(fctxt, blocked) {
         const directives = staticNetFilteringEngine.urlSkip(fctxt, blocked);
         if ( directives === undefined ) { return; }
-        fctxt.pushFilters(directives.map(a => a.logData()));
+        fctxt.pushFilters(directiveLogData(directives));
         if ( fctxt.redirectURL === undefined ) { return; }
         fctxt.pushFilter({
             source: 'redirect',
