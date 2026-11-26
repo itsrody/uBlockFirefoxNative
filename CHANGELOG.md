@@ -1,12 +1,25 @@
 > **uBlock Firefox Native** targets native Firefox 160+ only. Non-Firefox builds, MV3/uBO Lite
 > tooling, and Node.js/npm packaging have been removed from this fork.
 
+# 1.77.0
+
+- [[security] Reject non-HTTP URLs in the Firefox click-to-load resource](https://github.com/gorhill/uBlock/commit/5934db2a04)
+- [[regression] Fix DOM inspector startup in the Firefox logger UI](https://github.com/gorhill/uBlock/commit/3028a92bdb)
+- [Use native `structuredClone()` for Firefox dashboard/popup snapshots](https://github.com/gorhill/uBlock/commit/2e7c2d4e52)
+- [Fix `code` text color in the `prevent-clipboard-write` scriptlet](https://github.com/gorhill/uBlock/commit/e1aa62030d)
+- [[shim] Add `optimizely.js` redirect resource](https://github.com/gorhill/uBlock/commit/e68e05cde0) by @ryanbr ([updated for 1.77.0](https://github.com/gorhill/uBlock/commit/caec6dcb08ad5258e58e6f942ead1bbb0ddbe647))
+- [Refactor tab/frame context management for Firefox MV2](https://github.com/gorhill/uBlock/commit/0b5d131ea7)
+- [[picker] Improve element picker launch reliability on Firefox](https://github.com/gorhill/uBlock/commit/73b2bb6e29)
+
+Upstream sync: 1.77.0 -> f224b420b
+
+----------
+
+# 1.76.6
+
 - [[scriptlets] Add (back) support for path-based targets](https://github.com/gorhill/uBlock/commit/a23b117141)
 - [[picker] Fix unpleasant flickering of mouse cursor in picking mode](https://github.com/gorhill/uBlock/commit/765c51daa1)
 - [[security] Use shadow DOM when programmatically injecting scriptlets](https://github.com/gorhill/uBlock/commit/e743ee760f)
-- [[shim] Add `optimizely.js` redirect resource](https://github.com/gorhill/uBlock/commit/e68e05cde0) by @ryanbr
-- [Refactor contexts (tabs/frames) management](https://github.com/gorhill/uBlock/commit/0b5d131ea7)
-- [[picker] Improve reliability of element picker launch](https://github.com/gorhill/uBlock/commit/73b2bb6e29)
 - [[security] Conceal DOM of overlay-based tools inside a shadow DOM](https://github.com/gorhill/uBlock/commit/1765528bec)
 
 ----------
