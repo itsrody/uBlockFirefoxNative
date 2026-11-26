@@ -60,6 +60,13 @@ const hasQueryString = url => {
     return hpos === -1 || qpos < hpos;
 };
 
+// The same key is needed for the cache lookup and for remembering a cacheable
+// result. Build it once on the synchronous onBeforeRequest path.
+const netFilteringCacheKey = fctxt =>
+    fctxt.getDocHostname() + ' ' +
+    fctxt.type + ' ' +
+    fctxt.url;
+
 // Reused by the synchronous onBeforeRequest path: keep one batched lookup per
 // applicable modifier combination rather than allocating names per request.
 const urlTransformModifierNames = [ 'uritransform' ];
@@ -122,12 +129,12 @@ const NetFilteringResultCache = class {
 
     // https://github.com/gorhill/uBlock/issues/3619
     //   Don't collapse redirected resources
-    rememberResult(fctxt, result) {
+    rememberResult(fctxt, result, key) {
         if ( fctxt.tabId <= 0 ) { return; }
         if ( this.results.size === 0 ) {
             this.pruneAsync();
         }
-        const key = `${fctxt.getDocHostname()} ${fctxt.type} ${fctxt.url}`;
+        if ( key === undefined ) { key = netFilteringCacheKey(fctxt); }
         this.results.set(key, {
             result,
             redirectURL: fctxt.redirectURL,
@@ -140,17 +147,15 @@ const NetFilteringResultCache = class {
         this.hash = now;
     }
 
-    rememberBlock(fctxt) {
+    rememberBlock(fctxt, key) {
         if ( fctxt.tabId <= 0 ) { return; }
         if ( this.blocked.size === 0 ) {
             this.pruneAsync();
         }
         if ( fctxt.redirectURL !== undefined ) { return; }
+        if ( key === undefined ) { key = netFilteringCacheKey(fctxt); }
         const now = Date.now();
-        this.blocked.set(
-            `${fctxt.getDocHostname()} ${fctxt.type} ${fctxt.url}`,
-            now
-        );
+        this.blocked.set(key, now);
         this.hash = now;
     }
 
@@ -189,12 +194,9 @@ const NetFilteringResultCache = class {
         this.pruneTimer.on(this.shelfLife);
     }
 
-    lookupResult(fctxt) {
-        const entry = this.results.get(
-            fctxt.getDocHostname() + ' ' +
-            fctxt.type + ' ' +
-            fctxt.url
-        );
+    lookupResult(fctxt, key) {
+        if ( key === undefined ) { key = netFilteringCacheKey(fctxt); }
+        const entry = this.results.get(key);
         if ( entry === undefined ) { return; }
         // We need to use a new WAR secret if one is present since WAR secrets
         // can only be used once.
@@ -620,9 +622,11 @@ const PageStore = class {
         const cacheableResult =
             cacheableResults.has(fctxt.itype) &&
             fctxt.aliasURL === undefined;
+        let cacheKey;
 
         if ( cacheableResult ) {
-            const entry = this.netFilteringCache.lookupResult(fctxt);
+            cacheKey = netFilteringCacheKey(fctxt);
+            const entry = this.netFilteringCache.lookupResult(fctxt, cacheKey);
             if ( entry !== undefined ) {
                 fctxt.redirectURL = entry.redirectURL;
                 fctxt.filter = entry.logData;
@@ -706,7 +710,7 @@ const PageStore = class {
         }
 
         if ( cacheableResult ) {
-            this.netFilteringCache.rememberResult(fctxt, result);
+            this.netFilteringCache.rememberResult(fctxt, result, cacheKey);
         } else if ( result === 1 && collapsibleResources.has(fctxt.itype) ) {
             this.netFilteringCache.rememberBlock(fctxt);
         }
