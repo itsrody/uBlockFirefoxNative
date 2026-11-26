@@ -155,6 +155,7 @@ const isolatedAssembly = {
         '} catch {}',
 };
 const contentScriptDict = new Map();
+const evictionKeys = [];
 const topOriginOptions = { topOrigin: undefined };
 const manualInjectOptions = {
     frameId: 0,
@@ -164,8 +165,12 @@ const manualInjectOptions = {
 };
 let getContentScripts;
 
-function prepareContentScript(url, tabId = -1, frameId = 0) {
-    const hostname = hostnameFromURI(url);
+function prepareContentScript(
+    url,
+    tabId = -1,
+    frameId = 0,
+    hostname = hostnameFromURI(url)
+) {
     let entry = contentScriptDict.get(hostname);
     if ( entry === undefined ) {
         entry = {
@@ -279,8 +284,9 @@ function getEffectiveURL(details) {
 function onBeforeNavigate(details) {
     const url = getEffectiveURL(details);
     if ( frameManager.isHTTP(url) === false ) { return; }
-    if ( hostnameFromURI(url) === '' ) { return; }
-    const entry = prepareContentScript(url, details.tabId, details.frameId);
+    const hostname = hostnameFromURI(url);
+    if ( hostname === '' ) { return; }
+    const entry = prepareContentScript(url, details.tabId, details.frameId, hostname);
     // Register ahead of the commit so the browser can inject at
     // document_start in both worlds through native content scripts.
     registerContentScript(entry);
@@ -293,7 +299,7 @@ function onCommitted(details) {
     if ( hostname === '' ) { return; }
     const { tabId, frameId } = details;
     const entry = contentScriptDict.get(hostname) ??
-        prepareContentScript(url, tabId, frameId);
+        prepareContentScript(url, tabId, frameId, hostname);
     registerContentScript(entry);
     if ( entry.firstCommitPending ) {
         // Registration may not have reached the document which is already
@@ -304,10 +310,15 @@ function onCommitted(details) {
     }
     entry.t = Date.now();
     if ( contentScriptDict.size <= CONTENTSCRIPT_DICT_MAX_HIGH ) { return; }
-    const sortedKeys = Array.from(contentScriptDict.keys()).toSorted((a, b) =>
+    evictionKeys.length = 0;
+    for ( const key of contentScriptDict.keys() ) {
+        evictionKeys.push(key);
+    }
+    evictionKeys.sort((a, b) =>
         contentScriptDict.get(a).t - contentScriptDict.get(b).t
-    ).slice(0, -CONTENTSCRIPT_DICT_MAX_LOW);
-    for ( const key of sortedKeys ) {
+    );
+    evictionKeys.length -= CONTENTSCRIPT_DICT_MAX_LOW;
+    for ( const key of evictionKeys ) {
         unregisterContentScript(key);
     }
 }
