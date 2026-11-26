@@ -156,7 +156,8 @@ export function urlSkip(engine, fctxt, blocked, out = [], directives) {
         directives = engine.matchAndFetchModifiers(fctxt, 'urlskip');
     }
     if ( directives === undefined ) { return; }
-    for ( const directive of directives ) {
+    for ( let i = 0, n = directives.length; i < n; i++ ) {
+        const directive = directives[i];
         if ( (directive.bits & ALLOW_REALM) !== 0 ) {
             out.push(directive);
             continue;

@@ -74,6 +74,12 @@
 
 const safeBase64Replacer = s => s === '-' ? '+' : '/';
 
+const reStripProtocol = /^https?:\/\//;
+const reForeignScheme = /^[\w-]:\/\//;
+const reSafeBase64Chars = /[-_]/g;
+const reEncodedSpace = / /g;
+const regexStepCache = new Map();
+
 export function urlSkip(url, blocked, steps) {
     try {
         let redirectBlocked = false;
@@ -105,8 +111,8 @@ export function urlSkip(url, blocked, steps) {
             }
             // Enforce https
             if ( c0 === 0x2B && step === '+https' ) { // +
-                const s = urlin.replace(/^https?:\/\//, '');
-                if ( /^[\w-]:\/\//.test(s) ) { return false; }
+                const s = urlin.replace(reStripProtocol, '');
+                if ( reForeignScheme.test(s) ) { return false; }
                 urlout = `https://${s}`;
                 return true;
             }
@@ -119,7 +125,7 @@ export function urlSkip(url, blocked, steps) {
                 }
                 // Safe Base64
                 if ( step === '-safebase64' ) {
-                    urlout = urlin.replace(/[-_]/g, safeBase64Replacer);
+                    urlout = urlin.replace(reSafeBase64Chars, safeBase64Replacer);
                     urlout = self.atob(urlout);
                     return true;
                 }
@@ -136,7 +142,16 @@ export function urlSkip(url, blocked, steps) {
             }
             // Regex extraction from first capture group
             if ( c0 === 0x2F ) { // /
-                const re = new RegExp(step.slice(1, -1));
+                let re = regexStepCache.get(step);
+                if ( re === undefined ) {
+                    try {
+                        re = new RegExp(step.slice(1, -1));
+                    } catch {
+                        re = null;
+                    }
+                    regexStepCache.set(step, re);
+                }
+                if ( re === null ) { return false; }
                 const match = re.exec(urlin);
                 if ( match === null ) { return false; }
                 if ( match.length <= 1 ) { return false; }
@@ -148,7 +163,7 @@ export function urlSkip(url, blocked, steps) {
                 urlout = (new URL(urlin)).searchParams.get(step.slice(1));
                 if ( urlout === null ) { return false; }
                 if ( urlout.includes(' ') ) {
-                    urlout = urlout.replace(/ /g, '%20');
+                    urlout = urlout.replace(reEncodedSpace, '%20');
                 }
                 return true;
             }
