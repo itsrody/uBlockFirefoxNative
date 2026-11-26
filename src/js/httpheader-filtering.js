@@ -30,6 +30,16 @@ import µb from './background.js';
 const duplicates = new Set();
 const filterDB = new StaticExtFilteringHostnameDB();
 
+// Synchronous per-response scratch state: reused to avoid fresh collections
+// and a second suffix walk on every response with headers.
+const applyScratch = {
+    all: new Set(),
+    filters: new Set(),
+    exceptions: new Set(),
+    byName: new Map(),
+    removedPositions: new Set(),
+};
+
 let acceptedCount = 0;
 let discardedCount = 0;
 
@@ -122,12 +132,17 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
     const hostname = fctxt.getHostname();
     if ( hostname === '' ) { return; }
 
-    const all = new Set();
-    filterDB.retrieveSpecifics(all, hostname);
+    const { all, filters, exceptions, byName, removedPositions } = applyScratch;
+    all.clear();
+    filters.clear();
+    exceptions.clear();
+    removedPositions.clear();
+    for ( const entries of byName.values() ) {
+        entries.length = 0;
+    }
+
     const entity = entityFromHostname(hostname, fctxt.getDomain());
-    filterDB.retrieveSpecifics(all, entity);
-    filterDB.retrieveSpecificsByRegex(all, hostname, fctxt.url);
-    filterDB.retrieveGenerics(all);
+    filterDB.retrieveAll(all, hostname, entity, fctxt.url);
     if ( all.size === 0 ) { return; }
 
     // https://github.com/gorhill/uBlock/issues/2835
@@ -137,8 +152,6 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
     }
 
     // Split filters in different groups
-    const filters = new Set();
-    const exceptions = new Set();
     for ( const s of all ) {
         const selector = s.slice(1);
         if ( s.charCodeAt(0) === 0x2D /* - */ ) {
@@ -150,8 +163,6 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
 
     const hasGlobalException = exceptions.has('');
 
-    const byName = new Map();
-    const removedPositions = new Set();
     for ( let i = 0; i < headers.length; i++ ) {
         const name = headers[i].name.toLowerCase();
         let entries = byName.get(name);
