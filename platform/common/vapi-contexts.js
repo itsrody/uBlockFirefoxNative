@@ -105,10 +105,19 @@ function onTabUpdated(tabId, changeInfo, tab) {
         if ( tab.url.startsWith(uboOrigin) === false ) { return; }
     }
     let changed = false;
-    for ( const prop of Object.keys(changeInfo) ) {
-        if ( onTabUpdated.filters.includes(prop) === false ) { continue; }
-        changed = true;
-        break;
+    for ( const prop in changeInfo ) {
+        if ( Object.hasOwn(changeInfo, prop) === false ) { continue; }
+        switch ( prop ) {
+        case 'discarded':
+        case 'status':
+        case 'title':
+        case 'url':
+            changed = true;
+            break;
+        default:
+            break;
+        }
+        if ( changed ) { break; }
     }
     if ( changed === false ) { return; }
     const tabData = tabDict.get(tabId) ?? onTabCreated(tab);
@@ -126,7 +135,6 @@ function onTabUpdated(tabId, changeInfo, tab) {
         listener('tab-updated', details);
     }
 }
-onTabUpdated.filters = [ 'discarded', 'status', 'title', 'url' ];
 
 function onTabRemoved(tabId) {
     const tabData = tabDict.get(tabId);

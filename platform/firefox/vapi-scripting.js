@@ -275,15 +275,13 @@ function getEffectiveURL(details) {
     let { url } = details;
     if ( frameId !== 0 && frameManager.isHTTP(url) === false ) {
         url = frameManager.getEffectiveURL(tabId, frameId);
-        if ( url === undefined ) { return; }
     }
-    if ( frameManager.isHTTP(url) === false ) { return; }
-    return url;
+    return frameManager.isHTTP(url) ? url : undefined;
 }
 
 function onBeforeNavigate(details) {
     const url = getEffectiveURL(details);
-    if ( frameManager.isHTTP(url) === false ) { return; }
+    if ( url === undefined ) { return; }
     const hostname = hostnameFromURI(url);
     if ( hostname === '' ) { return; }
     const entry = prepareContentScript(url, details.tabId, details.frameId, hostname);
@@ -294,7 +292,7 @@ function onBeforeNavigate(details) {
 
 function onCommitted(details) {
     const url = getEffectiveURL(details);
-    if ( frameManager.isHTTP(url) === false ) { return; }
+    if ( url === undefined ) { return; }
     const hostname = hostnameFromURI(url);
     if ( hostname === '' ) { return; }
     const { tabId, frameId } = details;
