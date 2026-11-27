@@ -4,6 +4,14 @@ This file is the working contract for agents changing this repository. Read it
 before editing code. It describes the product boundary, the refactor goal, the
 invariants that define behavioral equivalence, and the validation workflow.
 
+The long-term goal is to make the uBO codebase robustly Firefox Stable–first,
+with Firefox 161 as the current validation target while keeping the 160.0 floor.
+"Deep Firefox integration" means aligning the shipped JavaScript with Firefox's
+MV2 APIs, Gecko behavior, and SpiderMonkey/Warp-friendly shapes, and making the
+code more dynamic and data-driven instead of generic cross-browser code. Because
+this repository ships only an unsigned XPI, C++/Gecko engine changes belong
+upstream in Mozilla; they are not added to this extension.
+
 ---
 
 ## 1. Product boundary
@@ -43,6 +51,10 @@ Do not change:
 
 > The goal is **function-preserving refactors**: same engine decisions and
 > outputs, just less work per request and a more Firefox-native shape.
+
+Prefer dynamic, Firefox-driven behavior over generic abstraction: use runtime
+Firefox capability checks, direct MV2 API calls, and stable JS shapes rather than
+cross-browser branches or one-size-fits-all compatibility layers.
 
 This rule applies to the whole codebase. There is no "protected area only"
 exception. A sensitive-looking file is not automatically off-limits; it is
@@ -153,6 +165,8 @@ browser C++ patches cannot be shipped in the XPI from `make firefox`.
 
 Firefox-native extension work therefore means:
 
+- target Firefox Stable as the primary validation browser (currently 161) while
+  preserving the 160.0 minimum;
 - use Firefox's MV2 `webRequest`, `webNavigation`, `tabs`, `contentScripts`, and
   `filterResponseData` APIs directly;
 - keep Monarch/SpiderMonkey-friendly JavaScript: stable hidden classes, monomorphic
