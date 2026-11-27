@@ -78,8 +78,8 @@ class PSelectorContentTask {
         const root = node.content;
         if ( typeof root?.querySelectorAll !== 'function' ) { return; }
         const nodes = root.querySelectorAll(this.selector);
-        for ( const node of nodes ) {
-            output.push(node);
+        for ( let i = 0, n = nodes.length; i < n; i++ ) {
+            output.push(nodes[i]);
         }
     }
 }
@@ -135,8 +135,8 @@ class PSelectorSpathTask {
         const nodes = this.nth
             ? PSelectorSpathTask.qsa(node, this.spath)
             : node.querySelectorAll(this.spath);
-        for ( const node of nodes ) {
-            output.push(node);
+        for ( let i = 0, n = nodes.length; i < n; i++ ) {
+            output.push(nodes[i]);
         }
     }
     // Helper method for other operators.
@@ -226,18 +226,19 @@ class PSelector {
             ? PSelectorSpathTask.qsa(input, this.selector)
             : root.querySelectorAll(this.selector);
         const out = [];
-        for ( const node of nodes ) {
-            out.push(node);
+        for ( let i = 0, n = nodes.length; i < n; i++ ) {
+            out.push(nodes[i]);
         }
         return out;
     }
     exec(input) {
         let nodes = this.prime(input);
-        for ( const task of this.tasks ) {
+        for ( let i = 0, n = this.tasks.length; i < n; i++ ) {
             if ( nodes.length === 0 ) { break; }
+            const task = this.tasks[i];
             const transposed = [];
-            for ( const node of nodes ) {
-                task.transpose(node, transposed);
+            for ( let j = 0, m = nodes.length; j < m; j++ ) {
+                task.transpose(nodes[j], transposed);
             }
             nodes = transposed;
         }
@@ -245,12 +246,13 @@ class PSelector {
     }
     test(input) {
         const nodes = this.prime(input);
-        for ( const node of nodes ) {
-            let output = [ node ];
-            for ( const task of this.tasks ) {
+        for ( let i = 0, n = nodes.length; i < n; i++ ) {
+            let output = [ nodes[i] ];
+            for ( let j = 0, m = this.tasks.length; j < m; j++ ) {
+                const task = this.tasks[j];
                 const transposed = [];
-                for ( const node of output ) {
-                    task.transpose(node, transposed);
+                for ( let k = 0, p = output.length; k < p; k++ ) {
+                    task.transpose(output[k], transposed);
                 }
                 output = transposed;
                 if ( output.length === 0 ) { break; }
@@ -291,8 +293,8 @@ function logOne(details, exception, selector) {
 
 function removeNodes(nodes) {
     let modified = false;
-    for ( const node of nodes ) {
-        node.remove();
+    for ( let i = 0, n = nodes.length; i < n; i++ ) {
+        nodes[i].remove();
         modified = true;
     }
     return modified;

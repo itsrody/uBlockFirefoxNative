@@ -74,6 +74,7 @@ export class StaticExtFilteringHostnameDB {
     #hostnameToMatcherListMap = new Map();
     #strSlots = [ '' ];     // Array of strings (selectors and pseudo-selectors)
     #matcherSlots = [ null ];
+    #matcherEntries;
     #linkedLists = [ 0, 0 ];// Array of integer pairs
     #regexMap = new Map();
     #strToSlotMap = new Map();
@@ -107,6 +108,7 @@ export class StaticExtFilteringHostnameDB {
             const { isRegex, hn, pn } = extractSubTargets(target);
             this.#matcherSlots.push({ isRegex, hn, pn, iList: 0 });
             this.#matcherMap.set(target, iMatcher);
+            this.#matcherEntries = undefined;
             const key = isRegex ? '' : hn;
             const iMatcherList = this.#hostnameToMatcherListMap.get(key) ?? 0;
             this.#hostnameToMatcherListMap.set(key, this.#linkedLists.length);
@@ -122,6 +124,7 @@ export class StaticExtFilteringHostnameDB {
         this.#hostnameToStringListMap.clear();
         this.#ancestorSlots = undefined;
         this.#matcherMap.clear();
+        this.#matcherEntries = undefined;
         this.#hostnameToMatcherListMap.clear();
         this.#strSlots = [ '' ];
         this.#matcherSlots = [ null ];
@@ -300,8 +303,20 @@ export class StaticExtFilteringHostnameDB {
         if ( wildcard !== undefined ) {
             this.#processList('*', wildcard, out);
         }
-        for ( const [ hn, iSlot ] of this.#matcherMap ) {
-            this.#processList(hn, this.#matcherSlots[iSlot].iList, out);
+        if ( this.#matcherEntries === undefined ) {
+            const entries = [];
+            for ( const [ hn, iSlot ] of this.#matcherMap ) {
+                entries.push(hn, iSlot);
+            }
+            this.#matcherEntries = entries;
+        }
+        const matcherEntries = this.#matcherEntries;
+        for ( let i = 0, n = matcherEntries.length; i < n; i += 2 ) {
+            this.#processList(
+                matcherEntries[i+0],
+                this.#matcherSlots[matcherEntries[i+1]].iList,
+                out
+            );
         }
         if ( this.#ancestorSlots === undefined ) {
             this.#ancestorSlots = [];
@@ -362,6 +377,7 @@ export class StaticExtFilteringHostnameDB {
         }
         this.#hostnameToStringListMap = selfie.hostnameToStringListMap;
         this.#matcherMap = selfie.matcherMap;
+        this.#matcherEntries = undefined;
         this.#hostnameToMatcherListMap = selfie.hostnameToMatcherListMap;
         this.#strSlots = selfie.strSlots;
         this.#matcherSlots = selfie.matcherSlots;
