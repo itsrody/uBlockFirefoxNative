@@ -153,13 +153,47 @@ export const typeValueToDNRTypeName = [
 // object: 3 => bit 2
 // script: 4 => bit 3
 // ...
-export const typeBitDescriptors = typeValueToTypeName.map((name, i) =>
-    i === 0 ? undefined : { bit: 1 << (i - 1), name }
-).filter(Boolean);
+const makeTypeBitDescriptors = (names, skipEmpty) => {
+    const out = [];
+    for ( let i = 1, n = names.length; i < n; i++ ) {
+        const name = names[i];
+        if ( skipEmpty && name === '' ) { continue; }
+        out.push({ bit: 1 << (i - 1), name });
+    }
+    return out;
+};
 
-export const dnrTypeBitDescriptors = typeValueToDNRTypeName.map((name, i) =>
-    i === 0 || name === '' ? undefined : { bit: 1 << (i - 1), name }
-).filter(Boolean);
+// Keep empty type names here: they are part of logger output for reserved bits.
+export const typeBitDescriptors = makeTypeBitDescriptors(typeValueToTypeName, false);
+export const dnrTypeBitDescriptors = makeTypeBitDescriptors(typeValueToDNRTypeName, true);
+
+export const expandBitNames = (out, descriptors, bits, prefix = '') => {
+    for ( let i = 0, n = descriptors.length; i < n; i++ ) {
+        const descriptor = descriptors[i];
+        if ( (bits & descriptor.bit) !== 0 ) {
+            out.push(prefix + descriptor.name);
+        }
+    }
+    return out;
+};
+
+export const expandBitNamesByPriority = (
+    out,
+    descriptors,
+    positiveBits,
+    negativeBits,
+    negativePrefix = ''
+) => {
+    for ( let i = 0, n = descriptors.length; i < n; i++ ) {
+        const descriptor = descriptors[i];
+        if ( (positiveBits & descriptor.bit) !== 0 ) {
+            out.push(descriptor.name);
+        } else if ( (negativeBits & descriptor.bit) !== 0 ) {
+            out.push(negativePrefix + descriptor.name);
+        }
+    }
+    return out;
+};
 
 //const typeValueFromCatBits = catBits => (catBits >>> TYPE_REALM_OFFSET) & 0b11111;
 

@@ -56,6 +56,8 @@ import {
     allTypesBits,
     bitFromType,
     dnrTypeBitDescriptors,
+    expandBitNames,
+    expandBitNamesByPriority,
     modifierBitsFromType,
     modifierDescriptorFromName,
     modifierNameFromType,
@@ -1332,10 +1334,11 @@ registerFilterClass(FilterRegex);
 
 /******************************************************************************/
 
-const methodBitDescriptors = Array.from({ length: 8 }, (_, i) => {
+const methodBitDescriptors = [];
+for ( let i = 0; i < 8; i++ ) {
     const bit = 1 << (i + 1);
-    return { bit, name: FilteringContext.getMethodName(bit) };
-});
+    methodBitDescriptors.push({ bit, name: FilteringContext.getMethodName(bit) });
+}
 
 class FilterMethod {
     static match(idata) {
@@ -1370,19 +1373,13 @@ class FilterMethod {
             rc.excludedRequestMethods = [];
         }
         if ( methodBits !== 0 ) {
-            rc.requestMethods.push(...methodBitDescriptors
-                .filter(descriptor => (methodBits & descriptor.bit) !== 0)
-                .map(descriptor => descriptor.name)
-            );
+            expandBitNames(rc.requestMethods, methodBitDescriptors, methodBits);
         }
         if ( notMethodBits !== 0 ) {
             // A positive bit wins over an excluded bit at the same position,
             // matching the original else-if scan.
             const excludedBits = notMethodBits & ~methodBits;
-            rc.excludedRequestMethods.push(...methodBitDescriptors
-                .filter(descriptor => (excludedBits & descriptor.bit) !== 0)
-                .map(descriptor => descriptor.name)
-            );
+            expandBitNames(rc.excludedRequestMethods, methodBitDescriptors, excludedBits);
         }
     }
 
@@ -1393,11 +1390,13 @@ class FilterMethod {
     static logData(idata, details) {
         const methodBits = filterData[idata+1];
         const notMethodBits = filterData[idata+2];
-        const methods = methodBitDescriptors.flatMap(({ bit, name }) => {
-            if ( (methodBits & bit) !== 0 ) { return [ name ]; }
-            if ( (notMethodBits & bit) !== 0 ) { return [ `~${name}` ]; }
-            return [];
-        });
+        const methods = expandBitNamesByPriority(
+            [],
+            methodBitDescriptors,
+            methodBits,
+            notMethodBits,
+            '~'
+        );
         details.options.push(`method=${methods.join('|')}`);
     }
 
@@ -1434,15 +1433,14 @@ class FilterNotType {
         const bits = args[1];
         if ( bits !== 0 ) {
             const seen = new Set(rc.excludedResourceTypes);
-            const types = dnrTypeBitDescriptors
-                .filter(descriptor => (bits & descriptor.bit) !== 0)
-                .map(descriptor => descriptor.name)
-                .filter(type => {
-                    if ( seen.has(type) ) { return false; }
-                    seen.add(type);
-                    return true;
-                });
-            rc.excludedResourceTypes.push(...types);
+            for ( let i = 0, n = dnrTypeBitDescriptors.length; i < n; i++ ) {
+                const descriptor = dnrTypeBitDescriptors[i];
+                if ( (bits & descriptor.bit) === 0 ) { continue; }
+                const type = descriptor.name;
+                if ( seen.has(type) ) { continue; }
+                seen.add(type);
+                rc.excludedResourceTypes.push(type);
+            }
         }
         if ( rc.excludedResourceTypes.length ) {
             if ( rc.resourceTypes?.includes('main_frame') ) {
@@ -1460,10 +1458,7 @@ class FilterNotType {
     static logData(idata, details) {
         const bits = filterData[idata+1];
         if ( bits !== 0 ) {
-            details.options.push(...typeBitDescriptors
-                .filter(descriptor => (bits & descriptor.bit) !== 0)
-                .map(descriptor => `~${descriptor.name}`)
-            );
+            expandBitNames(details.options, typeBitDescriptors, bits, '~');
         }
     }
 
