@@ -33,6 +33,7 @@ import { urlSkip as urlSkipDirective } from './urlskip.js';
 const queryParams = [];
 const queryParts = [];
 const queryRemoved = [];
+const queryDecoded = [];
 
 // The redirect sort comparator is called many times per request; resolve each
 // directive once and let the comparator read the precomputed values.
@@ -117,7 +118,8 @@ export function transformURL(engine, fctxt, out = [], directives) {
     }
     if ( directives === undefined ) { return; }
     const redirectURL = new URL(fctxt.url);
-    for ( const directive of directives ) {
+    for ( let i = 0, n = directives.length; i < n; i++ ) {
+        const directive = directives[i];
         if ( (directive.bits & ALLOW_REALM) !== 0 ) {
             out.push(directive);
             continue;
@@ -197,6 +199,7 @@ export function filterQuery(engine, fctxt, out = [], directives) {
     let hpos = url.indexOf('#', qpos + 1);
     if ( hpos === -1 ) { hpos = url.length; }
     queryParams.length = 0;
+    queryDecoded.length = 0;
     let pairCount = 0;
     if ( hpos > qpos + 1 ) {
         let beg = qpos + 1;
@@ -211,6 +214,7 @@ export function filterQuery(engine, fctxt, out = [], directives) {
                 queryParams.push(kv.slice(0, pos), kv.slice(pos + 1));
             }
             queryRemoved[pairCount] = 0;
+            queryDecoded[pairCount] = undefined;
             pairCount += 1;
             if ( amp === -1 || amp > hpos ) { break; }
             beg = amp + 1;
@@ -218,7 +222,8 @@ export function filterQuery(engine, fctxt, out = [], directives) {
     }
     const params = queryParams;
     let liveCount = pairCount;
-    for ( const directive of directives ) {
+    for ( let i = 0, n = directives.length; i < n; i++ ) {
+        const directive = directives[i];
         if ( liveCount === 0 ) { break; }
         const isException = (directive.bits & ALLOW_REALM) !== 0;
         if ( isException && directive.value === '' ) {
@@ -244,11 +249,17 @@ export function filterQuery(engine, fctxt, out = [], directives) {
             if ( name !== undefined ) {
                 matched = params[i+i] === name;
             } else if ( re !== undefined ) {
-                const key = params[i+i];
-                let value = params[i+i+1];
-                try { value = decodeURIComponent(value); }
-                catch { }
-                matched = re.test(`${key}=${value}`);
+                const i2 = i + i;
+                const key = params[i2];
+                let decoded = queryDecoded[i];
+                if ( decoded === undefined ) {
+                    let value = params[i2+1];
+                    try { value = decodeURIComponent(value); }
+                    catch { }
+                    decoded = key + '=' + value;
+                    queryDecoded[i] = decoded;
+                }
+                matched = re.test(decoded);
             }
             if ( matched === not ) { continue; }
             if ( isException === false ) {

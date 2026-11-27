@@ -84,60 +84,63 @@ export function urlSkip(url, blocked, steps) {
     try {
         let redirectBlocked = false;
         let urlout = url;
-        const succeeded = steps.every(step => {
+        let succeeded = true;
+        for ( let i = 0, n = steps.length; i < n; i++ ) {
+            const step = steps[i];
             const urlin = urlout;
             const c0 = step.charCodeAt(0);
             // Extract from hash
             if ( c0 === 0x23 && step === '#' ) { // #
                 const pos = urlin.indexOf('#');
                 urlout = pos !== -1 ? urlin.slice(pos+1) : '';
-                return true;
+                continue;
             }
             // Extract from URL parameter name at position i
             if ( c0 === 0x26 ) { // &
-                const i = (parseInt(step.slice(1)) || 0) - 1;
-                if ( i < 0 ) { return false; }
+                const pi = (parseInt(step.slice(1)) || 0) - 1;
+                if ( pi < 0 ) { succeeded = false; break; }
                 const url = new URL(urlin);
-                if ( i >= url.searchParams.size ) { return false; }
+                if ( pi >= url.searchParams.size ) { succeeded = false; break; }
                 let paramIndex = 0;
                 for ( const key of url.searchParams.keys() ) {
-                    if ( paramIndex === i ) {
+                    if ( paramIndex === pi ) {
                         urlout = decodeURIComponent(key);
-                        return true;
+                        break;
                     }
                     paramIndex += 1;
                 }
-                return false;
+                if ( paramIndex !== pi ) { succeeded = false; break; }
+                continue;
             }
             // Enforce https
             if ( c0 === 0x2B && step === '+https' ) { // +
                 const s = urlin.replace(reStripProtocol, '');
-                if ( reForeignScheme.test(s) ) { return false; }
+                if ( reForeignScheme.test(s) ) { succeeded = false; break; }
                 urlout = `https://${s}`;
-                return true;
+                continue;
             }
             // Decode
             if ( c0 === 0x2D ) { // -
                 // Base64
                 if ( step === '-base64' ) {
                     urlout = self.atob(urlin);
-                    return true;
+                    continue;
                 }
                 // Safe Base64
                 if ( step === '-safebase64' ) {
                     urlout = urlin.replace(reSafeBase64Chars, safeBase64Replacer);
                     urlout = self.atob(urlout);
-                    return true;
+                    continue;
                 }
                 // URI component
                 if ( step === '-uricomponent' ) {
                     urlout = decodeURIComponent(urlin);
-                    return true;
+                    continue;
                 }
                 // Enable skip of blocked requests
                 if ( step === '-blocked' ) {
                     redirectBlocked = true;
-                    return true;
+                    continue;
                 }
             }
             // Regex extraction from first capture group
@@ -151,25 +154,26 @@ export function urlSkip(url, blocked, steps) {
                     }
                     regexStepCache.set(step, re);
                 }
-                if ( re === null ) { return false; }
+                if ( re === null ) { succeeded = false; break; }
                 const match = re.exec(urlin);
-                if ( match === null ) { return false; }
-                if ( match.length <= 1 ) { return false; }
+                if ( match === null ) { succeeded = false; break; }
+                if ( match.length <= 1 ) { succeeded = false; break; }
                 urlout = match[1];
-                return true;
+                continue;
             }
             // Extract from URL parameter
             if ( c0 === 0x3F ) { // ?
                 urlout = (new URL(urlin)).searchParams.get(step.slice(1));
-                if ( urlout === null ) { return false; }
+                if ( urlout === null ) { succeeded = false; break; }
                 if ( urlout.includes(' ') ) {
                     urlout = urlout.replace(reEncodedSpace, '%20');
                 }
-                return true;
+                continue;
             }
             // Unknown directive
-            return false;
-        });
+            succeeded = false;
+            break;
+        }
         if ( succeeded === false ) { return; }
         const urlfinal = new URL(urlout);
         if ( urlfinal.protocol !== 'https:' ) {
