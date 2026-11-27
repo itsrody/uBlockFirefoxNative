@@ -1,6 +1,16 @@
 > **uBlock Firefox Native** targets native Firefox 160+ only. Non-Firefox builds, MV3/uBO Lite
 > tooling, and Node.js/npm packaging have been removed from this fork.
 
+# 1.77.2
+
+- [Eliminate `undefined` values from Firefox support reports](https://github.com/gorhill/uBlock/commit/75a94edb58)
+- [[shim] Fix `optimizely.js` history-wrapper recursion](https://github.com/gorhill/uBlock/commit/72421a192f) by @ryanbr
+- Skipped upstream launch-time programmatic content script injection ([d793535453](https://github.com/gorhill/uBlock/commit/d793535453)): Firefox MV2 uses manifest-declared content scripts and the existing frame-manager tab initialization. There is no Chromium scripting shim or dynamic content-script registration in this fork, so the single-initialization guard stays.
+
+Upstream sync: 1.77.2 -> 2a39e7253
+
+----------
+
 # 1.77.0
 
 - [[security] Reject non-HTTP URLs in the Firefox click-to-load resource](https://github.com/gorhill/uBlock/commit/5934db2a04)
