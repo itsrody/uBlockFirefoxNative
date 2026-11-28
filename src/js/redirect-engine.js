@@ -73,6 +73,9 @@ const warSecret = typeof vAPI === 'object' && vAPI !== null
     ? vAPI.warSecret.short
     : ( ) => '';
 
+// Synchronous per-redirect scratch state: toURL() has no reentrant callers.
+const warURLParams = [];
+
 const RESOURCES_SELFIE_VERSION = 7;
 const RESOURCES_SELFIE_NAME = 'selfie/redirectEngine/resources';
 
@@ -105,20 +108,20 @@ class RedirectEntry {
             fctxt instanceof Object &&
             fctxt.type !== 'xmlhttprequest'
         ) {
-            const params = [];
+            warURLParams.length = 0;
             const secret = warSecret();
-            if ( secret !== '' ) { params.push(`secret=${secret}`); }
+            if ( secret !== '' ) { warURLParams.push(`secret=${secret}`); }
             if ( this.params !== undefined ) {
                 for ( let i = 0; i < this.params.length; i++ ) {
                     const name = this.params[i];
                     const value = fctxt[name];
                     if ( value === undefined ) { continue; }
-                    params.push(`${name}=${encodeURIComponent(value)}`);
+                    warURLParams.push(`${name}=${encodeURIComponent(value)}`);
                 }
             }
             let url = `${this.warURL}`;
-            if ( params.length !== 0 ) {
-                url += `?${params.join('&')}`;
+            if ( warURLParams.length !== 0 ) {
+                url += `?${warURLParams.join('&')}`;
             }
             return url;
         }
