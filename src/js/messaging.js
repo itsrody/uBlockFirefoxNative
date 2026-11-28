@@ -484,15 +484,14 @@ const getElementCount = async function(tabId, what) {
     const results = await vAPI.tabs.executeScript(tabId, domSurveyOptions);
 
     let total = 0;
-    results.some(count => {
-        if ( typeof count !== 'number' ) { return false; }
+    for ( const count of results ) {
+        if ( typeof count !== 'number' ) { continue; }
         if ( count === -1 ) {
             total = -1;
-            return true;
+            break;
         }
         total += count;
-        return false;
-    });
+    }
 
     return total;
 };
@@ -507,9 +506,11 @@ const launchReporter = async function(request) {
     const entries = await io.getUpdateAges({
         filters: µb.selectedFilterLists.slice()
     });
-    const shouldUpdateLists = entries
-        .filter(entry => entry.age >= (2 * 60 * 60 * 1000))
-        .map(entry => entry.assetKey);
+    const shouldUpdateLists = [];
+    for ( const entry of entries ) {
+        if ( (entry.age >= (2 * 60 * 60 * 1000)) === false ) { continue; }
+        shouldUpdateLists.push(entry.assetKey);
+    }
 
     // https://github.com/gorhill/uBlock/commit/6efd8eb#commitcomment-107523558
     //   Important: for whatever reason, not using `document_start` causes the
@@ -518,15 +519,20 @@ const launchReporter = async function(request) {
     const cosmeticSurveyResults =
         await vAPI.tabs.executeScript(request.tabId, cosmeticReportOptions);
 
-    const filters = cosmeticSurveyResults.reduce((a, v) => {
-        if ( Array.isArray(v) ) { a.push(...v); }
-        return a;
-    }, []);
+    const filters = [];
+    for ( const v of cosmeticSurveyResults ) {
+        if ( Array.isArray(v) === false ) { continue; }
+        for ( const s of v ) {
+            filters.push(s);
+        }
+    }
     // Remove duplicate, truncate too long filters.
     if ( filters.length !== 0 ) {
-        request.popupPanel.extended = Array.from(
-            new Set(filters.map(s => s.length <= 64 ? s : `${s.slice(0, 64)}…`))
-        );
+        const extendedSet = new Set();
+        for ( const s of filters ) {
+            extendedSet.add(s.length <= 64 ? s : `${s.slice(0, 64)}…`);
+        }
+        request.popupPanel.extended = Array.from(extendedSet);
     }
 
     const supportURL = new URL(vAPI.getURL('support.html'));
@@ -1301,8 +1307,14 @@ const getSupportData = async function() {
     const diffArrays = function(modified, original) {
         const modifiedSet = new Set(modified);
         const originalSet = new Set(original);
-        let added = Array.from(modifiedSet).filter(item => !originalSet.has(item));
-        let removed = Array.from(originalSet).filter(item => !modifiedSet.has(item));
+        let added = [];
+        for ( const item of modifiedSet ) {
+            if ( originalSet.has(item) === false ) { added.push(item); }
+        }
+        let removed = [];
+        for ( const item of originalSet ) {
+            if ( modifiedSet.has(item) === false ) { removed.push(item); }
+        }
         if ( added.length === 0 ) {
             added = undefined;
         }
@@ -1352,9 +1364,10 @@ const getSupportData = async function() {
     let defaultListset = {};
     let addedListset = {};
     let removedListset = {};
-    Object.entries(lists).forEach(([ listKey, list ]) => {
-        if ( Object.hasOwn(lists, listKey) === false ) { return; }
-        if ( list.content !== 'filters' ) { return; }
+    for ( const listKey of Object.keys(lists) ) {
+        if ( Object.hasOwn(lists, listKey) === false ) { continue; }
+        const list = lists[listKey];
+        if ( list.content !== 'filters' ) { continue; }
         const used = µb.selectedFilterLists.includes(listKey);
         const listDetails = [];
         if ( used ) {
@@ -1372,7 +1385,7 @@ const getSupportData = async function() {
         } else if ( used ) {
             addedListset[listKey] = listDetails.join(', ');
         }
-    });
+    }
     if ( Object.keys(defaultListset).length === 0 ) {
         defaultListset = undefined;
     }
@@ -1909,12 +1922,14 @@ const onMessage = function(request, sender, callback) {
                 };
             })
         );
+        const extensionPaths = [];
+        for ( const entry of redirectEngine.getResourceDetails() ) {
+            const extensionPath = entry[1].extensionPath;
+            if ( typeof extensionPath !== 'string' || extensionPath === '' ) { continue; }
+            extensionPaths.push([ entry[0], extensionPath ]);
+        }
         const options = {
-            extensionPaths: redirectEngine.getResourceDetails().filter(e =>
-                typeof e[1].extensionPath === 'string' && e[1].extensionPath !== ''
-            ).map(e =>
-                [ e[0], e[1].extensionPath ]
-            ),
+            extensionPaths,
             env: vAPI.webextFlavor.env,
         };
         import('./static-dnr-filtering.js').then(module => {

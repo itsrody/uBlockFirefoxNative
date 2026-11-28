@@ -414,27 +414,35 @@ onBroadcast(msg => {
         if ( this.userSettings.userFiltersTrusted ) { return true; }
     }
     if ( this.parsedTrustedListPrefixes.length === 0 ) {
-        this.parsedTrustedListPrefixes =
-            µb.hiddenSettings.trustedListPrefixes.split(/ +/).map(prefix => {
-                if ( prefix === '' ) { return; }
-                if ( prefix.startsWith('http://') ) { return; }
-                if ( prefix.startsWith('file:///') ) { return prefix; }
-                if ( prefix.startsWith('https://') === false ) {
-                    return prefix.includes('://') ? undefined : prefix;
-                }
+        const prefixes = [];
+        const parts = µb.hiddenSettings.trustedListPrefixes.split(/ +/);
+        for ( const prefix of parts ) {
+            if ( prefix === '' ) { continue; }
+            if ( prefix.startsWith('http://') ) { continue; }
+            let parsed;
+            if ( prefix.startsWith('file:///') ) {
+                parsed = prefix;
+            } else if ( prefix.startsWith('https://') === false ) {
+                if ( prefix.includes('://') ) { continue; }
+                parsed = prefix;
+            } else {
                 try {
                     const url = new URL(prefix);
-                    if ( url.hostname.length > 0 ) { return url.href; }
+                    if ( url.hostname.length > 0 ) { parsed = url.href; }
                 } catch {
                 }
-            }).filter(prefix => prefix !== undefined);
+            }
+            if ( parsed !== undefined ) { prefixes.push(parsed); }
+        }
+        this.parsedTrustedListPrefixes = prefixes;
     }
     const match = /^[a-z-]+:\/\/[^/]+\//.exec(assetKey);
     const assetOrigin = match && match[0];
-    return this.parsedTrustedListPrefixes.some(prefix => {
-        if ( assetOrigin && prefix.length < assetOrigin.length ) { return false; }
-        return assetKey.startsWith(prefix);
-    });
+    for ( const prefix of this.parsedTrustedListPrefixes ) {
+        if ( assetOrigin && prefix.length < assetOrigin.length ) { continue; }
+        if ( assetKey.startsWith(prefix) ) { return true; }
+    }
+    return false;
 };
 
 onBroadcast(msg => {
@@ -511,17 +519,20 @@ onBroadcast(msg => {
         const assetKeyFromURL = url => {
             const needle = url.replace(/^https?:/, '');
             const assets = this.availableFilterLists;
-            const found = Object.entries(assets).find(([ , asset ]) => {
-                if ( asset.content !== 'filters' ) { return false; }
+            for ( const assetKey of Object.keys(assets) ) {
+                if ( Object.hasOwn(assets, assetKey) === false ) { continue; }
+                const asset = assets[assetKey];
+                if ( asset.content !== 'filters' ) { continue; }
                 if ( typeof asset.contentURL === 'string' ) {
-                    return asset.contentURL.endsWith(needle);
+                    if ( asset.contentURL.endsWith(needle) ) { return assetKey; }
+                    continue;
                 }
-                if ( Array.isArray(asset.contentURL) === false ) { return false; }
-                return asset.contentURL.some(contentURL =>
-                    contentURL.endsWith(needle)
-                );
-            });
-            return found === undefined ? url : found[0];
+                if ( Array.isArray(asset.contentURL) === false ) { continue; }
+                for ( const contentURL of asset.contentURL ) {
+                    if ( contentURL.endsWith(needle) ) { return assetKey; }
+                }
+            }
+            return url;
         };
         const importedSet = new Set(this.listKeysFromCustomFilterLists(importedLists));
         const toImportSet = new Set(this.listKeysFromCustomFilterLists(details.toImport));
@@ -769,7 +780,9 @@ onBroadcast(msg => {
 
     const oldAvailableLists = bin && bin.availableFilterLists || {};
 
-    for ( const [ assetKey, asset ] of Object.entries(registeredAssets) ) {
+    for ( const assetKey of Object.keys(registeredAssets) ) {
+        if ( Object.hasOwn(registeredAssets, assetKey) === false ) { continue; }
+        const asset = registeredAssets[assetKey];
         if ( asset.content !== 'filters' ) { continue; }
         newAvailableLists[assetKey] = Object.assign({}, asset);
     }
@@ -778,7 +791,9 @@ onBroadcast(msg => {
     const selectedListset = new Set(this.selectedFilterLists);
 
     // Remove imported filter lists which are already present in stock lists
-    for ( const [ stockAssetKey, stockEntry ] of Object.entries(newAvailableLists) ) {
+    for ( const stockAssetKey of Object.keys(newAvailableLists) ) {
+        if ( Object.hasOwn(newAvailableLists, stockAssetKey) === false ) { continue; }
+        const stockEntry = newAvailableLists[stockAssetKey];
         if ( stockEntry.content !== 'filters' ) { continue; }
         if ( stockEntry.group === 'user' ) { continue; }
         if ( stockEntry.submitter === 'user' ) { continue; }
@@ -804,7 +819,9 @@ onBroadcast(msg => {
     // Unregister lists in old listset not present in new listset.
     // Convert a no longer existing stock list into an imported list, except
     // when the removed stock list is deemed a "bad list".
-    for ( const [ assetKey, oldEntry ] of Object.entries(oldAvailableLists) ) {
+    for ( const assetKey of Object.keys(oldAvailableLists) ) {
+        if ( Object.hasOwn(oldAvailableLists, assetKey) === false ) { continue; }
+        const oldEntry = oldAvailableLists[assetKey];
         if ( newAvailableLists[assetKey] !== undefined ) { continue; }
         const on = selectedListset.delete(assetKey);
         this.removeFilterList(assetKey);
@@ -830,7 +847,9 @@ onBroadcast(msg => {
     }
 
     // Remove unreferenced imported filter lists
-    for ( const [ assetKey, asset ] of Object.entries(newAvailableLists) ) {
+    for ( const assetKey of Object.keys(newAvailableLists) ) {
+        if ( Object.hasOwn(newAvailableLists, assetKey) === false ) { continue; }
+        const asset = newAvailableLists[assetKey];
         if ( asset.submitter !== 'user' ) { continue; }
         if ( importedListKeys.has(assetKey) ) { continue; }
         selectedListset.delete(assetKey);
@@ -840,12 +859,16 @@ onBroadcast(msg => {
     }
 
     // Mark lists as disabled/enabled according to selected listset
-    for ( const [ assetKey, asset ] of Object.entries(newAvailableLists) ) {
+    for ( const assetKey of Object.keys(newAvailableLists) ) {
+        if ( Object.hasOwn(newAvailableLists, assetKey) === false ) { continue; }
+        const asset = newAvailableLists[assetKey];
         asset.off = selectedListset.has(assetKey) === false;
     }
 
     // Reuse existing metadata
-    for ( const [ assetKey, oldEntry ] of Object.entries(oldAvailableLists) ) {
+    for ( const assetKey of Object.keys(oldAvailableLists) ) {
+        if ( Object.hasOwn(oldAvailableLists, assetKey) === false ) { continue; }
+        const oldEntry = oldAvailableLists[assetKey];
         const newEntry = newAvailableLists[assetKey];
         if ( newEntry === undefined ) { continue; }
         if ( oldEntry.entryCount !== undefined ) {
@@ -1680,14 +1703,14 @@ onBroadcast(msg => {
         const oldDefaultListset = new Set(oldDict['assets.json'].defaultListset || []);
         if ( newDefaultListset.size === 0 ) { return; }
         if ( oldDefaultListset.size === 0 ) {
-            Array.from(Object.entries(oldDict))
-                .filter(a =>
-                    a[1].content === 'filters' &&
-                    a[1].off === undefined &&
-                    /^https?:\/\//.test(a[0]) === false
-                )
-                .map(a => a[0])
-                .forEach(a => oldDefaultListset.add(a));
+            for ( const assetKey of Object.keys(oldDict) ) {
+                if ( Object.hasOwn(oldDict, assetKey) === false ) { continue; }
+                const entry = oldDict[assetKey];
+                if ( entry.content !== 'filters' ) { continue; }
+                if ( entry.off !== undefined ) { continue; }
+                if ( /^https?:\/\//.test(assetKey) ) { continue; }
+                oldDefaultListset.add(assetKey);
+            }
             if ( oldDefaultListset.size === 0 ) { return; }
         }
         const selectedListset = new Set(this.selectedFilterLists);
