@@ -45,6 +45,17 @@ const reMatchAny = /^./;
 const skipDNS = proxyInfo =>
     proxyInfo && (proxyInfo.proxyDNS || proxyInfo.type?.charCodeAt(0) === 0x68 /* h */);
 
+const dnsOptionDescriptors = [
+    [ 'cnameUncloakEnabled', (_, value) => value !== false ],
+    [ 'cnameIgnoreList', (net, value) => net.regexFromStrList(value) ],
+    [ 'cnameIgnore1stParty', (_, value) => value !== false ],
+    [ 'cnameIgnoreExceptions', (_, value) => value !== false ],
+    [ 'cnameIgnoreRootDocument', (_, value) => value !== false ],
+    [ 'cnameReplayFullURL', (_, value) => value === true ],
+    [ 'dnsCacheTTL', (_, value) => value ],
+    [ 'dnsResolveEnabled', (_, value) => value === true ],
+];
+
 /******************************************************************************/
 
 // CNAME handling can revisit the same details object several times: before the
@@ -113,34 +124,9 @@ vAPI.Net = class extends vAPI.Net {
 
     setOptions(options) {
         super.setOptions(options);
-        if ( 'cnameUncloakEnabled' in options ) {
-            this.cnameUncloakEnabled =
-                options.cnameUncloakEnabled !== false;
-        }
-        if ( 'cnameIgnoreList' in options ) {
-            this.cnameIgnoreList =
-                this.regexFromStrList(options.cnameIgnoreList);
-        }
-        if ( 'cnameIgnore1stParty' in options ) {
-            this.cnameIgnore1stParty =
-                options.cnameIgnore1stParty !== false;
-        }
-        if ( 'cnameIgnoreExceptions' in options ) {
-            this.cnameIgnoreExceptions =
-                options.cnameIgnoreExceptions !== false;
-        }
-        if ( 'cnameIgnoreRootDocument' in options ) {
-            this.cnameIgnoreRootDocument =
-                options.cnameIgnoreRootDocument !== false;
-        }
-        if ( 'cnameReplayFullURL' in options ) {
-            this.cnameReplayFullURL = options.cnameReplayFullURL === true;
-        }
-        if ( 'dnsCacheTTL' in options ) {
-            this.dnsCacheTTL = options.dnsCacheTTL;
-        }
-        if ( 'dnsResolveEnabled' in options ) {
-            this.dnsResolveEnabled = options.dnsResolveEnabled === true;
+        for ( const [ name, transform ] of dnsOptionDescriptors ) {
+            if ( (name in options) === false ) { continue; }
+            this[name] = transform(this, options[name]);
         }
         this.dnsList.fill(null);
         this.dnsDict.clear();
@@ -177,7 +163,7 @@ vAPI.Net = class extends vAPI.Net {
             return Array.from(this.validTypes);
         }
         const out = new Set();
-        types.forEach(type => {
+        for ( const type of types ) {
             if ( this.validTypes.has(type) ) {
                 out.add(type);
             }
@@ -187,7 +173,7 @@ vAPI.Net = class extends vAPI.Net {
             if ( type === 'sub_frame' ) {
                 out.add('object');
             }
-        });
+        }
         return Array.from(out);
     }
 
@@ -203,14 +189,14 @@ vAPI.Net = class extends vAPI.Net {
             return null;
         }
         if ( list === '*' ) { return reMatchAny; }
-        return new RegExp(
-            '(?:^|\\.)(?:' +
-            list.trim()
-                .split(reWhitespaceSplit)
-                .map(a => a.replace(reEscapeForRegex, '\\$&'))
-                .join('|') +
-            ')$'
-        );
+        const tokens = list.trim().split(reWhitespaceSplit);
+        let pattern = '(?:^|\\.)(?:';
+        for ( let i = 0; i < tokens.length; i++ ) {
+            if ( i !== 0 ) { pattern += '|'; }
+            pattern += tokens[i].replace(reEscapeForRegex, '\\$&');
+        }
+        pattern += ')$';
+        return new RegExp(pattern);
     }
 
     onBeforeSuspendableRequest(details) {
