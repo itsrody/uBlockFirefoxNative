@@ -510,7 +510,9 @@ vAPI.DOMFilterer = class {
 
     exceptCSSRules(exceptions) {
         if ( exceptions.length === 0 ) { return; }
-        this.exceptedCSSRules.push(...exceptions);
+        for ( const exception of exceptions ) {
+            this.exceptedCSSRules.push(exception);
+        }
         if ( this.hasListeners() ) {
             this.triggerListeners({ exceptions });
         }
@@ -633,9 +635,9 @@ vAPI.DOMFilterer = class {
         if ( excludeProcedurals === false ) {
             out.procedural = [];
             if ( hasProcedural ) {
-                out.procedural.push(
-                    ...this.proceduralFilterer.selectors.values()
-                );
+                for ( const pselector of this.proceduralFilterer.selectors.values() ) {
+                    out.procedural.push(pselector);
+                }
             }
             const proceduralFilterer = this.proceduralFiltererInstance();
             if ( proceduralFilterer !== null ) {
