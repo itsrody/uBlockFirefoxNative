@@ -35,6 +35,28 @@ import webext from './webext.js';
 
 /******************************************************************************/
 
+const logAPIError = reason => {
+    console.log(reason);
+};
+
+const nameMethod = (fn, name) => {
+    Object.defineProperty(fn, 'name', { value: name, configurable: true });
+    return fn;
+};
+
+const makeStorageMethod = (name, hasKey = false, named = true) => {
+    const fn = hasKey
+        ? function(key, ...args) {
+            return webext.storage.local[name](key, ...args).catch(logAPIError);
+        }
+        : function(...args) {
+            return webext.storage.local[name](...args).catch(logAPIError);
+        };
+    return named ? nameMethod(fn, name) : fn;
+};
+
+/******************************************************************************/
+
 const manifest = webext.runtime.getManifest();
 
 // Firefox supports WASM in content scripts.
@@ -124,35 +146,15 @@ vAPI.sessionStorage = webext.storage.session || {
  * */
 
 vAPI.storage = {
-    get(key, ...args) {
-        return webext.storage.local.get(key, ...args).catch(reason => {
-            console.log(reason);
-        });
-    },
-    set(...args) {
-        return webext.storage.local.set(...args).catch(reason => {
-            console.log(reason);
-        });
-    },
-    remove(...args) {
-        return webext.storage.local.remove(...args).catch(reason => {
-            console.log(reason);
-        });
-    },
-    clear(...args) {
-        return webext.storage.local.clear(...args).catch(reason => {
-            console.log(reason);
-        });
-    },
+    get: makeStorageMethod('get', true),
+    set: makeStorageMethod('set'),
+    remove: makeStorageMethod('remove'),
+    clear: makeStorageMethod('clear'),
     QUOTA_BYTES: webext.storage.local.QUOTA_BYTES,
 };
 
 if ( webext.storage.local.getBytesInUse instanceof Function ) {
-    vAPI.storage.getBytesInUse = function(...args) {
-        return webext.storage.local.getBytesInUse(...args).catch(reason => {
-            console.log(reason);
-        });
-    };
+    vAPI.storage.getBytesInUse = makeStorageMethod('getBytesInUse', false, false);
 }
 
 /******************************************************************************/
@@ -515,35 +517,21 @@ vAPI.Tabs = class {
 
 // Firefox for Android does not expose the windows API.
 
+const makeWindowMethod = name => nameMethod(async function() {
+    let win;
+    try {
+        win = await webext.windows[name](...arguments);
+    }
+    catch {
+    }
+    return win instanceof Object ? win : null;
+}, name);
+
 if ( webext.windows instanceof Object ) {
     vAPI.windows = {
-        get: async function() {
-            let win;
-            try {
-                win = await webext.windows.get(...arguments);
-            }
-            catch {
-            }
-            return win instanceof Object ? win : null;
-        },
-        create: async function() {
-            let win;
-            try {
-                win = await webext.windows.create(...arguments);
-            }
-            catch {
-            }
-            return win instanceof Object ? win : null;
-        },
-        update: async function() {
-            let win;
-            try {
-                win = await webext.windows.update(...arguments);
-            }
-            catch {
-            }
-            return win instanceof Object ? win : null;
-        },
+        get: makeWindowMethod('get'),
+        create: makeWindowMethod('create'),
+        update: makeWindowMethod('update'),
     };
 }
 
@@ -552,46 +540,29 @@ if ( webext.windows instanceof Object ) {
 
 // Firefox for Android does not expose browserAction; MV2 desktop uses it.
 
+const makeUnnamedBrowserActionMethod = name => async function() {
+    try {
+        await webext.browserAction[name](...arguments);
+    }
+    catch {
+    }
+};
+
+const makeBrowserActionMethod = (name, named = true) => {
+    const fn = makeUnnamedBrowserActionMethod(name);
+    return named ? nameMethod(fn, name) : fn;
+};
+
 if ( webext.browserAction instanceof Object ) {
     vAPI.browserAction = {
-        setTitle: async function() {
-            try {
-                await webext.browserAction.setTitle(...arguments);
-            }
-            catch {
-            }
-        },
+        setTitle: makeBrowserActionMethod('setTitle'),
     };
     // Not supported on Firefox for Android
     if ( webext.browserAction.setIcon ) {
-        vAPI.browserAction.setBadgeTextColor = async function() {
-            try {
-                await webext.browserAction.setBadgeTextColor(...arguments);
-            }
-            catch {
-            }
-        };
-        vAPI.browserAction.setBadgeBackgroundColor = async function() {
-            try {
-                await webext.browserAction.setBadgeBackgroundColor(...arguments);
-            }
-            catch {
-            }
-        };
-        vAPI.browserAction.setBadgeText = async function() {
-            try {
-                await webext.browserAction.setBadgeText(...arguments);
-            }
-            catch {
-            }
-        };
-        vAPI.browserAction.setIcon = async function() {
-            try {
-                await webext.browserAction.setIcon(...arguments);
-            }
-            catch {
-            }
-        };
+        vAPI.browserAction.setBadgeTextColor = makeBrowserActionMethod('setBadgeTextColor', false);
+        vAPI.browserAction.setBadgeBackgroundColor = makeBrowserActionMethod('setBadgeBackgroundColor', false);
+        vAPI.browserAction.setBadgeText = makeBrowserActionMethod('setBadgeText', false);
+        vAPI.browserAction.setIcon = makeBrowserActionMethod('setIcon', false);
     }
 }
 
@@ -1199,7 +1170,7 @@ vAPI.Net = class {
 // https://developer.mozilla.org/en-US/Add-ons/WebExtensions/API/contextMenus#Browser_compatibility
 //   Firefox for Android does not support browser.contextMenus.
 
-vAPI.contextMenu = webext.menus && {
+const makeContextMenu = () => ({
     _callback: null,
     _hash: '',
     onMustUpdate: function() {},
@@ -1222,8 +1193,10 @@ vAPI.contextMenu = webext.menus && {
             webext.menus.onClicked.removeListener(this._callback);
             this._callback = null;
         }
-    }
-};
+    },
+});
+
+vAPI.contextMenu = webext.menus && makeContextMenu();
 
 /******************************************************************************/
 /******************************************************************************/
