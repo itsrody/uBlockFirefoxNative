@@ -36,6 +36,7 @@ const applyScratch = {
     all: new Set(),
     filters: new Set(),
     exceptions: new Set(),
+    wanted: new Set(),
     byName: new Map(),
     removedPositions: new Set(),
 };
@@ -132,14 +133,12 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
     const hostname = fctxt.getHostname();
     if ( hostname === '' ) { return; }
 
-    const { all, filters, exceptions, byName, removedPositions } = applyScratch;
+    const { all, filters, exceptions, wanted, byName, removedPositions } = applyScratch;
     all.clear();
     filters.clear();
     exceptions.clear();
+    wanted.clear();
     removedPositions.clear();
-    for ( const entries of byName.values() ) {
-        entries.length = 0;
-    }
 
     const entity = entityFromHostname(hostname, fctxt.getDomain());
     filterDB.retrieveAll(all, hostname, entity, fctxt.url);
@@ -163,8 +162,18 @@ httpheaderFilteringEngine.apply = function(fctxt, headers) {
 
     const hasGlobalException = exceptions.has('');
 
+    // Only non-excepted filter names can remove a header. Index just those
+    // names; stale entries left for other names are never read.
+    for ( const name of filters ) {
+        if ( hasGlobalException || exceptions.has(name) ) { continue; }
+        wanted.add(name);
+        const entries = byName.get(name);
+        if ( entries !== undefined ) { entries.length = 0; }
+    }
+
     for ( let i = 0; i < headers.length; i++ ) {
         const name = headers[i].name.toLowerCase();
+        if ( wanted.has(name) === false ) { continue; }
         let entries = byName.get(name);
         if ( entries === undefined ) {
             entries = [];
