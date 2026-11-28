@@ -238,6 +238,12 @@ const reEscapeSequence = /\\([0-9A-Fa-f]+ |.)/g;
 // Generic filters can only be enforced once the main document is loaded.
 // Specific filers can be enforced before the main document is loaded.
 
+// Ordered high-generic groups: simple must precede complex everywhere.
+const highlyGenericKinds = [
+    [ 'simple', 'highGenericHideSimple' ],
+    [ 'complex', 'highGenericHideComplex' ],
+];
+
 const CosmeticFilteringEngine = function() {
     this.reSimpleHighGeneric = /^(?:[a-z]*\[[^\]]+\]|\S+)$/;
 
@@ -259,18 +265,14 @@ const CosmeticFilteringEngine = function() {
 
     // highly generic selectors sets
     this.highlyGeneric = Object.create(null);
-    this.highlyGeneric.simple = {
-        canonical: 'highGenericHideSimple',
-        dict: new Set(),
-        str: '',
-        mru: new MRUCache(16)
-    };
-    this.highlyGeneric.complex = {
-        canonical: 'highGenericHideComplex',
-        dict: new Set(),
-        str: '',
-        mru: new MRUCache(16)
-    };
+    for ( const [ kind, canonical ] of highlyGenericKinds ) {
+        this.highlyGeneric[kind] = {
+            canonical,
+            dict: new Set(),
+            str: '',
+            mru: new MRUCache(16)
+        };
+    }
 
     this.retrievalScratch = {
         exceptionSet: new Set(),
@@ -306,12 +308,12 @@ CosmeticFilteringEngine.prototype.reset = function() {
     this.lowlyGenericCache.clear();
 
     // highly generic selectors sets
-    this.highlyGeneric.simple.dict.clear();
-    this.highlyGeneric.simple.str = '';
-    this.highlyGeneric.simple.mru.reset();
-    this.highlyGeneric.complex.dict.clear();
-    this.highlyGeneric.complex.str = '';
-    this.highlyGeneric.complex.mru.reset();
+    for ( const [ kind ] of highlyGenericKinds ) {
+        const group = this.highlyGeneric[kind];
+        group.dict.clear();
+        group.str = '';
+        group.mru.reset();
+    }
 
     const scratch = this.retrievalScratch;
     scratch.exceptionSet.clear();
@@ -332,10 +334,11 @@ CosmeticFilteringEngine.prototype.freeze = function() {
     this.duplicateBuster.clear();
     this.specificFilters.collectGarbage();
 
-    this.highlyGeneric.simple.str = Array.from(this.highlyGeneric.simple.dict).join(',\n');
-    this.highlyGeneric.simple.mru.reset();
-    this.highlyGeneric.complex.str = Array.from(this.highlyGeneric.complex.dict).join(',\n');
-    this.highlyGeneric.complex.mru.reset();
+    for ( const [ kind ] of highlyGenericKinds ) {
+        const group = this.highlyGeneric[kind];
+        group.str = Array.from(group.dict).join(',\n');
+        group.mru.reset();
+    }
 
     this.frozen = true;
 };
@@ -670,12 +673,15 @@ CosmeticFilteringEngine.prototype.removeFromSelectorCache = function(
 CosmeticFilteringEngine.prototype.pruneSelectorCacheAsync = function() {
     if ( this.selectorCache.size <= this.selectorCacheCountMax ) { return; }
     const cache = this.selectorCache;
-    const hostnames = Array.from(cache.keys())
-        .sort((a, b) => cache.get(b).accessId - cache.get(a).accessId)
-        .slice(this.selectorCacheCountMin);
-    for ( const hn of hostnames ) {
-        cache.get(hn).dispose();
-        cache.delete(hn);
+    const entries = [];
+    for ( const [ hostname, entry ] of cache ) {
+        entries.push([ hostname, entry ]);
+    }
+    entries.sort((a, b) => b[1].accessId - a[1].accessId);
+    for ( let i = this.selectorCacheCountMin; i < entries.length; i++ ) {
+        const [ hostname, entry ] = entries[i];
+        entry.dispose();
+        cache.delete(hostname);
     }
 };
 
