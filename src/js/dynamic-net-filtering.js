@@ -223,14 +223,17 @@ class DynamicHostRuleFiltering {
         return this;
     }
 
-    evaluateCellZ(srcHostname, desHostname, type) {
-        decomposeHostname(srcHostname, decomposedSource);
+    evaluateCellZ(srcHostname, desHostname, type, decomposed) {
+        if ( decomposed === undefined ) {
+            decomposeHostname(srcHostname, decomposedSource);
+            decomposed = decomposedSource;
+        }
         this.type = type;
         const bitOffset = typeBitOffsets[type];
         const desSuffix = ' ' + desHostname;
         this.r = 0;
-        for ( let i = 0; i < decomposedSource.length; i++ ) {
-            const srchn = decomposedSource[i];
+        for ( let i = 0; i < decomposed.length; i++ ) {
+            const srchn = decomposed[i];
             this.z = srchn;
             let v = this.rules.get(srchn + desSuffix);
             if ( v === undefined ) { continue; }
@@ -252,6 +255,10 @@ class DynamicHostRuleFiltering {
 
         // Precedence: from most specific to least specific
 
+        // srcHostname is constant across all evaluateCellZ() calls below:
+        // decompose it once instead of re-probing the cache each time.
+        const sourceSuffixes = decomposeHostname(srcHostname, decomposedSource);
+
         // Specific-destination, any party, any type
         decomposeHostname(desHostname, decomposedDestination);
         let found = false;
@@ -259,7 +266,7 @@ class DynamicHostRuleFiltering {
             const deshn = decomposedDestination[i];
             if ( deshn === '*' ) { break; }
             this.y = deshn;
-            if ( this.evaluateCellZ(srcHostname, deshn, '*') !== 0 ) {
+            if ( this.evaluateCellZ(srcHostname, deshn, '*', sourceSuffixes) !== 0 ) {
                 found = true;
                 break;
             }
@@ -275,39 +282,39 @@ class DynamicHostRuleFiltering {
         if ( thirdParty ) {
             // 3rd-party, specific type
             if ( type === 'script' ) {
-                if ( this.evaluateCellZ(srcHostname, '*', '3p-script') !== 0 ) {
+                if ( this.evaluateCellZ(srcHostname, '*', '3p-script', sourceSuffixes) !== 0 ) {
                     return this.r;
                 }
             } else if ( type === 'sub_frame' || type === 'object' ) {
-                if ( this.evaluateCellZ(srcHostname, '*', '3p-frame') !== 0 ) {
+                if ( this.evaluateCellZ(srcHostname, '*', '3p-frame', sourceSuffixes) !== 0 ) {
                     return this.r;
                 }
             }
             // 3rd-party, any type
-            if ( this.evaluateCellZ(srcHostname, '*', '3p') !== 0 ) {
+            if ( this.evaluateCellZ(srcHostname, '*', '3p', sourceSuffixes) !== 0 ) {
                 return this.r;
             }
         } else if ( type === 'script' ) {
             // 1st party, specific type
-            if ( this.evaluateCellZ(srcHostname, '*', '1p-script') !== 0 ) {
+            if ( this.evaluateCellZ(srcHostname, '*', '1p-script', sourceSuffixes) !== 0 ) {
                 return this.r;
             }
         }
 
         // Any destination, any party, specific type
         if ( supportedDynamicTypes[type] !== undefined ) {
-            if ( this.evaluateCellZ(srcHostname, '*', type) !== 0 ) {
+            if ( this.evaluateCellZ(srcHostname, '*', type, sourceSuffixes) !== 0 ) {
                 return this.r;
             }
             if ( type.startsWith('3p-') ) {
-                if ( this.evaluateCellZ(srcHostname, '*', '3p') !== 0 ) {
+                if ( this.evaluateCellZ(srcHostname, '*', '3p', sourceSuffixes) !== 0 ) {
                     return this.r;
                 }
             }
         }
 
         // Any destination, any party, any type
-        if ( this.evaluateCellZ(srcHostname, '*', '*') !== 0 ) {
+        if ( this.evaluateCellZ(srcHostname, '*', '*', sourceSuffixes) !== 0 ) {
             return this.r;
         }
 

@@ -55,9 +55,13 @@ const reHostnameVeryCoarse = /[g-z_-]/;
 /******************************************************************************/
 
 function domainFromHostname(hostname) {
-    return reIPAddressNaive.test(hostname)
-        ? hostname
-        : publicSuffixList.getDomain(hostname);
+    // The naive IP regexp can only match an IPv4 digit or an IPv6 bracket.
+    // Keep the original coercion behavior for non-string callers.
+    const first = typeof hostname === 'string' ? hostname.charCodeAt(0) : 0;
+    if ( first === 0 || first === 0x5B || first >= 0x30 && first <= 0x39 ) {
+        if ( reIPAddressNaive.test(hostname) ) { return hostname; }
+    }
+    return publicSuffixList.getDomain(hostname);
 }
 
 function domainFromURI(uri) {
@@ -80,9 +84,10 @@ function entityFromHostname(hostname, domain) {
 }
 
 function hostnameFromURI(uri) {
-    let match = reHostnameFromCommonURL.exec(uri);
-    if ( match !== null ) { return match[0].slice(8, -1); }
-    match = reAuthorityFromURI.exec(uri);
+    if ( reHostnameFromCommonURL.test(uri) ) {
+        return uri.slice(8, uri.indexOf('/', 8));
+    }
+    let match = reAuthorityFromURI.exec(uri);
     if ( match === null ) { return ''; }
     const authority = match[1].slice(2);
     if ( reHostFromNakedAuthority.test(authority) ) {
@@ -111,9 +116,10 @@ function hostnameFromNetworkURL(url) {
 }
 
 function originFromURI(uri) {
-    let match = reHostnameFromCommonURL.exec(uri);
-    if ( match !== null ) { return match[0].slice(0, -1); }
-    match = reOriginFromURI.exec(uri);
+    if ( reHostnameFromCommonURL.test(uri) ) {
+        return uri.slice(0, uri.indexOf('/', 8));
+    }
+    const match = reOriginFromURI.exec(uri);
     return match !== null ? match[0].toLowerCase() : '';
 }
 
