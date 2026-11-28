@@ -24,12 +24,18 @@
 import * as frameManager from './vapi-contexts.js';
 
 import {
+    CSP_REPORT,
+    FONT,
+    FONT_ANY,
     IMAGE,
+    INLINE_ANY,
     MAIN_FRAME,
     MEDIA,
     OBJECT,
     OTHER,
+    SCRIPT,
     SUB_FRAME,
+    XMLHTTPREQUEST,
 } from './filtering-context.js';
 import {
     hostnameFromURI,
@@ -609,21 +615,21 @@ const PageStore = class {
         if ( this.isTrusted(fctxt) ) { return 0; }
 
         if (
-            fctxt.itype === fctxt.CSP_REPORT &&
+            fctxt.itype === CSP_REPORT &&
             this.filterCSPReport(fctxt) === 1
         ) {
             return 1;
         }
 
         if (
-            (fctxt.itype & fctxt.FONT_ANY) !== 0 &&
+            (fctxt.itype & FONT_ANY) !== 0 &&
             this.filterFont(fctxt) === 1 )
         {
             return 1;
         }
 
         if (
-            fctxt.itype === fctxt.SCRIPT &&
+            fctxt.itype === SCRIPT &&
             this.filterScripting(fctxt, false) === 1
         ) {
             return 1;
@@ -711,7 +717,7 @@ const PageStore = class {
         //   Redirect blocked request?
         // https://github.com/uBlockOrigin/uBlock-issues/issues/760
         //   Redirect non-blocked request?
-        if ( (fctxt.itype & fctxt.INLINE_ANY) === 0 ) {
+        if ( (fctxt.itype & INLINE_ANY) === 0 ) {
             if ( result === 1 ) {
                 this.redirectBlockedRequest(fctxt);
             } else {
@@ -887,7 +893,7 @@ const PageStore = class {
     }
 
     filterFont(fctxt) {
-        if ( fctxt.itype === fctxt.FONT ) {
+        if ( fctxt.itype === FONT ) {
             this.remoteFontCount += 1;
         }
         if (
@@ -924,7 +930,7 @@ const PageStore = class {
             return 0;
         }
         // XHR-based streaming is never blocked but we want to prevent autoplay
-        if ( fctxt.itype === fctxt.XMLHTTPREQUEST ) {
+        if ( fctxt.itype === XMLHTTPREQUEST ) {
             const ctype = headers.contentType;
             if ( ctype.startsWith('audio/') || ctype.startsWith('video/') ) {
                 this.largeMediaTimer.on(500);
@@ -932,7 +938,7 @@ const PageStore = class {
             return 0;
         }
         if ( Date.now() < this.allowLargeMediaElementsUntil ) {
-            if ( fctxt.itype === fctxt.MEDIA ) {
+            if ( fctxt.itype === MEDIA ) {
                 const sources = this.allowLargeMediaElementsRegex instanceof RegExp
                     ? [ this.allowLargeMediaElementsRegex.source ]
                     : [];
@@ -950,7 +956,7 @@ const PageStore = class {
             return 0;
         }
         // Regardless of whether a media is blocked, we want to prevent autoplay
-        if ( fctxt.itype === fctxt.MEDIA ) {
+        if ( fctxt.itype === MEDIA ) {
             this.largeMediaTimer.on(500);
         }
         const size = headers.contentLength;

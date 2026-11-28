@@ -158,6 +158,8 @@ export const FilteringContext = class {
         // `undefined` is a valid cached type-bits result for unknown types.
         this.snfTypeBits = null;
         this.snfPartyBits = undefined;
+        // Type/method constants stay module-level. Duplicating them as own
+        // fields here added dozens of properties to every hot context shape.
         if ( other instanceof FilteringContext ) {
             return this.fromFilteringContext(other);
         }
@@ -491,39 +493,6 @@ export const FilteringContext = class {
     static getMethodName(a) {
         return methodBitToStrMap.get(a) || '';
     }
-
-    BEACON = BEACON;
-    CSP_REPORT = CSP_REPORT;
-    FONT = FONT;
-    IMAGE = IMAGE;
-    IMAGESET = IMAGESET;
-    MAIN_FRAME = MAIN_FRAME;
-    MEDIA = MEDIA;
-    OBJECT = OBJECT;
-    OBJECT_SUBREQUEST = OBJECT_SUBREQUEST;
-    PING = PING;
-    SCRIPT = SCRIPT;
-    STYLESHEET = STYLESHEET;
-    SUB_FRAME = SUB_FRAME;
-    WEBSOCKET = WEBSOCKET;
-    XMLHTTPREQUEST = XMLHTTPREQUEST;
-    INLINE_FONT = INLINE_FONT;
-    INLINE_SCRIPT = INLINE_SCRIPT;
-    OTHER = OTHER;
-    FRAME_ANY = FRAME_ANY;
-    FONT_ANY = FONT_ANY;
-    INLINE_ANY = INLINE_ANY;
-    PING_ANY = PING_ANY;
-    SCRIPT_ANY = SCRIPT_ANY;
-    METHOD_NONE = METHOD_NONE;
-    METHOD_CONNECT = METHOD_CONNECT;
-    METHOD_DELETE = METHOD_DELETE;
-    METHOD_GET = METHOD_GET;
-    METHOD_HEAD = METHOD_HEAD;
-    METHOD_OPTIONS = METHOD_OPTIONS;
-    METHOD_PATCH = METHOD_PATCH;
-    METHOD_POST = METHOD_POST;
-    METHOD_PUT = METHOD_PUT;
 
     static BEACON = BEACON;
     static CSP_REPORT = CSP_REPORT;

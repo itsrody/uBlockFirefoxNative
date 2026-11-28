@@ -24,12 +24,16 @@
 import * as frameManager from './vapi-contexts.js';
 
 import {
+    FilteringContext,
+    MAIN_FRAME,
+    SUB_FRAME,
+} from './filtering-context.js';
+
+import {
     domainFromHostname,
     hostnameFromURI,
     originFromURI,
 } from './uri-utils.js';
-
-import { FilteringContext } from './filtering-context.js';
 import { TrustedSiteManager } from './trusted-sites.js';
 import logger from './logger.js';
 import { ubologSet } from './console.js';
@@ -327,7 +331,7 @@ const getRawOriginDetails = makeOriginDetailsCache(url => url);
         this.aliasURL = details.aliasURL || undefined;
         this.redirectURL = undefined;
         this.filter = undefined;
-        if ( this.itype !== this.SUB_FRAME ) {
+        if ( this.itype !== SUB_FRAME ) {
             this.docId = details.frameId;
             this.frameId = -1;
         } else {
@@ -336,7 +340,7 @@ const getRawOriginDetails = makeOriginDetailsCache(url => url);
         }
         if ( this.tabId > 0 ) {
             if ( this.docId === 0 ) {
-                if ( this.itype !== this.MAIN_FRAME ) {
+                if ( this.itype !== MAIN_FRAME ) {
                     this.maybeFromDocumentURL(details.documentUrl);
                 }
                 this.setDocOrigin(this.getTabOrigin());

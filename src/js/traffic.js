@@ -57,7 +57,7 @@ function onBeforeRequest(details) {
     // https://github.com/chrisaljoudi/uBlock/issues/1001
     // This must be executed regardless of whether the request is
     // behind-the-scene
-    if ( fctxt.itype === fctxt.MAIN_FRAME ) {
+    if ( fctxt.itype === fc.MAIN_FRAME ) {
         return onBeforeRootFrameRequest(fctxt);
     }
 
@@ -376,7 +376,7 @@ function onBeforeBehindTheSceneRequest(fctxt) {
         fctxt.tabOrigin.endsWith('-scheme') === false &&
         isNetworkURI(fctxt.tabOrigin) ||
         µb.userSettings.advancedUserEnabled ||
-        fctxt.itype === fctxt.CSP_REPORT
+        fctxt.itype === fc.CSP_REPORT
     ) {
         result = pageStore.filterRequest(fctxt);
 
@@ -471,7 +471,7 @@ function onBeforeBehindTheSceneRequest(fctxt) {
 function onHeadersReceived(details) {
 
     const fctxt = µb.filteringContext.fromWebrequestDetails(details);
-    const isRootDoc = fctxt.itype === fctxt.MAIN_FRAME;
+    const isRootDoc = fctxt.itype === fc.MAIN_FRAME;
 
     let pageStore = µb.pageStoreFromTabId(fctxt.tabId);
     if ( pageStore === null ) {
